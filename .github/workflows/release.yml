@@ -23,4 +23,4 @@ jobs:
       - name: Upload GitHub Release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh SHA256SUMS --title "HDM ${GITHUB_REF_NAME}" --notes "Preview release. See README and testing limitations."
+        run: gh release create "$GITHUB_REF_NAME" "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh SHA256SUMS --title "HDM ${GITHUB_REF_NAME}" --prerelease --notes "Preview release. See README and testing limitations."

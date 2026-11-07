@@ -11,7 +11,7 @@
 </div>
 
 > [!WARNING]
-> **v0.3.3 is a preview, not a production-validated deployment.** GNOME graphical capture, software rendering without a GPU and cold-boot unattended connections still require validation on a real cloud VM.
+> **v0.3.4 is a preview, not a production-validated deployment.** GNOME graphical capture, software rendering without a GPU and cold-boot unattended connections still require validation on a real cloud VM.
 
 ## Features
 
@@ -31,7 +31,7 @@ sudo hdm
 
 The above command fetches a **mutable development branch**. Inspect the source and prefer independently verified tagged releases for production. Installing HDM does not silently install GNOME or RustDesk. Use menu **9 → 9.1 → 9.1.6** to request the default stack installation.
 
-## Resumable installation & diagnosis (v0.3.3)
+## Resumable installation & diagnosis (v0.3.4)
 
 The recommended GNOME/Xorg Dummy/RustDesk installer records step status and verifies real package/config state before skipping a step on retry. It does not infer GUI usability from an installation receipt. A failed step can be safely retried without manually redoing previously verified packages.
 
@@ -63,6 +63,11 @@ RustDesk is an independent upstream project. See [LICENSE](LICENSE) for this rep
 
 > **Ubuntu 26 ARM64 testing:** The platform allowlist is removed for Linux test hosts. GNOME 49+ is Wayland-only; HDM will not force Xorg or `WaylandEnable=false`. Standard RustDesk ARM64 builds do not guarantee unattended pre-login capture. See [Ubuntu 26 ARM64 testing](docs/ubuntu26-arm64.md).
 
-### v0.3.3 environment-aware preflight
+### v0.3.4 environment-aware preflight
 
 Run `sudo hdm --preflight` to detect installed desktop packages, connected DRM outputs and live graphical sessions before installation. Existing desktops and display outputs are preserved by the quick install plan; uncertain detection never authorizes forcing Xorg/GDM changes. `sudo hdm --rustdesk-permissions` helps diagnose disabled Security/Network controls without bypassing Polkit. `WaylandEnable=false` is not a screen-blanking fix and must not be forced on Ubuntu 26 GNOME. Remote capture still requires real-world testing.
+
+
+## Online updates (v0.3.4)
+
+Use `sudo hdm --check-update` to inspect both published Releases and the pinned GitHub `main` preview. On test systems, run `sudo hdm --update-preview` or menu `8 → 2 → 5` to install a newer version of the manager from an immutable commit snapshot. Existing desktop/RustDesk packages are unaffected; previous HDM versions remain available for rollback. The Windows one-command publisher also pushes a version tag so GitHub Actions can build a Release. Preview downloads rely on GitHub HTTPS and commit pinning, not an independent signature.

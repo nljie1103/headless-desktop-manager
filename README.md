@@ -6,7 +6,7 @@
 
 **GNOME 优先 · 虚拟显示 · RustDesk · 安全恢复 · 终端菜单**
 
-[![版本](https://img.shields.io/badge/version-v0.3.3-blue)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-v0.3.4-blue)](CHANGELOG.md)
 [![CI](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml/badge.svg)](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml)
 [![平台](https://img.shields.io/badge/实验平台-Ubuntu%2026%20ARM64-9cf)](docs/implementation-status.md)
 [![阶段](https://img.shields.io/badge/阶段-Preview-orange)](docs/testing-and-limitations.md)
@@ -18,16 +18,16 @@
 </div>
 
 > [!WARNING]
-> **当前为 v0.3.3 Preview，不是生产环境已验证版本。** 菜单与部分安装逻辑已实现，但 GNOME 登录界面是否被 RustDesk 正确捕获、无 GPU 软件渲染、重启后无人值守访问等，尚未在真实云服务器完成验收。强烈建议先建立云快照，保留 SSH 和云平台控制台。
+> **当前为 v0.3.4 Preview，不是生产环境已验证版本。** 菜单与部分安装逻辑已实现，但 GNOME 登录界面是否被 RustDesk 正确捕获、无 GPU 软件渲染、重启后无人值守访问等，尚未在真实云服务器完成验收。强烈建议先建立云快照，保留 SSH 和云平台控制台。
 
 > [!IMPORTANT]
 > **Ubuntu 26 ARM64 实验说明**：GNOME 49+ 不支持 GNOME on Xorg；在 Ubuntu 26 上，HDM 不会自动写入 `WaylandEnable=false`。RustDesk 的标准 ARM64 版在 Wayland 下不保证登录界面无人值守控制。`WaylandEnable=false` 并非息屏开关，Ubuntu 26 GNOME 不可强制使用。**允许安装 ≠ 已打通无显示器远控**。请保留 SSH 和云控制台，并阅读 [Ubuntu 26 ARM64 测试指引](docs/ubuntu26-arm64.md)。
 
 ## 🌿 简洁交互 · 详细日志按需查看
 
-**v0.3.3 起默认静默安装**：执行 APT/DNF/YUM 时不再把几千行包管理日志刷到屏幕，只提示当前任务与最终结果；失败时归类网络、磁盘、超时、镜像、依赖或权限原因，详细日志保存在 `/var/log/hdm/`（仅管理员可读）。需要完整输出时可运行 `sudo env HDM_DEBUG_INSTALL=1 hdm`。
+**v0.3.4 起默认静默安装**：执行 APT/DNF/YUM 时不再把几千行包管理日志刷到屏幕，只提示当前任务与最终结果；失败时归类网络、磁盘、超时、镜像、依赖或权限原因，详细日志保存在 `/var/log/hdm/`（仅管理员可读）。需要完整输出时可运行 `sudo env HDM_DEBUG_INSTALL=1 hdm`。
 
-**v0.3.3 打开 HDM 就先检测桌面与显示输出**，不会把所有机器都当成没有显示器、没有桌面；已有 GNOME/XFCE/MATE 将优先保留，未知状态不强制覆盖 GDM/Xorg。`sudo hdm --preflight` 可以独立查看结果。
+**v0.3.4 打开 HDM 就先检测桌面与显示输出**，不会把所有机器都当成没有显示器、没有桌面；已有 GNOME/XFCE/MATE 将优先保留，未知状态不强制覆盖 GDM/Xorg。`sudo hdm --preflight` 可以独立查看结果。
 
 **RustDesk 服务器配置采用草稿 → 预览 → 导入 → 磁盘读回校验**。`7 → 1 → 8` 只负责设备 ID 查询；`7 → 3` 读取实际配置。**配置写入一致 ≠ 服务器注册成功 ≠ GNOME 远控可用**。
 
@@ -41,7 +41,7 @@ HDM 把无显示器 Linux 图形桌面所需的驱动、桌面环境、远控客
 | **Xorg Dummy 虚拟显示** | 🟡 代码可用，待实机 | 分辨率预设、文件备份和回滚 |
 | Xvfb / VKMS | 🧪 实验 | Xvfb 可配置编号、分辨率、色深；VKMS 检查内核 |
 | RustDesk 客户端 | 🟡 代码可用，待实机 | 安装 / 版本选择 / 本地安装 / 自建服务器 |
-| **菜单系统 / 环境检测** | ✅ 本地验证 | 10 个主菜单、474 个条目（保留旧 473 项），首次打开检测桌面及显示输出，未实现项明确提示 |
+| **菜单系统 / 环境检测** | ✅ 本地验证 | 10 个主菜单、475 个条目（保留旧 473 项），首次打开检测桌面及显示输出，未实现项明确提示 |
 | **一键安装断点续装** | ✅ 逻辑测试通过，待实机 | 每步进度、状态复查、失败重试和并发锁 |
 | **GNOME 中文故障诊断** | ✅ 规则测试通过，待实机 | `hdm --doctor` / `hdm --doctor-json`，不读取密码 |
 | 下载源与校验 | 🟡 部分实现 | 系统 APT 优先，网络故障时使用官方备用源 |
@@ -74,7 +74,7 @@ sudo hdm
 
 ```text
 ╭──────────────────────────────────────────────────────────╮
-│       Headless Desktop Manager (HDM) · v0.3.3           │
+│       Headless Desktop Manager (HDM) · v0.3.4           │
 │  虚拟显示器  /  GNOME 桌面  /  RustDesk 远程管理         │
 ├──────────────────────────────────────────────────────────┤
 │  1  安装虚拟显示器         6  更新 RustDesk             │
@@ -112,6 +112,19 @@ sudo hdm --quick-resume   # 安全确认后只安装缺失/失败步骤
 
 **显示输出未知时不自动更改 Xorg/GDM。** `connected` 可能来自软件虚拟输出或 Dummy 插头，不等于真的有物理显示器。详见 [环境检测与息屏说明](docs/environment-detection.md)。
 
+## 🔄 在线更新：正式 Release 与 main 预览版
+
+HDM v0.3.4 修复了“Windows 只推送 main、菜单只查询 Release”的断层。你现在可以在服务器上运行：
+
+```bash
+sudo hdm --check-update       # 只读，查询正式 Release 和 main 的版本
+sudo hdm --update-preview    # 实验环境：从固定 main Git 提交更新管理器
+```
+
+菜单入口：**`8 → 1 → 1` 检查更新，`8 → 2 → 5` 更新 main 预览版**。只更新 HDM 管理器自身，不重装 GNOME 或 RustDesk。旧版本保留以供菜单 `8 → 5` 回滚。下载和切换过程中会检查路径安全、版本号、自检结果，拒绝同版本覆盖。
+
+Windows 一键推送会同时推送版本标签，触发 GitHub Actions 生成预览 Release（GitHub 工作流运行结果仍需验证）。稳定版 Release 安装使用 GitHub API SHA-256 校验；如果本机显式配置了独立可信哈希文件，则必须匹配。**main 预览代码和 GitHub API 摘要均不是独立的发布者签名**，仅适合目前的测试阶段。
+
 ## 🧭 功能导航
 
 | 模块 | 安装 | 更新 / 管理 | 关键子功能 |
@@ -120,7 +133,7 @@ sudo hdm --quick-resume   # 安全确认后只安装缺失/失败步骤
 | 桌面 | `3` | `4` | GNOME（默认）、XFCE、MATE、GDM3、X11 |
 | RustDesk | `5` | `6` | 官方版本、本地安装包、检查更新、卸载 |
 | 服务器 | `7` | — | ID、Relay、公钥、设备 ID、无人值守密码、权限诊断 `7 → 12` |
-| 管理器 | — | `8` | Release 检查、下载验证、回滚 |
+| 管理器 | — | `8` | Release / main 更新、下载校验、回滚 |
 | 一键向导 | `9` | — | GNOME + Dummy + RustDesk 推荐组合 |
 | 故障恢复 | — | `10` | 诊断、日志、系统服务、软件源、配置快照 |
 
@@ -200,7 +213,7 @@ bash tests/run.sh
 
 - [x] v0.1.x — 模块化工程、完整菜单树、基础安装与诊断、初版发布脚本
 - [x] v0.2.0 — 中文首页、英文次级文档、Windows 自动推送、Xvfb 配置完善及增强测试
-- [x] v0.3.3 — 测试安装放开发行版/架构白名单，加入 Ubuntu 26 ARM64 Wayland 流程与分架构 RustDesk 校验
+- [x] v0.3.4 — 测试安装放开发行版/架构白名单，加入 Ubuntu 26 ARM64 Wayland 流程与分架构 RustDesk 校验
 - [x] v0.3.0 — 一键安装断点续装、GNOME 只读诊断、RustDesk 端点校验与更安全的配置操作
 - [ ] 云服务器实机：GNOME/GDM3/Xorg Dummy/RustDesk 画面捕获和无人值守验证
 - [ ] 完整官方/自建 ID/Relay 服务器端到端测试与版本兼容性矩阵

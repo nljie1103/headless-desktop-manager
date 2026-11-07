@@ -128,3 +128,11 @@ https://github.com/nljie1103/headless-desktop-manager/releases/download/mirror-2
 - [ ] 备用包只有 manifest 而没有实际资产时必须报“不可用”，绝不能伪装为安装成功。
 
 ---
+
+
+## v0.3.4 更新通道
+
+- 发布者：Windows 推送成功后，使用 Git 为对应 VERSION 创建 `vX.Y.Z` 注释 tag 并推送；版本不变化且无文件差异时可补推缺失 tag。
+- 预览发布：GitHub Release 工作流生成 `hdm-vX.Y.Z.tar.gz`，菜单 8 从 GitHub Releases API 获取资产 SHA256 下载并验证。
+- 预览版：菜单 8 通过 GitHub API 查询 main 的不可变提交 SHA，再用该 SHA 从 codeload 下载源码包；校验路径、类型、版本与启动自检。SHA 不代表独立发布者签名。
+- 仅升级 HDM 代码；保留 GNOME、RustDesk 以及 HDM 的配置、缓存和旧版目录。

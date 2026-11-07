@@ -202,13 +202,17 @@ hdm_dispatch() {
   # 8. HDM manager update
   8.1.1) hdm_update_check;;
   8.2.1|8.7.1) sed -n '1,90p' "$HDM_ROOT/CHANGELOG.md";;
-  8.2.2|8.2.3|8.2.4) hdm_update_install latest;;
+  8.2.2|8.2.3) hdm_update_install latest;;
+  8.2.4) hdm_update_rollback;;
+  8.2.5) hdm_update_preview_install;;
   8.3.1) hdm_update_list;;
   8.5.1) find /opt/hdm/releases -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null || :;;
   8.5.2) hdm_update_rollback;;
   8.6.1|8.6.7|8.9.1|8.9.2) hdm_update_integrity;;
   8.6.2|8.6.3|8.6.4|8.6.5|8.6.6) hdm_warn '模块必须与主程序同版本；无法单独替换。请使用 8.2 原子更新完整 HDM。';;
-  8.8.1|8.8.2|8.8.3) hdm_warn 'V0.1 支持手动稳定版检查，自动后台更新和 Preview 暂不启用。';;
+  8.8.1) printf '稳定版：菜单 8 → 2 → 2；预览版 main：8 → 2 → 5。\n';;
+  8.8.2) hdm_warn '当前手动检查更新；未启用后台定时升级。';;
+  8.8.3) du -sh "$HDM_CACHE/downloads" 2>/dev/null || :; find /opt/hdm/releases -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null || :;;
   8.10.1) hdm_danger '恢复 HDM 的下载策略和分辨率默认值，不修改系统桌面？' && { hdm_setting HDM_DEFAULT_RESOLUTION 1920x1080; hdm_setting HDM_SOURCE_POLICY official-mirror-github; };;
   # 9. One click install
   9.1.1|9.1.2|9.1.5|9.4.1|9.4.2|9.5.1|9.5.2) hdm_env_report; hdm_quick_plan;;

@@ -11,8 +11,9 @@ assert 'git push --force' not in s and "'--force'" not in s
 assert 'Invoke-Git -Arguments' in s
 assert "'--no-pager', 'diff'" in s, 'Git pager can hang CMD at colon prompt'
 assert "'HEAD:refs/heads/main'" in s
+assert 'Publish-VersionTag' in s and "'refs/tags/'" in s
 assert 'release\\COMMIT_SUMMARY.txt' in s
-assert "[version]$version -le [version]$remoteVersion" in s
+assert "[version]$version -lt [version]$remoteVersion" in s
 v = (root / 'VERSION').read_text().strip()
 assert re.fullmatch(r'\d+\.\d+\.\d+', v)
 summary = (root / 'release/COMMIT_SUMMARY.txt').read_text().strip()

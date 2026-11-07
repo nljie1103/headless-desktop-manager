@@ -1,5 +1,14 @@
 # 更新记录 / Changelog
 
+## v0.3.4 — 修复在线更新与自动发布（2026-11-07）
+
+- 解释并修复菜单 8 原先仅识别正式 GitHub Releases、而 Windows 推送只更新 main 的发布断层。
+- 新增 `8 → 1 → 1` 同时查询正式 Release 和开发版 main，`8 → 2 → 5` 更新到固定 Git SHA 的 main 预览版；新增 `hdm --check-update` 和 `hdm --update-preview` 命令。
+- 预览升级检查远端 VERSION 严格递增、GitHub HTTPS 固定提交、归档路径与类型、菜单结构及启动自检；以原子符号链接切换版本并保留旧版，拒绝旧版本覆盖和同版本隐藏更新。
+- Windows 一键发布将自动为新版本创建并推送 `vX.Y.Z` 标签，触发已有 GitHub Actions 预览版 Release 构建；如果 main 已经推送而 tag 失败，可以用同一命令仅补推缺失 tag。
+- 正式 Release 更新支持 GitHub API 资产 SHA-256（HTTPS 信任模型）；如管理员配置了独立受信任哈希文件，仍必须匹配，不允许静默绕过。
+- 注意：main 预览版没有独立代码签名；GitHub Actions 构建是否成功以及 Ubuntu ARM64 图形链路仍需实测验证。
+
 ## v0.3.3 — 启动环境识别与按需安装（2026-11-07）
 
 - 新增 `core/environment.sh` 只读检测：已安装的 GNOME/XFCE/MATE/KDE、DRM 连接状态、真实 X11/Wayland 会话、GDM3/RustDesk 服务，并清楚标记未知情况。

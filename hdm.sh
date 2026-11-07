@@ -12,7 +12,7 @@ for module in \
 done
 # Diagnostic and informational operations must be read-only, even when run as root.
 case "${1:-}" in
-  --help|-h|--version|--menu-tree|--self-test|--diagnose|--doctor|--doctor-json|--status-json|--quick-status|--preflight|--rustdesk-permissions)
+  --help|-h|--version|--menu-tree|--self-test|--diagnose|--doctor|--doctor-json|--status-json|--quick-status|--preflight|--rustdesk-permissions|--check-update)
     hdm_init readonly ;;
   *) hdm_init ;;
 esac
@@ -31,6 +31,8 @@ Headless Desktop Manager (HDM)
   sudo hdm --quick-status        Read-only resumable install progress
   sudo hdm --quick-resume        Resume missing/failed install steps (confirms safety)
   hdm --status-json              Read-only machine-readable health report
+  hdm --check-update             Check GitHub Releases and main preview branch
+  sudo hdm --update-preview      Update manager from pinned GitHub main commit
   sudo hdm --confirm-display     Confirm new Xorg/GDM config, cancel recovery timer
   sudo hdm --rollback-pending    Apply pending config restoration (systemd recovery)
 HELP
@@ -46,6 +48,8 @@ HELP
   --quick-status) hdm_quick_status; exit 0;;
   --quick-resume) hdm_quick_install; exit $?;;
   --status-json) hdm_diag_status_json; exit $?;;
+  --check-update) hdm_update_check; exit $?;;
+  --update-preview) hdm_update_preview_install; exit $?;;
   --confirm-display) hdm_recovery_confirm; exit $?;;
   --rollback-pending) hdm_recovery_rollback_pending; exit $?;;
   '') hdm_menu root; exit 0;;

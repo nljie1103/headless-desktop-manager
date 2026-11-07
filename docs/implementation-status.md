@@ -48,3 +48,8 @@
 
 
 > v0.3.1：取消发行版/架构硬性安装白名单。Ubuntu 26 的 GNOME 仅支持 Wayland 会话，请参阅 [Ubuntu 26 ARM64 测试指引](ubuntu26-arm64.md)；不要强制设置 GDM3 `WaylandEnable=false`。
+
+
+### v0.3.4 在线更新
+
+`main` Preview 更新链路已经实现，默认只允许版本号递增，固定 GitHub 提交 SHA、校验归档和菜单后原子切换。Windows 端自动推送新版本 tag，GitHub Actions 应生成 Release，仍需本机 Windows/ARM 服务器实测。严格区分独立受信任签名和 GitHub HTTPS/摘要；后者不能声称独立供应链证明。

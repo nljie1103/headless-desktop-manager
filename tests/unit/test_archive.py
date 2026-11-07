@@ -21,4 +21,17 @@ with tempfile.TemporaryDirectory() as td:
         run=subprocess.run(['python3',str(script),str(file)],capture_output=True,text=True)
         if case=='ok': assert run.returncode==0, run.stderr
         else: assert run.returncode!=0, case
+# A pinned GitHub commit archive uses a different, explicitly checked prefix.
+with tempfile.TemporaryDirectory() as td:
+    sha = 'a' * 40
+    good = pathlib.Path(td) / 'preview.tar.gz'
+    with tarfile.open(good,'w:gz') as archive:
+        item = tarfile.TarInfo(f'headless-desktop-manager-{sha}/VERSION')
+        contents = b'0.3.4\n'
+        item.size = len(contents)
+        archive.addfile(item, io.BytesIO(contents))
+    valid = subprocess.run(['python3',str(script),str(good),f'headless-desktop-manager-{sha}'],capture_output=True,text=True)
+    assert valid.returncode == 0, valid.stderr
+    bad_prefix = subprocess.run(['python3',str(script),str(good),'headless-desktop-manager-'+('b'*40)],capture_output=True,text=True)
+    assert bad_prefix.returncode != 0
 print('PASS archive verification')

@@ -14,6 +14,18 @@ function Invoke-Git([string[]]$Arguments) {
         throw ('git failed (exit ' + $LASTEXITCODE + '): ' + ($Arguments -join ' '))
     }
 }
+function Publish-VersionTag([string]$Version, [string]$CommitMessage) {
+    $tag = ('v' + $Version)
+    $remoteTag = & $script:Git ls-remote --tags --refs origin ('refs/tags/' + $tag)
+    if ($LASTEXITCODE -ne 0) { throw ('Could not query remote tag: ' + $tag) }
+    if ($remoteTag) {
+        Write-Host ('Release tag already exists: ' + $tag) -ForegroundColor Yellow
+        return
+    }
+    Invoke-Git -Arguments @('tag', '-a', $tag, '-m', $CommitMessage)
+    Invoke-Git -Arguments @('push', 'origin', ('refs/tags/' + $tag))
+    Write-Host ('Tag pushed: ' + $tag + '; GitHub Actions should create the Release.') -ForegroundColor Green
+}
 function Get-LocalVersion([string]$Path) {
     $file = Join-Path $Path 'VERSION'
     if (-not (Test-Path -LiteralPath $file)) { return $null }
@@ -56,8 +68,8 @@ try {
     Push-Location $target
     try {
         $remoteVersion = Get-LocalVersion $target
-        if ($remoteVersion -and ([version]$version -le [version]$remoteVersion)) {
-            throw ('Refusing to overwrite same/newer remote version v' + $remoteVersion + '. Build a newer version.')
+        if ($remoteVersion -and ([version]$version -lt [version]$remoteVersion)) {
+            throw ('Refusing to overwrite newer remote version v' + $remoteVersion + '. Build a newer version.')
         }
         $files = Get-ChildItem -LiteralPath $ProjectDir -File -Force -Recurse
         foreach ($file in $files) {
@@ -71,14 +83,25 @@ try {
         # Keep remote-only files: automated upload must not silently erase somebody else's work.
         Invoke-Git -Arguments @('-c', 'core.autocrlf=false', 'add', '--all')
         & $script:Git diff --cached --quiet
-        if ($LASTEXITCODE -eq 0) { Write-Host 'No changes; nothing to push.' -ForegroundColor Yellow; exit 0 }
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host 'No file changes.' -ForegroundColor Yellow
+            if ($remoteVersion -and ([version]$version -eq [version]$remoteVersion)) {
+                Publish-VersionTag -Version $version -CommitMessage $message
+                Write-Host ('SUCCESS: ' + $RepoWeb) -ForegroundColor Green
+            }
+            exit 0
+        }
         if ($LASTEXITCODE -ne 1) { throw 'Could not inspect staged changes.' }
+        if ($remoteVersion -and ([version]$version -eq [version]$remoteVersion)) {
+            throw 'Same VERSION but file content differs. Bump VERSION and maintain a truthful changelog.'
+        }
         Write-Host 'Changes:' -ForegroundColor Cyan
         Invoke-Git -Arguments @('--no-pager', 'diff', '--cached', '--stat')
         # Commit summary is already maintained with the source release.
         Invoke-Git -Arguments @('commit', '-m', $message)
-        # No force, no tags, no destructive reset. Push fails safely when remote moved.
+        # No force and no destructive reset. Version tag triggers the existing release workflow.
         Invoke-Git -Arguments @('push', 'origin', 'HEAD:refs/heads/main')
+        Publish-VersionTag -Version $version -CommitMessage $message
         Write-Host ('SUCCESS: ' + $RepoWeb) -ForegroundColor Green
         Write-Host ('Commit: ' + $message) -ForegroundColor Green
     } finally { Pop-Location }
