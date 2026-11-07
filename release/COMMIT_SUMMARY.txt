@@ -1,0 +1,1 @@
+完善中文README、Windows自动推送、Xvfb设置、RustDesk校验回滚与诊断功能

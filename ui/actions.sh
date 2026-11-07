@@ -51,17 +51,19 @@ hdm_dispatch() {
   case "$id" in
   # 1. Install display: Xorg, Xvfb, VKMS
   1.1.1|1.4.3) hdm_display_install_dummy;;
-  1.1.2.A|1.2.3|2.4.5) hdm_display_select_res;;
-  1.1.2.B|1.2.4) hdm_warn '当前支持的深度为 24-bit；非标准深度尚需实验，不修改配置。';;
+  1.1.2.A|2.4.5) hdm_display_select_res;;
+  1.2.3) hdm_xvfb_set_resolution;;
+  1.1.2.B) hdm_warn 'Xorg Dummy 默认 24-bit，不自动更改色深。';;
+  1.2.4) hdm_xvfb_set_depth;;
   1.1.2.C) hdm_warn '启用由 GDM3 及 Xorg 管理；HDM 不另起冲突的 Xorg 实例。';;
   1.1.2.D) hdm_display_dummy_render "$HDM_DEFAULT_RESOLUTION";;
   1.1.2.E) hdm_display_install_dummy;;
   1.1.3) hdm_action_pkg_detail xserver-xorg-video-dummy; df -h /;;
   1.1.4|1.4.1|2.1.1|2.1.2|2.1.3|2.4.6) hdm_display_status;;
   1.2.1) hdm_display_install_xvfb;;
-  1.2.2) hdm_warn '内置服务默认 DISPLAY=:99；任意 DISPLAY 的安全变更将在后续实验版实现。';;
-  1.2.5) hdm_pkg_install xvfb || return 1; install -m 644 "$HDM_ROOT/templates/systemd/hdm-xvfb.service" /etc/systemd/system/hdm-xvfb.service; systemctl daemon-reload; hdm_info '已安装独立 Xvfb 模板，未自动启用。';;
-  1.2.6) hdm_display_status; [[ -S /tmp/.X11-unix/X99 ]] && hdm_info '检测到 X99 套接字（仍需 x11-utils 验证）' || hdm_warn '未检测到 X99 套接字';;
+  1.2.2) hdm_xvfb_set_display;;
+  1.2.5) hdm_xvfb_configure;;
+  1.2.6) hdm_xvfb_verify;;
   1.2.7|1.5.2|1.4.2|2.3.4) hdm_desktop_compare;;
   1.3.1|1.3.4|1.3.5) hdm_display_vkms_check; ls -l /dev/dri 2>/dev/null || :;;
   1.3.2) hdm_display_vkms_load;;
@@ -206,10 +208,16 @@ hdm_dispatch() {
   9.3.8) hdm_warn '自定义组合 V0.1 不做自动批处理；确认 GNOME+Dummy 主组合可用菜单 9.1.6。';;
   9.7.3) hdm_warn '安全中止：不会自动删除已安装的系统软件包。配置可在 10.9 恢复。';;
   # 10. Diagnostics and mirrors
-  10.1.1|10.1.2|10.1.4|10.2.1|10.2.2|10.2.3|10.2.4|10.2.6|10.3.1|10.3.2|10.3.3|10.3.4|10.3.5|10.3.6|10.4.1|10.4.2|10.4.6) hdm_diag_full;;
+  10.1.1|10.1.2|10.1.4) hdm_diag_full;;
+  10.2.1|10.2.2|10.2.3|10.2.4|10.2.6) hdm_diag_display;;
+  10.3.1|10.3.2|10.3.3|10.3.4|10.3.5|10.3.6) hdm_diag_gnome;;
+  10.4.1|10.4.2|10.4.6) hdm_diag_rustdesk;;
   10.1.3|10.10.1|10.10.7) hdm_diag_repair_hint;;
   10.1.5|10.8.7) hdm_diag_export;;
-  10.2.5|10.3.7|10.4.7|10.7.8|10.8.2|10.8.3|10.8.4) hdm_diag_log system;;
+  10.2.5|10.8.2) hdm_diag_log display;;
+  10.3.7|10.8.3) hdm_diag_log desktop;;
+  10.4.7|10.8.4) hdm_diag_log rustdesk;;
+  10.7.8) hdm_diag_log system;;
   10.2.7|10.10.2) hdm_display_status; hdm_warn '建议按菜单 1.1.1 定向重装，或 10.9 恢复 HDM 配置。';;
   10.2.8|10.3.10|10.6.9|10.9.3|10.9.4|10.9.5|10.9.6|10.9.7|10.10.6) hdm_snapshot_choose;;
   10.3.8|10.10.3) hdm_gdm_x11;;

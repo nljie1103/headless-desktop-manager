@@ -1,4 +1,4 @@
-# 测试矩阵与限制（v0.1.1）
+# 测试矩阵与限制（v0.2.0）
 
 | 测试项目 | 当前状态 | 验收方法 |
 |---|---|---|
@@ -25,3 +25,13 @@
 4. RustDesk 的服务器配置 CLI 对服务运行账户的生效路径实测。
 5. 如需 GitHub 备用二进制：发布合规资产、校验 SHA256、维护 manifest。
 6. 如需自动自升级：采用签名/独立可信摘要发布机制。
+
+
+## v0.2.0 新增离线测试
+
+- 验证 Xvfb 配置中 DISPLAY 编号、分辨率、色深；拒绝输入参数注入。
+- 使用测试字节生成 RustDesk SHA-256 缓存索引；故意篡改文件后必须拒绝复用。
+- Windows 发布脚本静态检查：PowerShell 5.1 UTF-8 BOM、无 Read-Host、`--no-pager`、不 force push、拒绝旧版本。
+- `hdm --status-json` 使用只读系统 API 生成 JSON；输出不读取密码或 RustDesk 原始配置。
+
+**Windows PowerShell 5.1 的真实执行、GitHub 推送、GNOME 远程画面及 RustDesk 身份认证仍需用户设备/云服务器实测。**

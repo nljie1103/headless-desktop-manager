@@ -71,3 +71,44 @@ hdm_diag_service_enable() {
   hdm_danger "设置 $svc 开机自启（修改 systemd 状态）？" || return 2
   systemctl enable "$svc"
 }
+
+# Fine-grained diagnostics: a parent menu must not disguise itself as a check for all components.
+hdm_diag_display() {
+  hdm_show '虚拟显示与 X11 独立检测'
+  hdm_display_status
+  for path in /tmp/.X11-unix/X0 /tmp/.X11-unix/X1 /tmp/.X11-unix/X99; do
+    [[ ! -S $path ]] || printf '[X11 Socket] %s 存在\n' "$path"
+  done
+  if hdm_has pgrep; then pgrep -a -x Xorg 2>/dev/null | head -10 || :; fi
+  hdm_warn 'Xorg Dummy 配置存在，不等于 GDM3 正在使用它；必须检查 Xorg 日志及 GNOME 实际会话。'
+}
+hdm_diag_gnome() {
+  hdm_show 'GNOME 与会话独立检测'
+  for package in gdm3 gnome-shell gnome-session-bin ubuntu-desktop; do
+    printf '%-28s %s\n' "$package" "$(hdm_pkg_version "$package")"
+  done
+  printf 'GDM3 服务状态：%s\n' "$(hdm_service_state gdm3)"
+  if hdm_has loginctl; then
+    local session type desktop state
+    while read -r session _; do
+      [[ $session =~ ^[A-Za-z0-9_-]+$ ]] || continue
+      type=$(loginctl show-session "$session" -p Type --value 2>/dev/null || :)
+      desktop=$(loginctl show-session "$session" -p Desktop --value 2>/dev/null || :)
+      state=$(loginctl show-session "$session" -p State --value 2>/dev/null || :)
+      printf '会话 %s：%s / %s / %s\n' "$session" "$type" "$desktop" "$state"
+    done < <(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}' | head -15)
+  fi
+  hdm_warn 'GDM3 运行、GNOME Shell 存在或 session=active 均不能单独证明远端能够捕获桌面。'
+}
+hdm_diag_rustdesk() {
+  hdm_show 'RustDesk 独立检测'
+  printf '软件版本：%s\n服务状态：%s\n' "$(hdm_pkg_version rustdesk)" "$(hdm_service_state rustdesk)"
+  if hdm_has rustdesk; then
+    printf '设备 ID：'; timeout 8 rustdesk --get-id 2>/dev/null || printf '查询失败/请检查服务账户\n'
+  fi
+  printf '未在此输出配置文件、服务器公钥或远控密码。\n'
+  hdm_warn '外部远控认证、画面和冷启动尚未在本机诊断中验证。'
+}
+hdm_diag_status_json() {
+  python3 "$HDM_ROOT/modules/diagnostics/status_json.py"
+}

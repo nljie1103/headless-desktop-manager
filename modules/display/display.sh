@@ -5,7 +5,7 @@ hdm_display_status() {
   printf 'Xvfb 包：%s\n' "$(hdm_pkg_version xvfb)"
   printf 'VKMS 模块：'; if lsmod 2>/dev/null | grep -q '^vkms '; then printf '已加载\n'; else printf '未加载 / 不可查看\n'; fi
   printf 'HDM Dummy 配置：'; [[ -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]] && printf '存在\n' || printf '不存在\n'
-  printf 'Xvfb 服务：%s\n' "$(hdm_service_state hdm-xvfb)"
+  printf 'Xvfb 服务：%s（DISPLAY :%s，%s，%s-bit）\n' "$(hdm_service_state hdm-xvfb)" "$HDM_XVFB_DISPLAY" "$HDM_XVFB_RESOLUTION" "$HDM_XVFB_DEPTH"
   printf '当前会话：'; loginctl list-sessions --no-legend 2>/dev/null | head -6 || true
   if hdm_has xrandr && [[ -n ${DISPLAY:-} ]]; then xrandr --current 2>&1 | head -24 || :; else printf '当前 shell 无可连接的 DISPLAY；不能据此断言图形服务失败。\n'; fi
   printf 'GDM3：%s\n' "$(hdm_service_state gdm3)"
@@ -81,14 +81,79 @@ hdm_display_install_dummy() {
   hdm_pkg_install xserver-xorg-video-dummy xserver-xorg-core || return 1
   hdm_display_dummy_config
 }
-hdm_display_install_xvfb() {
-  hdm_warn '实验性 Xvfb 路线：仅安装独立 X display；不保证 GNOME/GDM/RustDesk 可见。'
-  hdm_pkg_install xvfb x11-utils || return 1
-  if hdm_confirm '安装 HDM 独立 Xvfb systemd 服务模板（默认不启用）？'; then
-    install -m 644 "$HDM_ROOT/templates/systemd/hdm-xvfb.service" /etc/systemd/system/hdm-xvfb.service
-    systemctl daemon-reload
-    hdm_info '已安装 hdm-xvfb.service，尚未启用。可在服务菜单手动启动。'
+# Experimental Xvfb is a separate display server; it is not GDM3's login screen.
+hdm_xvfb_render() {
+  local number=${HDM_XVFB_DISPLAY:-99} resolution=${HDM_XVFB_RESOLUTION:-1920x1080} depth=${HDM_XVFB_DEPTH:-24}
+  [[ $number =~ ^(9[0-9]|1[0-9][0-9])$ ]] || return 1
+  hdm_display_res_validate "$resolution" || return 1
+  [[ $depth =~ ^(16|24|32)$ ]] || return 1
+  cat <<CONF
+[Unit]
+Description=HDM isolated Xvfb display :$number (not GDM or GNOME login)
+After=network.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/Xvfb :$number -screen 0 ${resolution}x${depth} -nolisten tcp
+Restart=on-failure
+RestartSec=2
+[Install]
+WantedBy=multi-user.target
+CONF
+}
+hdm_xvfb_set_display() {
+  local val
+  hdm_prompt 'Xvfb DISPLAY 编号（90-199，输入数字，不含冒号）：' val || return 1
+  hdm_setting HDM_XVFB_DISPLAY "$val" || return 1
+  hdm_info "已保存 Xvfb 显示编号 :$val（需重新生成服务配置后生效）。"
+}
+hdm_xvfb_set_resolution() {
+  local choice val
+  printf '%s\n' '1. 1280x720' '2. 1600x900' '3. 1920x1080' '4. 2560x1440'
+  hdm_prompt '选择 Xvfb 分辨率：' choice || return 1
+  case "$choice" in 1) val=1280x720;; 2) val=1600x900;; 3) val=1920x1080;; 4) val=2560x1440;; *) return 1;; esac
+  hdm_setting HDM_XVFB_RESOLUTION "$val" && hdm_info "已保存 $val（重新生成服务后生效）。"
+}
+hdm_xvfb_set_depth() {
+  local val
+  hdm_prompt 'Xvfb 色深（16、24 或 32，默认24）：' val || return 1
+  hdm_setting HDM_XVFB_DEPTH "$val" && hdm_info '色深已保存，需重新生成服务。'
+}
+hdm_xvfb_configure() {
+  hdm_root && hdm_guard_platform || return 1
+  hdm_installed xvfb || { hdm_error '请先安装 Xvfb 软件包'; return 1; }
+  local path=/etc/systemd/system/hdm-xvfb.service n=${HDM_XVFB_DISPLAY:-99} tmp
+  # Do not silently replace a non-HDM X server on the requested display.
+  if [[ -S /tmp/.X11-unix/X${n} ]] && [[ $(hdm_service_state hdm-xvfb) != active ]]; then
+    hdm_error "DISPLAY :$n 已被其他显示服务占用"; return 1
   fi
+  if [[ -e $path ]] && ! grep -q '^Description=HDM isolated Xvfb' "$path"; then
+    hdm_error '现有 hdm-xvfb.service 并非 HDM 生成的配置，拒绝覆盖'; return 1
+  fi
+  hdm_xvfb_render || return 1
+  hdm_danger '写入独立 Xvfb systemd 服务；不保证能与 GNOME/RustDesk 配合。继续？' || return 2
+  hdm_snapshot_create "$path" || return 1
+  tmp=$(mktemp /etc/systemd/system/.hdm-xvfb.XXXXXX) || return 1
+  hdm_xvfb_render > "$tmp" || { rm -f "$tmp"; return 1; }
+  chmod 644 "$tmp"; mv -f -- "$tmp" "$path"
+  systemctl daemon-reload
+  hdm_info 'Xvfb 服务已配置，但未启用。可通过 2.5 服务管理菜单自行启动。'
+}
+hdm_xvfb_verify() {
+  local n=${HDM_XVFB_DISPLAY:-99}
+  printf 'Xvfb 软件包：%s\n' "$(hdm_pkg_version xvfb)"
+  printf 'hdm-xvfb.service：%s\n' "$(hdm_service_state hdm-xvfb)"
+  if [[ -S /tmp/.X11-unix/X${n} ]]; then
+    printf '[存在] X11 Unix socket :%s\n' "$n"
+    if hdm_has xdpyinfo; then
+      timeout 5 xdpyinfo -display ":$n" 2>&1 | grep -E 'dimensions:|depth of root window:' || hdm_warn '无法访问 Xvfb；可能是 X11 授权或服务问题。'
+    fi
+  else printf '[未检测到] X11 Unix socket :%s\n' "$n"; fi
+  printf '[待人工验证] GNOME 会话 / RustDesk 画面是否可用\n'
+}
+hdm_display_install_xvfb() {
+  hdm_warn 'Xvfb 为独立显示实验路径，非 GNOME/GDM3 的无显示器自动替代。'
+  hdm_pkg_install xvfb x11-utils || return 1
+  hdm_xvfb_configure
 }
 hdm_display_vkms_check() {
   printf '内核：%s\n' "$(uname -r)"

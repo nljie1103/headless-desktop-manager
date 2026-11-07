@@ -19,6 +19,7 @@ Headless Desktop Manager (HDM)
   hdm --menu-tree                Print every menu path
   hdm --self-test                Local non-destructive basic check
   sudo hdm --diagnose            Read-only system check
+  hdm --status-json              Read-only machine-readable health report
   sudo hdm --confirm-display     Confirm new Xorg/GDM config, cancel recovery timer
   sudo hdm --rollback-pending    Apply pending config restoration (systemd recovery)
 HELP
@@ -27,6 +28,7 @@ HELP
   --menu-tree) hdm_menu_tree; exit 0;;
   --self-test) hdm_update_integrity && python3 "$HDM_ROOT/scripts/verify-menus.py"; exit $?;;
   --diagnose) hdm_diag_full; exit 0;;
+  --status-json) hdm_diag_status_json; exit $?;;
   --confirm-display) hdm_recovery_confirm; exit $?;;
   --rollback-pending) hdm_recovery_rollback_pending; exit $?;;
   '') hdm_menu root; exit 0;;

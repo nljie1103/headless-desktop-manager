@@ -27,6 +27,9 @@ hdm_init() {
         HDM_DEFAULT_RESOLUTION) [[ $value =~ ^(1280x720|1600x900|1920x1080|2560x1440)$ ]] && HDM_DEFAULT_RESOLUTION=$value ;;
         HDM_SOURCE_POLICY) [[ $value =~ ^(system-only|official-mirror|official-mirror-github|ask)$ ]] && HDM_SOURCE_POLICY=$value ;;
         HDM_RUSTDESK_CHANNEL) [[ $value =~ ^(stable|tested)$ ]] && HDM_RUSTDESK_CHANNEL=$value ;;
+        HDM_XVFB_DISPLAY) [[ $value =~ ^[0-9]{2,3}$ ]] && ((10#$value >= 90 && 10#$value <= 199)) && HDM_XVFB_DISPLAY=$value ;;
+        HDM_XVFB_RESOLUTION) [[ $value =~ ^(1280x720|1600x900|1920x1080|2560x1440)$ ]] && HDM_XVFB_RESOLUTION=$value ;;
+        HDM_XVFB_DEPTH) [[ $value =~ ^(16|24|32)$ ]] && HDM_XVFB_DEPTH=$value ;;
       esac
     done < "$HDM_ETC/config.conf"
   fi
@@ -45,7 +48,14 @@ hdm_prompt() { local prompt=$1 __var=$2 answer; printf '%s' "$prompt"; IFS= read
 hdm_has() { command -v "$1" >/dev/null 2>&1; }
 hdm_show() { printf '\n---- %s ----\n' "$1"; }
 hdm_safe_run() { hdm_root || return 1; hdm_guard_platform || return 1; if [[ ${HDM_DRY_RUN:-0} == 1 ]]; then printf '[DRY RUN]'; printf ' %q' "$@"; printf '\n'; return 0; fi; "$@"; }
-hdm_setting() { hdm_root || return 1; local key=$1 val=$2; [[ $key == HDM_DEFAULT_RESOLUTION || $key == HDM_SOURCE_POLICY || $key == HDM_RUSTDESK_CHANNEL ]] || return 1; [[ $val != *$'\n'* && $val != *'='* ]] || return 1; mkdir -p "$HDM_ETC"; local tmp; tmp=$(mktemp "$HDM_ETC/.settings.XXXXXX") || return 1; if [[ -f $HDM_ETC/config.conf ]]; then grep -v "^${key}=" "$HDM_ETC/config.conf" > "$tmp" || :; fi; printf '%s=%s\n' "$key" "$val" >> "$tmp"; chmod 600 "$tmp"; mv -f -- "$tmp" "$HDM_ETC/config.conf"; printf -v "$key" '%s' "$val"; }
+hdm_setting() { hdm_root || return 1; local key=$1 val=$2; case "$key" in
+   HDM_DEFAULT_RESOLUTION|HDM_XVFB_RESOLUTION) [[ $val =~ ^(1280x720|1600x900|1920x1080|2560x1440)$ ]] || return 1;;
+   HDM_SOURCE_POLICY) [[ $val =~ ^(system-only|official-mirror|official-mirror-github|ask)$ ]] || return 1;;
+   HDM_RUSTDESK_CHANNEL) [[ $val =~ ^(stable|tested)$ ]] || return 1;;
+   HDM_XVFB_DISPLAY) [[ $val =~ ^(9[0-9]|1[0-9][0-9])$ ]] || return 1;;
+   HDM_XVFB_DEPTH) [[ $val =~ ^(16|24|32)$ ]] || return 1;;
+   *) return 1;;
+  esac; [[ $val != *$'\n'* && $val != *'='* ]] || return 1; mkdir -p "$HDM_ETC"; local tmp; tmp=$(mktemp "$HDM_ETC/.settings.XXXXXX") || return 1; if [[ -f $HDM_ETC/config.conf ]]; then grep -v "^${key}=" "$HDM_ETC/config.conf" > "$tmp" || :; fi; printf '%s=%s\n' "$key" "$val" >> "$tmp"; chmod 600 "$tmp"; mv -f -- "$tmp" "$HDM_ETC/config.conf"; printf -v "$key" '%s' "$val"; }
 hdm_service_state() { systemctl is-active "$1" 2>/dev/null || true; }
 hdm_installed() { if hdm_has dpkg-query; then dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -qx 'install ok installed'; else return 1; fi; }
 hdm_pkg_version() { dpkg-query -W -f='${Version}' "$1" 2>/dev/null || printf '未安装'; }

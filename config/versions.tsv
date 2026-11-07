@@ -1,3 +1,3 @@
-# component<TAB>channel<TAB>version<TAB>status
-hdm	preview	0.1.1	source-bundle
-rustdesk	tested	NONE	no-cloud-validation-yet
+# product/channel/version/status
+hdm	preview	0.2.0	source-bundle
+rustdesk	stable	upstream-latest	pending-real-vm-validation

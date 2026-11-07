@@ -35,3 +35,13 @@ vMAJOR.MINOR.PATCH 具体且真实的变更内容
 `tools/publish-windows.ps1` 自动从 `VERSION` 读取版本前缀，打印真实修改清单，要求开发者填写真正的更改说明。
 
 `scripts/check-commit-messages.py` 和 GitHub Actions 负责检查格式、空泛占位词等；**机器无法仅凭提交标题证明技术修复的真实性**，必须由开发者复核代码差异、测试结果与更新记录。
+
+## 4. Windows 自动发布模式（v0.2.0 起）
+
+维护者已授权每次在自己的 Windows 本地运行一条上传命令来发布交付 ZIP，**不需要再次输入 YES，也不需要填写 commit 标题**。
+
+- 自动提交标题来自 `VERSION` + `release/COMMIT_SUMMARY.txt`。
+- `COMMIT_SUMMARY.txt` 必须由实际修改代码的开发者如实撰写、与 `CHANGELOG.md` 一致。
+- 上传前脚本打印实际 staged diff 统计；禁止 `--force`、无差异提交以及旧版覆盖新版。
+- Windows 上 Git 既有的账户授权可以复用；若 GitHub 登录凭证失效，系统认证仍可能需要用户完成。
+- 自动化只能检查格式、差异和基本版本关系，不能单独证明功能已经实机通过。

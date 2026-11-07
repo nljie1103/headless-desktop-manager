@@ -1,30 +1,32 @@
-# Windows 一键上传 GitHub（v0.1.1）
+# Windows 一键推送到 GitHub
 
-**仓库：** https://github.com/nljie1103/headless-desktop-manager
+## 本次版本：v0.2.0
 
-上一版 v0.1.0 的 `publish-windows.ps1` 在 Windows PowerShell 5.1 上可能被错误地按本地代码页解释，导致中文乱码和 `TerminatorExpectedAtEndOfString`。v0.1.1 改用 **UTF-8 BOM + 纯 ASCII PowerShell 源文件**，并修复 Git 参数传递问题。
+本工具只用于项目维护者已明确授权的 HDM 仓库；**不会 force push，不修改 GitHub 凭证，不覆盖仓库中 ZIP 未包含的其他文件**。
 
-1. 把 `headless-desktop-manager-v0.1.1.zip` 放在 Windows `Downloads` 下载目录（不用手动解压）。
-2. 打开 **CMD 命令提示符**，执行以下完整一行：
+1. 下载 `headless-desktop-manager-v0.2.0.zip`，放入 Windows 当前账户 `Downloads` 文件夹。
+2. 在 CMD 粘贴并回车（**只有一行，不需要输入 YES 或手填 commit**）：
 
 ```bat
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath (Join-Path $env:USERPROFILE 'Downloads\headless-desktop-manager-v0.1.1.zip') -DestinationPath (Join-Path $env:TEMP 'hdm-upload-v0.1.1') -Force" && powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\hdm-upload-v0.1.1\headless-desktop-manager\tools\publish-windows.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath (Join-Path $env:USERPROFILE 'Downloads\headless-desktop-manager-v0.2.0.zip') -DestinationPath (Join-Path $env:TEMP 'hdm-upload-v0.2.0') -Force" && powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\hdm-upload-v0.2.0\headless-desktop-manager\tools\publish-windows.ps1"
 ```
 
-也可以将独立的 `HDM_一键上传GitHub_v0.1.1.cmd` 放到下载目录并双击。
+脚本自动克隆 `https://github.com/nljie1103/headless-desktop-manager.git` 的 `main`，合并新版项目文件，显示真实 staged diff 概况，并从 `VERSION` 和 `release/COMMIT_SUMMARY.txt` 拼装 `v0.2.0 真实变更摘要` 后自动提交推送。
 
-3. 同意检查 Git / 安装 Git 的提示（若未安装），以及克隆和查看变更的操作。
-4. 上传脚本打印 Git 暂存区实际文件清单，让用户核对。
-5. 按提示**输入真实改动摘要，不包括版本号**。例如首次导入：`首次导入 HDM 项目并修复 Windows PowerShell 5.1 上传脚本解析问题`。
-6. 脚本自动形成提交标题 `v0.1.1 <你的摘要>`，要求再次确认后提交并推送到 `main`。如果远程已有保护规则或权限不足，脚本会提示失败，不会强制推送。
+> **仍需要的前置条件**：电脑已经安装 Git for Windows、配置 `git config --global user.name` 和 `git config --global user.email`，并已有仓库的写入权限及 Git Credential Manager 认证。凭证过期时 GitHub 可能仍会显示登录窗口，这不属于 HDM 的重复确认。用户授权已在执行这条命令时给出。
 
-**注意：** `git commit` 只能记录真实的代码差异，不能仅靠版本号证明变更正确；开发者必须核查暂存区差异。未来仓库的所有提交消息都必须遵循 [`docs/COMMIT_POLICY.md`](COMMIT_POLICY.md) 并通过 GitHub Actions 验证。不要提交密码和个人访问令牌。
+### 保护机制
 
-推送成功后，可使用 Linux 开发版入口：
+- 远端版本 >= ZIP 版本时拒绝覆盖（防止下载旧 ZIP 误回退）。
+- 不允许 force push、自动推送 tag 或跳过远端分支保护。
+- 不会删除远端当前存在而新版 ZIP 没有包含的文件。
+- 仅从 `release/COMMIT_SUMMARY.txt` 生成当前版本的 commit；维护者必须保证该摘要对应真实差异。
+- 固定目标仓库，不将文件传到其他 GitHub 仓库。
+- 不打开分页器（`--no-pager`），避免窗口停在冒号。
+- 使用 `.gitattributes` 保持 `.sh` 为 LF，避免 Windows 上传后 Linux 出现 `^M`。
 
-```bash
-curl -fsSLo hdm-install.sh https://raw.githubusercontent.com/nljie1103/headless-desktop-manager/main/install.sh && sudo bash hdm-install.sh
-sudo hdm
-```
+### 失败时如何处理
 
-请先在可回滚的 Ubuntu 24.04 测试机上验证，不要直接用于生产。
+若 Git 返回 `non-fast-forward`，说明有人刚推送了新提交；脚本不会覆盖，请重新检查当前仓库状态后发布新版。其他错误可在终端原样复制给开发者，不需要分享任何 Token 或密码。
+
+> 自动上传脚本尚未在你本次 Windows 环境中完成 v0.2.0 实机运行；需观察首次实际使用结果。
