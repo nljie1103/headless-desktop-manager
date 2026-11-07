@@ -56,7 +56,9 @@ hdm_pkg_install() {
   [[ ${#list[@]} -gt 0 ]] || return 1
   for pkg in "${list[@]}"; do [[ $pkg =~ ^[a-z0-9][a-z0-9.+-]*$ ]] || return 1; done
   hdm_info "将安装系统软件包：${list[*]}"
-  hdm_confirm '继续安装（可能使用大量磁盘空间）？' || { hdm_warn '用户取消安装。'; return 2; }
+  if [[ ${HDM_QUICK_APPROVED:-0} != 1 ]]; then
+    hdm_confirm '继续安装（可能使用大量磁盘空间）？' || { hdm_warn '用户取消安装。'; return 2; }
+  fi
   hdm_apt_call update && hdm_apt_call install -y -o Dpkg::Options::=--force-confold "${list[@]}"
 }
 hdm_pkg_upgrade() {

@@ -10,7 +10,12 @@ for module in \
   # shellcheck disable=SC1090
   source "$HDM_ENTRY_ROOT/$module"
 done
-hdm_init
+# Diagnostic and informational operations must be read-only, even when run as root.
+case "${1:-}" in
+  --help|-h|--version|--menu-tree|--self-test|--diagnose|--doctor|--doctor-json|--status-json|--quick-status)
+    hdm_init readonly ;;
+  *) hdm_init ;;
+esac
 case "${1:-}" in
   --help|-h) cat <<'HELP'
 Headless Desktop Manager (HDM)
@@ -19,6 +24,10 @@ Headless Desktop Manager (HDM)
   hdm --menu-tree                Print every menu path
   hdm --self-test                Local non-destructive basic check
   sudo hdm --diagnose            Read-only system check
+  hdm --doctor                   Chinese read-only actionable diagnosis
+  hdm --doctor-json              Sanitized diagnosis JSON
+  sudo hdm --quick-status        Read-only resumable install progress
+  sudo hdm --quick-resume        Resume missing/failed install steps (confirms safety)
   hdm --status-json              Read-only machine-readable health report
   sudo hdm --confirm-display     Confirm new Xorg/GDM config, cancel recovery timer
   sudo hdm --rollback-pending    Apply pending config restoration (systemd recovery)
@@ -28,6 +37,10 @@ HELP
   --menu-tree) hdm_menu_tree; exit 0;;
   --self-test) hdm_update_integrity && python3 "$HDM_ROOT/scripts/verify-menus.py"; exit $?;;
   --diagnose) hdm_diag_full; exit 0;;
+  --doctor) hdm_diag_doctor; exit $?;;
+  --doctor-json) hdm_diag_doctor_json; exit $?;;
+  --quick-status) hdm_quick_status; exit 0;;
+  --quick-resume) hdm_quick_install; exit $?;;
   --status-json) hdm_diag_status_json; exit $?;;
   --confirm-display) hdm_recovery_confirm; exit $?;;
   --rollback-pending) hdm_recovery_rollback_pending; exit $?;;

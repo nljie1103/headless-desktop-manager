@@ -5,6 +5,8 @@ import json
 import os
 import pathlib
 import platform
+from datetime import datetime, timezone
+import stat
 import subprocess
 import sys
 
@@ -64,7 +66,34 @@ def sessions():
     return result
 
 
-def main():
+def utc_now():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+def x11_sockets():
+    base = pathlib.Path("/tmp/.X11-unix")
+    try:
+        return sorted(p.name for p in base.iterdir() if p.name.startswith("X")
+                      and p.name[1:].isdigit() and stat.S_ISSOCK(p.stat().st_mode))[:15]
+    except (OSError, PermissionError):
+        return []
+
+def gdm_x11_enabled(lines):
+    section = ""
+    selected = None
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith(("#", ";")):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].lower()
+            continue
+        if section == "daemon" and "=" in line:
+            key, value = line.split("=", 1)
+            if key.strip().lower() == "waylandenable":
+                selected = value.split("#", 1)[0].split(";", 1)[0].strip().lower()
+    return selected == "false"
+
+def collect():
     try:
         version = (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
     except OSError:
@@ -73,14 +102,14 @@ def main():
     gdmfile = pathlib.Path('/etc/gdm3/custom.conf')
     try:
         lines = gdmfile.read_text().splitlines()
-        x11configured = any(l.strip().lower() == 'waylandenable=false' for l in lines if not l.strip().startswith('#'))
+        x11configured = gdm_x11_enabled(lines)
     except OSError:
         x11configured = False
     pkgs = {k: installed(k) for k in ('ubuntu-desktop','ubuntu-desktop-minimal','gnome-shell','gdm3',
                                     'xserver-xorg-video-dummy','xvfb','rustdesk')}
     ss = sessions()
     # GDM greeter and user desktop are distinct; do not claim a working GNOME session from gdm3 alone.
-    gnome_x11 = any(s['type'] == 'x11' and 'gnome' in s['desktop'].lower() and s['state'] == 'active' for s in ss)
+    gnome_x11 = any(s['type'] == 'x11' and (s['desktop'].lower() in ('gnome','ubuntu','ubuntu-xorg') or 'gnome' in s['desktop'].lower()) and s['state'] == 'active' and s['class'] == 'user' for s in ss)
     report = {
         'schema': 1,
         'hdm_version': version,
@@ -91,20 +120,24 @@ def main():
             'gdm_x11_config_present': x11configured,
             'gdm3_service': service('gdm3'),
             'xvfb_service': service('hdm-xvfb'),
-            'x11_socket_present': pathlib.Path('/tmp/.X11-unix').is_dir(),
+            'x11_socket_present': bool(x11_sockets()),
+            'x11_socket_paths': x11_sockets(),
         },
         'sessions': ss,
         'gnome': {'active_gnome_x11_user_session_detected': gnome_x11,
                   'remote_picture_captured': 'not_tested'},
         'rustdesk': {'service': service('rustdesk'), 'external_connection': 'not_tested',
                      'authentication': 'not_tested'},
-        'rollback_pending': pathlib.Path('/var/lib/hdm/pending-rollback').is_file(),
+        'rollback_pending': (pathlib.Path(os.environ.get('HDM_STATE', '/var/lib/hdm')) / 'pending-rollback').is_file(),
         'warnings': [
             'Package and service detection does not prove desktop capture or unattended remote access.',
             'Verify GNOME screen, RustDesk authentication and reboot from another machine.',
         ],
     }
-    json.dump(report, sys.stdout, ensure_ascii=False, indent=2)
+    return report
+
+def main():
+    json.dump(collect(), sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write('\n')
 
 if __name__ == '__main__':

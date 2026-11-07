@@ -13,7 +13,9 @@ hdm_rustdesk_install_deb() {
   arch=$(dpkg-deb -f "$deb" Architecture 2>/dev/null || :)
   package=$(dpkg-deb -f "$deb" Package 2>/dev/null || :)
   [[ $arch == amd64 && $package == rustdesk ]] || { hdm_error "RustDesk 包名或架构不匹配：$package / $arch"; return 1; }
-  hdm_danger "将通过 APT 安装 $(basename -- "$deb")，可能重启 RustDesk 并断开远程会话" || return 2
+  if [[ ${HDM_QUICK_APPROVED:-0} != 1 ]]; then
+    hdm_danger "将通过 APT 安装 $(basename -- "$deb")，可能重启 RustDesk 并断开远程会话" || return 2
+  fi
   hdm_apt_call install -y "$deb" || return 1
   systemctl enable --now rustdesk 2>/dev/null || hdm_warn 'RustDesk systemd 服务未成功启动，请查看诊断菜单。'
   hdm_state_set rustdesk-last-installed "$(dpkg-query -W -f='${Version}' rustdesk 2>/dev/null || echo unknown)" || :
@@ -25,7 +27,11 @@ hdm_rustdesk_install_online() {
   if [[ $mode == latest ]]; then
     hdm_info '先检查系统已配置的可信软件源是否提供 RustDesk。若无可用包，将从官方 Releases 下载。'
     if apt-cache show rustdesk >/dev/null 2>&1; then
-      if hdm_confirm 'APT 已提供 RustDesk 包。优先直接使用当前系统软件源安装？'; then hdm_pkg_install rustdesk; return $?; fi
+      if [[ ${HDM_QUICK_APPROVED:-0} == 1 ]] || hdm_confirm 'APT 已提供 RustDesk 包。优先直接使用当前系统软件源安装？'; then
+        hdm_pkg_install rustdesk || return 1
+        systemctl enable --now rustdesk 2>/dev/null || hdm_warn 'RustDesk 服务未启动，请通过诊断菜单检查。'
+        return 0
+      fi
     fi
   fi
   selected=$(hdm_release_query rustdesk "$mode" "$ver") || {
@@ -105,10 +111,37 @@ hdm_rustdesk_uninstall() {
   hdm_danger '卸载 RustDesk 客户端？默认保留配置，可能失去图形远程连接。' || return 2
   hdm_apt_call remove -y rustdesk
 }
+# Validate a RustDesk ID/relay host endpoint without calling shell or DNS.
+# Supports DNS/IPv4 optionally with :port, and bracketed IPv6 optionally with :port.
+# This is syntactic validation only; remote connectivity is tested separately.
+hdm_rustdesk_endpoint_valid() {
+  local endpoint=${1:-} name port label
+  [[ -n $endpoint && ${#endpoint} -le 253 ]] || return 1
+  if [[ $endpoint =~ ^\[([0-9A-Fa-f:]+)\](:([0-9]+))?$ ]]; then
+    name=${BASH_REMATCH[1]}
+    port=${BASH_REMATCH[3]:-}
+    [[ $name == *:* ]] || return 1
+  elif [[ $endpoint =~ ^([A-Za-z0-9.-]+)(:([0-9]+))?$ ]]; then
+    name=${BASH_REMATCH[1]}
+    port=${BASH_REMATCH[3]:-}
+    [[ $name != .* && $name != *. && $name != *..* ]] || return 1
+    local IFS=.
+    for label in $name; do
+      [[ -n $label && ${#label} -le 63 && $label =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]] || return 1
+    done
+  else
+    return 1
+  fi
+  if [[ -n $port ]]; then
+    [[ ${#port} -le 5 && $port =~ ^[0-9]+$ ]] || return 1
+    ((10#$port >= 1 && 10#$port <= 65535)) || return 1
+  fi
+}
+
 hdm_rustdesk_input_host() {
   local variable=$1 label=$2 host
   hdm_prompt "$label：" host || return 1
-  [[ $host =~ ^[A-Za-z0-9.-]+(:[0-9]{1,5})?$ || $host =~ ^\[[0-9A-Fa-f:]+\](:[0-9]{1,5})?$ ]] || { hdm_error '地址格式错误（支持域名/IPv4 或 [IPv6]:端口）'; return 1; }
+  hdm_rustdesk_endpoint_valid "$host" || { hdm_error '地址格式错误（仅支持合法域名/IPv4 或 [IPv6]:1-65535）'; return 1; }
   printf -v "$variable" '%s' "$host"
 }
 hdm_rustdesk_import_config() {
@@ -116,7 +149,7 @@ hdm_rustdesk_import_config() {
   hdm_root && hdm_guard_platform || return 1
   hdm_has rustdesk || { hdm_error '请先安装 RustDesk'; return 1; }
   [[ $public_key =~ ^[A-Za-z0-9+/=:_-]{20,256}$ ]] || { hdm_error '服务器公钥格式无效（字符/长度不符合要求）'; return 1; }
-  [[ $id_server != *\'* && $relay != *\'* ]] || return 1
+  hdm_rustdesk_endpoint_valid "$id_server" && hdm_rustdesk_endpoint_valid "$relay" || { hdm_error 'ID/中继服务器地址不合法'; return 1; }
   # Config import delegates persistence and version-specific handling to the upstream CLI.
   hdm_snapshot_create /root/.config/rustdesk/RustDesk2.toml || return 1
   tmp=$(mktemp "$HDM_CACHE/downloads/.rustdesk-config.XXXXXX") || return 1

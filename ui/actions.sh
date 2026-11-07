@@ -195,7 +195,8 @@ hdm_dispatch() {
   8.8.1|8.8.2|8.8.3) hdm_warn 'V0.1 支持手动稳定版检查，自动后台更新和 Preview 暂不启用。';;
   8.10.1) hdm_danger '恢复 HDM 的下载策略和分辨率默认值，不修改系统桌面？' && { hdm_setting HDM_DEFAULT_RESOLUTION 1920x1080; hdm_setting HDM_SOURCE_POLICY official-mirror-github; };;
   # 9. One click install
-  9.1.1|9.1.2|9.1.5|9.1.7|9.4.1|9.4.2|9.5.1|9.5.2|9.6.1|9.7.1) hdm_quick_plan;;
+  9.1.1|9.1.2|9.1.5|9.4.1|9.4.2|9.5.1|9.5.2) hdm_quick_plan;;
+  9.1.7|9.6.1|9.7.1) hdm_quick_status;;
   9.1.3|9.3.4) hdm_display_select_res;;
   9.1.4|9.3.6) hdm_warn '可在完整安装后通过菜单 7 配置自建 ID/Relay；避免在 RustDesk 未安装时导入。';;
   9.1.6|9.2.1|9.4.3|9.7.2) hdm_quick_install;;
@@ -212,7 +213,7 @@ hdm_dispatch() {
   10.2.1|10.2.2|10.2.3|10.2.4|10.2.6) hdm_diag_display;;
   10.3.1|10.3.2|10.3.3|10.3.4|10.3.5|10.3.6) hdm_diag_gnome;;
   10.4.1|10.4.2|10.4.6) hdm_diag_rustdesk;;
-  10.1.3|10.10.1|10.10.7) hdm_diag_repair_hint;;
+  10.1.3|10.10.1|10.10.7) hdm_diag_doctor;;
   10.1.5|10.8.7) hdm_diag_export;;
   10.2.5|10.8.2) hdm_diag_log display;;
   10.3.7|10.8.3) hdm_diag_log desktop;;

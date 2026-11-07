@@ -1,1 +1,1 @@
-完善中文README、Windows自动推送、Xvfb设置、RustDesk校验回滚与诊断功能
+增加一键安装断点续装和逐步校验、GNOME诊断建议、RustDesk端点验证与显示配置覆盖保护

@@ -63,7 +63,13 @@ hdm_display_dummy_config() {
   hdm_installed xserver-xorg-video-dummy || { hdm_error '请先安装 Xorg Dummy 软件包'; return 1; }
   local target=/etc/X11/xorg.conf.d/20-hdm-dummy.conf tmp
   hdm_display_dummy_render "$HDM_DEFAULT_RESOLUTION" || return 1
-  hdm_danger '会创建 Xorg Dummy 全局配置，可能改变 GDM/已有显示器。请确保保留 SSH 和云控制台恢复入口。' || return 2
+  # Never overwrite an unrecognized, manually authored file at our target path.
+  if [[ -e $target ]] && ! grep -Fq 'Managed by HDM' "$target"; then
+    hdm_error '目标配置不是 HDM 创建的文件，拒绝覆盖；请手动检查冲突。'; return 1
+  fi
+  if [[ ${HDM_QUICK_APPROVED:-0} != 1 ]]; then
+    hdm_danger '会创建 Xorg Dummy 全局配置，可能改变 GDM/已有显示器。请确保保留 SSH 和云控制台恢复入口。' || return 2
+  fi
   if [[ ! -e $HDM_STATE/pending-rollback ]]; then
     hdm_snapshot_create "$target" /etc/gdm3/custom.conf || return 1
     hdm_recovery_arm "$HDM_LAST_SNAPSHOT" || return 1

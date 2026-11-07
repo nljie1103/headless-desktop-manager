@@ -112,3 +112,7 @@ hdm_diag_rustdesk() {
 hdm_diag_status_json() {
   python3 "$HDM_ROOT/modules/diagnostics/status_json.py"
 }
+
+# Independent, read-only recommendation engine using sanitized local signals.
+hdm_diag_doctor() { python3 "$HDM_ROOT/modules/diagnostics/doctor.py"; }
+hdm_diag_doctor_json() { python3 "$HDM_ROOT/modules/diagnostics/doctor.py" --json; }

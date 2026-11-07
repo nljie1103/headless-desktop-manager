@@ -1,5 +1,16 @@
 # 更新记录 / Changelog
 
+## v0.3.0 — 2026-11-07（Preview）
+
+- 将推荐组合安装改为**逐阶段可续装事务**：驱动软件包 → 完整 GNOME/GDM3 → RustDesk → Xorg Dummy 配置 → GDM3/X11。每一步使用实际系统状态核验，不信任进度文件里的“完成”标记。
+- 新增安装进度账本 `/var/lib/hdm/quick-install-state.tsv`、`--quick-status` 和 `--quick-resume`；支持中断后续装、单项失败定位与 `flock` 并发保护；修复同一个菜单会话重试时锁未释放的问题。
+- 推荐组合只在**开始时**统一确认一次危险操作（仅限该次安装事务），不再在每一步重复询问；单项维护菜单仍保持风险确认。
+- 新增 `hdm --doctor` / `hdm --doctor-json` 中文诊断建议引擎，检查驱动、GDM3/X11、GNOME 会话、RustDesk 和显示配置恢复状态，并将建议指向已有菜单；修复只读命令在 root 身份下意外创建状态目录的问题。
+- 修复 GDM3 X11 检测：仅解析 `[daemon]` 下有效的 `WaylandEnable=false`，忽略注释和其他 section，并处理重复配置键。
+- RustDesk ID / Relay 地址新增语法、端口范围校验；阻止覆盖并非 HDM 生成的 Xorg Dummy 配置文件。
+- 新增可重复的模拟安装中断/续装测试、纯诊断规则测试和端点输入测试；更新中英 README、开发状态和 Windows 一键推送版本。
+- **仍未完成**：真实云服务器上的 GNOME 无显示器图像捕获、冷启动无人值守和 RustDesk 服务端到端验收。
+
 ## v0.2.0 — 2026-11-07（Preview）
 
 - 将 GitHub 默认 `README.md` 调整为中文首页，增加功能矩阵、架构图、菜单导航与安全说明；英文迁移至 `README.en.md`。

@@ -14,8 +14,9 @@ HDM_LOG_DIR=${HDM_LOG_DIR:-/var/log/hdm}
 HDM_LOG_FILE="$HDM_LOG_DIR/hdm.log"
 HDM_LAST_ERROR=''
 hdm_init() {
+  local mode=${1:-write}
   umask 077
-  if [[ $EUID -eq 0 ]]; then
+  if [[ $EUID -eq 0 && $mode != readonly ]]; then
     mkdir -p "$HDM_ETC" "$HDM_STATE/backups" "$HDM_STATE/transactions" "$HDM_CACHE/downloads" "$HDM_LOG_DIR"
     chmod 700 "$HDM_ETC" "$HDM_STATE" "$HDM_CACHE" "$HDM_LOG_DIR" 2>/dev/null || :
   fi
@@ -34,7 +35,7 @@ hdm_init() {
     done < "$HDM_ETC/config.conf"
   fi
 }
-hdm_log() { local level=$1; shift; local line; line="$(date '+%F %T') [$level] $*"; if [[ $EUID -eq 0 ]]; then printf '%s\n' "$line" >> "$HDM_LOG_FILE"; fi; if [[ $level == ERROR ]]; then printf '%s\n' "$line" >&2; else printf '%s\n' "$line"; fi; }
+hdm_log() { local level=$1; shift; local line; line="$(date '+%F %T') [$level] $*"; if [[ $EUID -eq 0 && -d $HDM_LOG_DIR ]]; then printf '%s\n' "$line" >> "$HDM_LOG_FILE"; fi; if [[ $level == ERROR ]]; then printf '%s\n' "$line" >&2; else printf '%s\n' "$line"; fi; }
 hdm_info() { hdm_log INFO "$@"; }
 hdm_warn() { hdm_log WARN "$@"; }
 hdm_error() { HDM_LAST_ERROR=$*; hdm_log ERROR "$@"; return 1; }
@@ -56,6 +57,19 @@ hdm_setting() { hdm_root || return 1; local key=$1 val=$2; case "$key" in
    HDM_XVFB_DEPTH) [[ $val =~ ^(16|24|32)$ ]] || return 1;;
    *) return 1;;
   esac; [[ $val != *$'\n'* && $val != *'='* ]] || return 1; mkdir -p "$HDM_ETC"; local tmp; tmp=$(mktemp "$HDM_ETC/.settings.XXXXXX") || return 1; if [[ -f $HDM_ETC/config.conf ]]; then grep -v "^${key}=" "$HDM_ETC/config.conf" > "$tmp" || :; fi; printf '%s=%s\n' "$key" "$val" >> "$tmp"; chmod 600 "$tmp"; mv -f -- "$tmp" "$HDM_ETC/config.conf"; printf -v "$key" '%s' "$val"; }
+# Does the [daemon] section of GDM's INI actually choose Xorg? Ignore commented
+# keys, keys outside the section, and earlier overridden assignments.
+hdm_gdm_x11_enabled() {
+  local file=${1:-/etc/gdm3/custom.conf}
+  [[ -r $file ]] || return 1
+  awk '
+    /^[[:space:]]*\[/ { in_daemon = ($0 ~ /^[[:space:]]*\[daemon\][[:space:]]*$/); next }
+    in_daemon && /^[[:space:]]*WaylandEnable[[:space:]]*=/ {
+      split($0, parts, "="); value=parts[2]; sub(/^[[:space:]]*/, "", value); sub(/[[:space:]#;].*$/, "", value); last=value
+    }
+    END { exit !(last == "false") }
+  ' "$file"
+}
 hdm_service_state() { systemctl is-active "$1" 2>/dev/null || true; }
 hdm_installed() { if hdm_has dpkg-query; then dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -qx 'install ok installed'; else return 1; fi; }
 hdm_pkg_version() { dpkg-query -W -f='${Version}' "$1" 2>/dev/null || printf '未安装'; }

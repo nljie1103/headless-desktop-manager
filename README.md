@@ -6,7 +6,7 @@
 
 **GNOME 优先 · 虚拟显示 · RustDesk · 安全恢复 · 终端菜单**
 
-[![版本](https://img.shields.io/badge/version-v0.2.0-blue)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-v0.3.0-blue)](CHANGELOG.md)
 [![CI](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml/badge.svg)](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml)
 [![平台](https://img.shields.io/badge/首批支持-Ubuntu%2024.04%20x86__64-9cf)](docs/implementation-status.md)
 [![阶段](https://img.shields.io/badge/阶段-Preview-orange)](docs/testing-and-limitations.md)
@@ -18,7 +18,7 @@
 </div>
 
 > [!WARNING]
-> **当前为 v0.2.0 Preview，不是生产环境已验证版本。** 菜单与部分安装逻辑已实现，但 GNOME 登录界面是否被 RustDesk 正确捕获、无 GPU 软件渲染、重启后无人值守访问等，尚未在真实云服务器完成验收。强烈建议先建立云快照，保留 SSH 和云平台控制台。
+> **当前为 v0.3.0 Preview，不是生产环境已验证版本。** 菜单与部分安装逻辑已实现，但 GNOME 登录界面是否被 RustDesk 正确捕获、无 GPU 软件渲染、重启后无人值守访问等，尚未在真实云服务器完成验收。强烈建议先建立云快照，保留 SSH 和云平台控制台。
 
 ## ✨ 项目可以做什么？
 
@@ -31,6 +31,8 @@ HDM 把无显示器 Linux 图形桌面所需的驱动、桌面环境、远控客
 | Xvfb / VKMS | 🧪 实验 | Xvfb 可配置编号、分辨率、色深；VKMS 检查内核 |
 | RustDesk 客户端 | 🟡 代码可用，待实机 | 安装 / 版本选择 / 本地安装 / 自建服务器 |
 | **菜单系统** | ✅ 本地验证 | 10 个主菜单、473 个条目，未实现项明确提示 |
+| **一键安装断点续装** | ✅ 逻辑测试通过，待实机 | 每步进度、状态复查、失败重试和并发锁 |
+| **GNOME 中文故障诊断** | ✅ 规则测试通过，待实机 | `hdm --doctor` / `hdm --doctor-json`，不读取密码 |
 | 下载源与校验 | 🟡 部分实现 | 系统 APT 优先，网络故障时使用官方备用源 |
 | 配置备份与回滚 | 🟡 部分实现 | Xorg/GDM 变更采用配置快照及恢复计时器 |
 | Windows 自动发布 | 🟡 待 Windows 验证 | 自动生成带版本号的提交并推送，不反复确认 |
@@ -61,7 +63,7 @@ sudo hdm
 
 ```text
 ╭──────────────────────────────────────────────────────────╮
-│       Headless Desktop Manager (HDM) · v0.2.0           │
+│       Headless Desktop Manager (HDM) · v0.3.0           │
 │  虚拟显示器  /  GNOME 桌面  /  RustDesk 远程管理         │
 ├──────────────────────────────────────────────────────────┤
 │  1  安装虚拟显示器         6  更新 RustDesk             │
@@ -75,6 +77,16 @@ sudo hdm
 ```
 
 *上图为 README 的排版示意，终端实际界面由 `ui/menu.sh` 生成。*
+
+### 推荐：先检测，再安装，出错可续装
+
+```bash
+sudo hdm --doctor         # 只读：中文问题定位和具体菜单建议
+sudo hdm --quick-status   # 只读：一键安装各阶段记录与当前实际状态
+sudo hdm --quick-resume   # 安全确认后只安装缺失/失败步骤
+```
+
+安装进度保存于 `/var/lib/hdm/quick-install-state.tsv`，**不能把进度账本等同于实机验证**。GNOME 画面、RustDesk 认证和重启恢复仍需要使用另一台电脑测试。详细说明：[断点续装与状态设计](docs/resumable-install.md)。
 
 ## 🧭 功能导航
 
@@ -137,6 +149,10 @@ hdm --version              # 查看版本
 hdm --menu-tree            # 查看全部子菜单
 sudo hdm --diagnose        # 只读诊断
 hdm --status-json          # 机器可读 JSON 诊断
+sudo hdm --doctor          # 中文诊断结果与菜单建议
+hdm --doctor-json          # 结构化检查项与故障建议
+sudo hdm --quick-status    # 查询安装进度与当前状态
+sudo hdm --quick-resume    # 确认后续装缺失步骤
 sudo hdm --confirm-display # 确认显示配置生效，取消回滚
 sudo hdm --rollback-pending # 手动恢复待回滚配置
 ```
@@ -159,7 +175,8 @@ bash tests/run.sh
 ## 🗺️ 开发进度
 
 - [x] v0.1.x — 模块化工程、完整菜单树、基础安装与诊断、初版发布脚本
-- [x] v0.2.0 — 中文首页、英文次级文档、Windows 无重复确认的自动推送、Xvfb 配置完善及增强测试
+- [x] v0.2.0 — 中文首页、英文次级文档、Windows 自动推送、Xvfb 配置完善及增强测试
+- [x] v0.3.0 — 一键安装断点续装、GNOME 只读诊断、RustDesk 端点校验与更安全的配置操作
 - [ ] 云服务器实机：GNOME/GDM3/Xorg Dummy/RustDesk 画面捕获和无人值守验证
 - [ ] 完整官方/自建 ID/Relay 服务器端到端测试与版本兼容性矩阵
 - [ ] 更多发行版、CPU 架构、备用安装包的可重复签名构建

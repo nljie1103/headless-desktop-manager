@@ -14,7 +14,9 @@ hdm_gdm_x11() {
   hdm_root && hdm_guard_platform || return 1
   local file=/etc/gdm3/custom.conf tmp
   [[ -d /etc/gdm3 ]] || { hdm_error 'GDM3 尚未安装'; return 1; }
-  hdm_danger '配置 GDM3 使用 Xorg（WaylandEnable=false）；可能影响远程登录显示。' || return 2
+  if [[ ${HDM_QUICK_APPROVED:-0} != 1 ]]; then
+    hdm_danger '配置 GDM3 使用 Xorg（WaylandEnable=false）；可能影响远程登录显示。' || return 2
+  fi
   if [[ ! -f $HDM_STATE/pending-rollback ]]; then
     hdm_snapshot_create "$file" /etc/X11/xorg.conf.d/20-hdm-dummy.conf || return 1
     hdm_recovery_arm "$HDM_LAST_SNAPSHOT" || return 1
