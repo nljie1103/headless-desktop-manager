@@ -1,1 +1,1 @@
-增加一键安装断点续装和逐步校验、GNOME诊断建议、RustDesk端点验证与显示配置覆盖保护
+开放 Ubuntu 26 ARM64 实验安装、修复 RustDesk ARM64 包校验与软件源版本匹配、适配 GNOME Wayland-only 诊断和安装流程

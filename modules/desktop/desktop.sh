@@ -12,6 +12,11 @@ hdm_desktop_status() {
 }
 hdm_gdm_x11() {
   hdm_root && hdm_guard_platform || return 1
+  if hdm_gnome_wayland_only; then
+    hdm_warn '当前 GNOME 不再支持 Xorg 会话。已跳过 WaylandEnable=false，避免 GDM3 登录循环。'
+    hdm_warn '继续测试 GNOME Wayland、PipeWire、RustDesk；Xorg Dummy 可在菜单1中独立安装，但不能替代 GNOME Wayland 显示。'
+    return 2
+  fi
   local file=/etc/gdm3/custom.conf tmp
   [[ -d /etc/gdm3 ]] || { hdm_error 'GDM3 尚未安装'; return 1; }
   if [[ ${HDM_QUICK_APPROVED:-0} != 1 ]]; then
@@ -30,10 +35,15 @@ hdm_gdm_x11() {
   hdm_info '配置通常需要重启 GDM3/系统才能生效；HDM 不自动断开会话。'
 }
 hdm_desktop_install_gnome() {
-  local variant=${1:-full} pkgs=(gdm3 xorg)
+  local variant=${1:-full} pkgs=(gdm3)
+  if hdm_gnome_wayland_only; then
+    hdm_warn '检测到 GNOME Wayland-only：不添加 Xorg 强制配置；完整 GNOME 仍可通过软件源安装。'
+  else
+    pkgs+=(xorg)
+  fi
   case "$variant" in full) pkgs+=(ubuntu-desktop);; minimal) pkgs+=(ubuntu-desktop-minimal);; repair) pkgs+=(gnome-shell gnome-session gdm3);; *) return 1;; esac
   hdm_info 'GNOME 为 HDM 优先支持的桌面环境，不会自动改用轻量桌面。'
-  if [[ ! -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]]; then hdm_warn '尚未创建 Dummy 配置。可以先安装 GNOME，稍后再完成虚拟显示。'; fi
+  if ! hdm_gnome_wayland_only && [[ ! -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]]; then hdm_warn '尚未创建 Dummy 配置。可以先安装 GNOME，稍后再完成虚拟显示。'; fi
   hdm_pkg_install "${pkgs[@]}"
 }
 hdm_desktop_install_light() {
@@ -57,7 +67,13 @@ hdm_desktop_switch() {
   local desktop=$1
   hdm_root && hdm_guard_platform || return 1
   case "$desktop" in
-    gnome) hdm_installed gnome-shell || { hdm_error '请先安装 GNOME'; return 1; }; hdm_gdm_x11; hdm_info '已配置 GNOME X11 支持；实际切换会话需要在登录管理器选择 GNOME on Xorg。';;
+    gnome) hdm_installed gnome-shell || { hdm_error '请先安装 GNOME'; return 1; }
+      if hdm_gnome_wayland_only; then
+        hdm_info '已检测 GNOME Wayland-only；保留系统默认 GDM/Wayland，会话切换请在登录管理器进行。'
+      else
+        hdm_gdm_x11 || return 1
+        hdm_info '已配置 GNOME X11 支持；实际会话需在登录管理器选择。'
+      fi;;
     xfce|mate) hdm_warn '切换显示管理器和用户会话可能中断远控；本版本不自动切换为 LightDM。请在本地/云控制台验证后人工选择已安装的会话。';;
     *) return 1;;
   esac
@@ -70,7 +86,8 @@ hdm_desktop_compare() {
 GNOME：完整功能，HDM 默认支持目标；建议更高内存，无 GPU 时软件渲染需验证。
 XFCE：轻量 X11，供低资源设备选择；GNOME 不是自动替代对象。
 MATE：轻量传统桌面，会话管理器适配需进一步验证。
-兼容性主路径：Ubuntu 24.04 x86_64 + GNOME + Xorg Dummy + RustDesk。
+旧版主路径：Ubuntu 24.04 + GNOME X11 + Xorg Dummy + RustDesk。
+Ubuntu 25.10 / 26.xx：GNOME 已改为 Wayland-only；先安装 GNOME + PipeWire + RustDesk，显示器另行实验。
 Xvfb/VKMS + GNOME/RustDesk 仍属于实验性组合。
 END_COMPARE
 }

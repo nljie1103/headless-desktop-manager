@@ -2,17 +2,22 @@
 hdm_diag_full() {
   hdm_show '全系统诊断（只读）'
   printf '系统：%s / %s\n' "$(hdm_os)" "$(hdm_arch)"
-  if hdm_supported; then printf '[通过] 当前系统满足 Ubuntu 24.04 x86_64 目标\n'; else printf '[未验证] 当前系统不在 V0.1 验证目标范围内\n'; fi
+  if hdm_supported; then printf '[目标基线] Ubuntu 24.04 x86_64（仍需实机验证）\n'; else printf '[实验环境] 当前系统可尝试安装，但尚未完成兼容性验收\n'; fi
   for pkg in xserver-xorg-video-dummy gnome-shell gdm3 rustdesk; do
     if hdm_installed "$pkg"; then printf '[已安装] %s %s\n' "$pkg" "$(hdm_pkg_version "$pkg")"; else printf '[缺失] %s\n' "$pkg"; fi
   done
   if [[ -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]]; then printf '[已配置] HDM Xorg Dummy 配置存在\n'; else printf '[未配置] HDM Dummy 模式\n'; fi
-  if [[ -r /etc/gdm3/custom.conf ]] && grep -Eq '^[[:space:]]*WaylandEnable=false' /etc/gdm3/custom.conf; then printf '[已配置] GDM3 X11\n'; else printf '[未验证] GDM3 登录是否使用 X11\n'; fi
+  if hdm_gnome_wayland_only; then
+    printf '[Wayland-only] 当前 GNOME 不提供 Xorg 会话；不建议设置 GDM3 WaylandEnable=false。\n'
+    for pkg in pipewire xdg-desktop-portal xdg-desktop-portal-gnome; do
+      if hdm_installed "$pkg"; then printf '[已安装] %s\n' "$pkg"; else printf '[缺失] %s\n' "$pkg"; fi
+    done
+  elif hdm_gdm_x11_enabled /etc/gdm3/custom.conf; then printf '[已配置] GDM3 X11\n'; else printf '[待验证] GDM3 X11 设置\n'; fi
   for svc in gdm3 rustdesk; do
     case "$(hdm_service_state "$svc")" in active) printf '[服务运行] %s\n' "$svc";; *) printf '[服务异常/未启用] %s\n' "$svc";; esac
   done
   if [[ -f $HDM_STATE/pending-rollback ]]; then printf '[警告] 存在等待用户确认的自动回滚。请测试后 sudo hdm --confirm-display\n'; fi
-  printf '[未验证] 真实 GNOME X11 会话/远程画面/鼠标键盘控制/重启恢复：需外部实际连接验证。\n'
+  printf '[未验证] 真实 GNOME 图形会话/远程画面/鼠标键盘控制/重启恢复：需外部实际连接验证。\n'
 }
 hdm_diag_system() {
   hdm_show '系统环境'
@@ -46,8 +51,13 @@ hdm_diag_network() {
 hdm_diag_repair_hint() {
   hdm_diag_full
   printf '\n建议修复路径：\n'
-  printf 'Dummy 未安装 → 菜单 1.1.1；GNOME 未安装 → 菜单 3.1.1；\n'
-  printf 'GDM3 未配置 X11 → 菜单 3.1.5；RustDesk 服务异常 → 菜单 10.4.8；\n'
+  if hdm_gnome_wayland_only; then
+    printf 'Wayland-only：检查 GNOME / PipeWire / Portal → 菜单 3.1.1 和 10.3；\n'
+    printf 'VKMS 虚拟显示实验 → 菜单 1.3；RustDesk 服务异常 → 菜单 10.4.8；\n'
+  else
+    printf 'Dummy 未安装 → 菜单 1.1.1；GNOME 未安装 → 菜单 3.1.1；\n'
+    printf 'GDM3 未配置 X11 → 菜单 3.1.5；RustDesk 服务异常 → 菜单 10.4.8；\n'
+  fi
   printf '关键配置异常 → 菜单 10.9 恢复快照；请保留 SSH/云控制台。\n'
 }
 hdm_diag_export() {
@@ -98,6 +108,7 @@ hdm_diag_gnome() {
       printf '会话 %s：%s / %s / %s\n' "$session" "$type" "$desktop" "$state"
     done < <(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}' | head -15)
   fi
+  if hdm_gnome_wayland_only; then hdm_warn 'GNOME Wayland-only：标准 RustDesk ARM64 仍需要活动会话/Portal 授权，登录界面无人值守需专门验证。'; fi
   hdm_warn 'GDM3 运行、GNOME Shell 存在或 session=active 均不能单独证明远端能够捕获桌面。'
 }
 hdm_diag_rustdesk() {

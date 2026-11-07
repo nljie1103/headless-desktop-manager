@@ -8,7 +8,7 @@ Ubuntu 24.04 LTS x86_64 + Xorg Dummy + 完整 GNOME + GDM3/X11 + RustDesk。不�
 
 ## 执行前检查
 
-- 仅 Ubuntu 24.04 x86_64 可以执行系统写入；其他系统可以执行只读诊断。
+- v0.3.1 之后实验阶段不再以发行版或 CPU 白名单阻止系统写入；Ubuntu 26 ARM64 采用 GNOME Wayland 流程，安全校验、快照和真实依赖检查仍保留。
 - 检查根分区可用空间至少 4 GiB；可用内存不足 2 GiB 时提示，但不自动换桌面。
 - 若存在 `/var/lib/hdm/pending-rollback`，必须先确认或恢复上一组显示变更，阻止新安装覆盖恢复点。
 - 用户在一次综合风险提示后明确输入 `YES`，才进入推荐安装事务；这不是 Windows 上传脚本的确认流程。

@@ -41,13 +41,21 @@ hdm_release_query() {
   rm -f "$file"
   return "$ret"
 }
-hdm_list_mirror() { local file="$HDM_ROOT/packages/manifests/ubuntu-24.04-amd64.tsv"; if [[ -r $file ]]; then grep -v '^#' "$file" | grep -v '^$' || true; fi; }
+hdm_list_mirror() {
+  local ID VERSION_ID arch file
+  [[ -r /etc/os-release ]] || return 1
+  . /etc/os-release
+  [[ ${ID:-} == ubuntu && ${VERSION_ID:-} =~ ^[0-9]+\.[0-9]+$ ]] || return 1
+  arch=$(dpkg --print-architecture 2>/dev/null || :)
+  file="$HDM_ROOT/packages/manifests/ubuntu-${VERSION_ID}-${arch}.tsv"
+  if [[ -r $file ]]; then grep -v '^#' "$file" | grep -v '^$' || true; fi
+}
 hdm_mirror_rustdesk() {
   local entry name version arch sha url package path
   entry=$(hdm_list_mirror | awk -F '\t' '$1=="rustdesk" {print;exit}')
   [[ -n $entry ]] || { hdm_warn '目前没有已发布、带校验值的 RustDesk GitHub 备份包，不会虚构下载地址。'; return 1; }
   IFS=$'\t' read -r name version arch package url sha <<< "$entry"
-  [[ $arch == amd64 && $package == *.deb && $url == "$HDM_RELEASE_ASSET_BASE"/* ]] || return 1
+  [[ $arch == "$(dpkg --print-architecture 2>/dev/null)" && $package == *.deb && $url == "$HDM_RELEASE_ASSET_BASE"/* ]] || return 1
   path="$HDM_CACHE/downloads/$package"
   hdm_download_verified "$url" "$path" "$sha" || return 1
   hdm_rustdesk_install_deb "$path"

@@ -24,6 +24,13 @@ with tempfile.TemporaryDirectory() as temp:
     assert ok.returncode == 0, ok.stderr
     assert ok.stdout.startswith('1.5.1\t'), ok.stdout
     assert sha in ok.stdout
+    # Ubuntu 26 ARM64 must select the native aarch64 asset, never x86_64.
+    arm_asset = {**asset,
+        'name':'rustdesk-1.5.1-aarch64.deb',
+        'browser_download_url':'https://github.com/rustdesk/rustdesk/releases/download/1.5.1/rustdesk-1.5.1-aarch64.deb'}
+    path.write_text(json.dumps([{**items[1], 'assets':[asset,arm_asset]}]), encoding='utf-8')
+    arm = subprocess.run(['python3', str(parser), 'rustdesk', 'latest', 'aarch64', str(path)],capture_output=True,text=True)
+    assert arm.returncode == 0 and 'aarch64.deb' in arm.stdout and 'x86_64.deb' not in arm.stdout
     poison = [{**items[1], 'assets': [{**asset, 'browser_download_url': 'https://attacker.example/pkg.deb'}]}]
     path.write_text(json.dumps(poison),encoding='utf-8')
     bad = subprocess.run(['python3', str(parser), 'rustdesk', 'latest', 'x86_64', str(path)],capture_output=True,text=True)

@@ -1576,3 +1576,8 @@ HDM 的核心价值不是“安装命令聚合”，而是**让用户在没有�
 - 每次发布同步 `VERSION`、`CHANGELOG.md`；所有提交必须通过 `scripts/check-commit-messages.py` 与 GitHub Actions 的校验。
 - Windows 上传脚本打印暂存更改清单，要求人工确认后才创建 commit。
 - 详见 `docs/COMMIT_POLICY.md`，以该文件为具体实施规则。
+
+
+### 2026-11-07 兼容性补充：Ubuntu 26 ARM64
+
+测试阶段取消 Linux 发行版/架构硬性白名单；不要取消来源校验、依赖验证、配置备份和 GDM 启动保护。GNOME 49+ 仅 Wayland；Ubuntu 26 ARM64 一键安装须避开旧版 GNOME X11 强制步骤，显示方案与远程画面分别验收。详见 docs/ubuntu26-arm64.md。

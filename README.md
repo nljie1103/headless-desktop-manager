@@ -6,9 +6,9 @@
 
 **GNOME 优先 · 虚拟显示 · RustDesk · 安全恢复 · 终端菜单**
 
-[![版本](https://img.shields.io/badge/version-v0.3.0-blue)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-v0.3.1-blue)](CHANGELOG.md)
 [![CI](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml/badge.svg)](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml)
-[![平台](https://img.shields.io/badge/首批支持-Ubuntu%2024.04%20x86__64-9cf)](docs/implementation-status.md)
+[![平台](https://img.shields.io/badge/实验平台-Ubuntu%2026%20ARM64-9cf)](docs/implementation-status.md)
 [![阶段](https://img.shields.io/badge/阶段-Preview-orange)](docs/testing-and-limitations.md)
 
 **🇨🇳 简体中文（当前页面）** · [🇬🇧 English](README.en.md) · [完整开发规格书](docs/AI_DEVELOPMENT_SPEC.md)
@@ -18,7 +18,10 @@
 </div>
 
 > [!WARNING]
-> **当前为 v0.3.0 Preview，不是生产环境已验证版本。** 菜单与部分安装逻辑已实现，但 GNOME 登录界面是否被 RustDesk 正确捕获、无 GPU 软件渲染、重启后无人值守访问等，尚未在真实云服务器完成验收。强烈建议先建立云快照，保留 SSH 和云平台控制台。
+> **当前为 v0.3.1 Preview，不是生产环境已验证版本。** 菜单与部分安装逻辑已实现，但 GNOME 登录界面是否被 RustDesk 正确捕获、无 GPU 软件渲染、重启后无人值守访问等，尚未在真实云服务器完成验收。强烈建议先建立云快照，保留 SSH 和云平台控制台。
+
+> [!IMPORTANT]
+> **Ubuntu 26 ARM64 实验说明**：GNOME 49+ 不支持 GNOME on Xorg；在 Ubuntu 26 上，HDM 不会自动写入 `WaylandEnable=false`。RustDesk 的标准 ARM64 版在 Wayland 下不保证登录界面无人值守控制。**允许安装 ≠ 已打通无显示器远控**。请保留 SSH 和云控制台，并阅读 [Ubuntu 26 ARM64 测试指引](docs/ubuntu26-arm64.md)。
 
 ## ✨ 项目可以做什么？
 
@@ -26,7 +29,7 @@ HDM 把无显示器 Linux 图形桌面所需的驱动、桌面环境、远控客
 
 | 功能 | 当前进度 | 说明 |
 | :--- | :---: | :--- |
-| **GNOME + GDM3/X11** | 🟡 代码可用，待实机 | 默认完整桌面；XFCE/MATE 可选 |
+| **GNOME + GDM3（新系统 Wayland）** | 🟡 代码可用，待实机 | 完整 GNOME 优先；Ubuntu 26 改为 Wayland-only；XFCE/MATE 可选 |
 | **Xorg Dummy 虚拟显示** | 🟡 代码可用，待实机 | 分辨率预设、文件备份和回滚 |
 | Xvfb / VKMS | 🧪 实验 | Xvfb 可配置编号、分辨率、色深；VKMS 检查内核 |
 | RustDesk 客户端 | 🟡 代码可用，待实机 | 安装 / 版本选择 / 本地安装 / 自建服务器 |
@@ -43,7 +46,7 @@ HDM 把无显示器 Linux 图形桌面所需的驱动、桌面环境、远控客
 
 ### 1. 准备服务器
 
-首批写入操作仅支持 **Ubuntu 24.04 LTS x86_64**。建议准备云控制台、可用 SSH、系统快照、足够磁盘空间和内存（完整 GNOME 对资源要求较高）。
+测试阶段**不再限制 Linux 发行版版本或 CPU 架构**；Ubuntu 26.04/26.10 ARM64 可以进入菜单并尝试安装。建议准备云控制台、可用 SSH、系统快照、足够磁盘空间和内存（完整 GNOME 对资源要求较高）。
 
 ### 2. 下载安装器
 
@@ -59,11 +62,11 @@ curl -fsSLo hdm-install.sh https://raw.githubusercontent.com/nljie1103/headless-
 sudo hdm
 ```
 
-推荐第一次进入 **`9 → 9.1 → 9.1.6`**，预览并执行 GNOME + Xorg Dummy + RustDesk 安装流程。菜单仍会对危险的 Linux 系统更改单独确认，避免远程失联。
+推荐进入 **`9 → 9.1`** 查看自动安装向导：Ubuntu 24.04 走 GNOME X11 / Xorg Dummy；Ubuntu 26.04/26.10 则采用 GNOME Wayland + PipeWire/Portal + RustDesk，不再强行禁用 Wayland。菜单仍会对危险的 Linux 系统更改单独确认，避免远程失联。
 
 ```text
 ╭──────────────────────────────────────────────────────────╮
-│       Headless Desktop Manager (HDM) · v0.3.0           │
+│       Headless Desktop Manager (HDM) · v0.3.1           │
 │  虚拟显示器  /  GNOME 桌面  /  RustDesk 远程管理         │
 ├──────────────────────────────────────────────────────────┤
 │  1  安装虚拟显示器         6  更新 RustDesk             │
@@ -176,6 +179,7 @@ bash tests/run.sh
 
 - [x] v0.1.x — 模块化工程、完整菜单树、基础安装与诊断、初版发布脚本
 - [x] v0.2.0 — 中文首页、英文次级文档、Windows 自动推送、Xvfb 配置完善及增强测试
+- [x] v0.3.1 — 测试安装放开发行版/架构白名单，加入 Ubuntu 26 ARM64 Wayland 流程与分架构 RustDesk 校验
 - [x] v0.3.0 — 一键安装断点续装、GNOME 只读诊断、RustDesk 端点校验与更安全的配置操作
 - [ ] 云服务器实机：GNOME/GDM3/Xorg Dummy/RustDesk 画面捕获和无人值守验证
 - [ ] 完整官方/自建 ID/Relay 服务器端到端测试与版本兼容性矩阵

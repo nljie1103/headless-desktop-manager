@@ -11,7 +11,7 @@
 </div>
 
 > [!WARNING]
-> **v0.3.0 is a preview, not a production-validated deployment.** GNOME graphical capture, software rendering without a GPU and cold-boot unattended connections still require validation on a real cloud VM.
+> **v0.3.1 is a preview, not a production-validated deployment.** GNOME graphical capture, software rendering without a GPU and cold-boot unattended connections still require validation on a real cloud VM.
 
 ## Features
 
@@ -31,7 +31,7 @@ sudo hdm
 
 The above command fetches a **mutable development branch**. Inspect the source and prefer independently verified tagged releases for production. Installing HDM does not silently install GNOME or RustDesk. Use menu **9 → 9.1 → 9.1.6** to request the default stack installation.
 
-## Resumable installation & diagnosis (v0.3.0)
+## Resumable installation & diagnosis (v0.3.1)
 
 The recommended GNOME/Xorg Dummy/RustDesk installer records step status and verifies real package/config state before skipping a step on retry. It does not infer GUI usability from an installation receipt. A failed step can be safely retried without manually redoing previously verified packages.
 
@@ -60,3 +60,5 @@ bash tests/run.sh
 ```
 
 RustDesk is an independent upstream project. See [LICENSE](LICENSE) for this repository's license.
+
+> **Ubuntu 26 ARM64 testing:** The platform allowlist is removed for Linux test hosts. GNOME 49+ is Wayland-only; HDM will not force Xorg or `WaylandEnable=false`. Standard RustDesk ARM64 builds do not guarantee unattended pre-login capture. See [Ubuntu 26 ARM64 testing](docs/ubuntu26-arm64.md).

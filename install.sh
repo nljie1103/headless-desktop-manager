@@ -25,9 +25,16 @@ while (($#)); do
 done
 [[ $EUID -eq 0 ]] || { echo '请用 sudo bash install.sh 运行。' >&2; exit 1; }
 for tool in bash tar mktemp sha256sum python3; do command -v "$tool" >/dev/null || { echo "缺少基础工具：$tool" >&2; exit 1; }; done
-if [[ $(uname -m) != x86_64 ]] || ! ( . /etc/os-release; [[ $ID == ubuntu && $VERSION_ID == 24.04 ]] ); then
-  echo '当前安装器仅开放 Ubuntu 24.04 x86_64；不允许未经验证的平台自动修改系统。' >&2; exit 1
+if [[ $(uname -s) != Linux ]]; then
+  echo 'HDM 只能安装到 Linux，当前内核不是 Linux。' >&2; exit 1
 fi
+if [[ -r /etc/os-release ]]; then
+  . /etc/os-release
+  printf 'HDM 实验安装器：检测到 %s / %s / %s\n' "${PRETTY_NAME:-${ID:-Linux}}" "${VERSION_ID:-unknown}" "$(uname -m)"
+else
+  printf 'HDM 实验安装器：未找到 os-release，继续部署 HDM 本体；安装组件时将检查包管理器。\n'
+fi
+printf '%s\n' '测试模式：不按发行版/CPU 白名单拦截；不会跳过软件包依赖、签名与下载校验。'
 STAGE=$(mktemp -d /tmp/hdm-bootstrap.XXXXXXXX)
 cleanup() { rm -rf -- "$STAGE"; }
 trap cleanup EXIT
@@ -41,8 +48,8 @@ else
   echo "即将从 $URL 下载当前 main 分支源码。"
   echo '安全提示：main 分支内容可能改变。建议正式发布后固定 Release 版本及独立签名。'
   if [[ -z $EXPECTED_SHA256 ]]; then
-    read -r -p '确认信任此 GitHub 仓库 main 分支源码？输入 YES：' ANSWER
-    [[ $ANSWER == YES ]] || { echo '取消安装'; exit 2; }
+    echo '提示：下载的是可变 main 分支，通过 HTTPS 传输，但未经独立 SHA256/签名固定。'
+    echo '安装器仅部署 HDM 管理工具；修改桌面显示服务仍需在菜单中确认。'
   fi
   curl --fail --location --silent --show-error --proto '=https' --proto-redir '=https' --tlsv1.2 --max-time 120 -o "$STAGE/source.tar.gz" "$URL"
   if [[ -n $EXPECTED_SHA256 ]]; then

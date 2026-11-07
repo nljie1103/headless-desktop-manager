@@ -1,5 +1,14 @@
 # 更新记录 / Changelog
 
+## v0.3.1 — Ubuntu 26 ARM64 测试路径（2026-11-07）
+
+- 移除 HDM 安装器及核心操作对 Ubuntu 24.04 x86_64 的硬性白名单，允许 Ubuntu 26 ARM64 进入测试流程。
+- GNOME Wayland-only 检测：新版 Ubuntu 一键安装不再强制 GDM3 X11，不写入 Xorg Dummy 全局配置。
+- 支持 RustDesk 官方 ARM64 `.deb` 架构匹配与已校验缓存；不能从无校验的未知来源强制安装。
+- Ubuntu APT 官方备用源根据真实发行版代号与 CPU 架构生成，不再错误指向 noble。
+- 升级 GNOME / RustDesk 诊断与中文、英文使用说明，明确 ARM64 Wayland 无人值守尚未验证。
+- 保持 Windows 单命令自动提交推送与真实 commit 变更摘要规范。
+
 ## v0.3.0 — 2026-11-07（Preview）
 
 - 将推荐组合安装改为**逐阶段可续装事务**：驱动软件包 → 完整 GNOME/GDM3 → RustDesk → Xorg Dummy 配置 → GDM3/X11。每一步使用实际系统状态核验，不信任进度文件里的“完成”标记。

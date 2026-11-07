@@ -41,7 +41,40 @@ hdm_warn() { hdm_log WARN "$@"; }
 hdm_error() { HDM_LAST_ERROR=$*; hdm_log ERROR "$@"; return 1; }
 hdm_root() { if [[ $EUID -ne 0 ]]; then hdm_error '操作需要 root 权限。请运行 sudo hdm。'; return 1; fi; }
 hdm_supported() { [[ -r /etc/os-release ]] || return 1; local ID VERSION_ID; . /etc/os-release; [[ ${ID:-} == ubuntu && ${VERSION_ID:-} == 24.04 && $(uname -m) == x86_64 ]]; }
-hdm_guard_platform() { if ! hdm_supported; then hdm_error '当前发行版/CPU 未经过验证。安装操作仅支持 Ubuntu 24.04 x86_64（其他平台先开放只读诊断）。'; return 1; fi; }
+# Experimental platform policy: no distro/version/CPU whitelist blocks operations.
+# Commands still fail when their real dependencies are missing or incompatible.
+hdm_guard_platform() {
+  [[ $(uname -s) == Linux ]] || { hdm_error 'HDM 安装和系统管理仅能在 Linux 上运行。'; return 1; }
+  if ! hdm_supported && [[ ${HDM_PLATFORM_NOTICE_SHOWN:-0} != 1 ]]; then
+    HDM_PLATFORM_NOTICE_SHOWN=1
+    # Keep platform notices off stdout: some callers capture stdout as a file path.
+    printf '实验平台：%s / %s。允许继续执行；仍需验证兼容性及实际远控。\n' "$(hdm_os)" "$(hdm_arch)" >&2
+  fi
+}
+# GNOME Shell 49+ no longer offers an Xorg GNOME session. Ubuntu >=25.10
+# defaults to Wayland-only GNOME; do not force GDM3 WaylandEnable=false there.
+hdm_ubuntu_wayland_release() {
+  local version=${1:-} major minor
+  [[ $version =~ ^([0-9]+)\.([0-9]+)$ ]] || return 1
+  major=${BASH_REMATCH[1]}; minor=${BASH_REMATCH[2]}
+  ((10#$major > 25 || (10#$major == 25 && 10#$minor >= 10)))
+}
+hdm_gnome_wayland_only() {
+  local distro version major minor shell_major
+  if [[ -r /etc/os-release ]]; then
+    distro=$(sed -n 's/^ID=//p' /etc/os-release | head -n 1 | tr -d '\"')
+    version=$(sed -n 's/^VERSION_ID=//p' /etc/os-release | head -n 1 | tr -d '\"')
+    if [[ $distro == ubuntu && $version =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+      major=${BASH_REMATCH[1]}; minor=${BASH_REMATCH[2]}
+      if hdm_ubuntu_wayland_release "$version"; then return 0; fi
+    fi
+  fi
+  if command -v gnome-shell >/dev/null 2>&1; then
+    shell_major=$(gnome-shell --version 2>/dev/null | grep -oE '[0-9]+' | head -n 1 || :)
+    if [[ $shell_major =~ ^[0-9]+$ ]] && ((10#$shell_major >= 49)); then return 0; fi
+  fi
+  return 1
+}
 hdm_confirm() { local text=$1 response; printf '\n%s [y/N]: ' "$text"; IFS= read -r response || return 1; [[ $response == y || $response == Y || $response == yes ]]; }
 hdm_danger() { local text=$1 response; printf '\n风险操作：%s\n请输入 YES 继续（其他任意输入取消）：' "$text"; IFS= read -r response || return 1; [[ $response == YES ]]; }
 hdm_pause() { if [[ -t 0 ]]; then printf '\n按回车返回...'; IFS= read -r _ || :; fi; }

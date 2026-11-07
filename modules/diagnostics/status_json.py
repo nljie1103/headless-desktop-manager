@@ -106,10 +106,11 @@ def collect():
     except OSError:
         x11configured = False
     pkgs = {k: installed(k) for k in ('ubuntu-desktop','ubuntu-desktop-minimal','gnome-shell','gdm3',
-                                    'xserver-xorg-video-dummy','xvfb','rustdesk')}
+                                    'xserver-xorg-video-dummy','xvfb','rustdesk','pipewire','xdg-desktop-portal','xdg-desktop-portal-gnome')}
     ss = sessions()
     # GDM greeter and user desktop are distinct; do not claim a working GNOME session from gdm3 alone.
     gnome_x11 = any(s['type'] == 'x11' and (s['desktop'].lower() in ('gnome','ubuntu','ubuntu-xorg') or 'gnome' in s['desktop'].lower()) and s['state'] == 'active' and s['class'] == 'user' for s in ss)
+    gnome_wayland = any(s['type'] == 'wayland' and (s['desktop'].lower() in ('gnome','ubuntu') or 'gnome' in s['desktop'].lower()) and s['state'] == 'active' and s['class'] == 'user' for s in ss)
     report = {
         'schema': 1,
         'hdm_version': version,
@@ -125,6 +126,7 @@ def collect():
         },
         'sessions': ss,
         'gnome': {'active_gnome_x11_user_session_detected': gnome_x11,
+                  'active_gnome_wayland_user_session_detected': gnome_wayland,
                   'remote_picture_captured': 'not_tested'},
         'rustdesk': {'service': service('rustdesk'), 'external_connection': 'not_tested',
                      'authentication': 'not_tested'},

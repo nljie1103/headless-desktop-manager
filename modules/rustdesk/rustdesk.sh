@@ -12,7 +12,9 @@ hdm_rustdesk_install_deb() {
   [[ -f $deb && $deb == *.deb ]] || return 1
   arch=$(dpkg-deb -f "$deb" Architecture 2>/dev/null || :)
   package=$(dpkg-deb -f "$deb" Package 2>/dev/null || :)
-  [[ $arch == amd64 && $package == rustdesk ]] || { hdm_error "RustDesk 包名或架构不匹配：$package / $arch"; return 1; }
+  local expected_arch
+  expected_arch=$(dpkg --print-architecture 2>/dev/null || :)
+  [[ -n $expected_arch && $arch == "$expected_arch" && $package == rustdesk ]] || { hdm_error "RustDesk 包名或架构不匹配：$package / $arch；当前需要 $expected_arch"; return 1; }
   if [[ ${HDM_QUICK_APPROVED:-0} != 1 ]]; then
     hdm_danger "将通过 APT 安装 $(basename -- "$deb")，可能重启 RustDesk 并断开远程会话" || return 2
   fi
@@ -52,7 +54,7 @@ hdm_rustdesk_install_online() {
 hdm_rustdesk_cache_record() {
   local tag=$1 asset=$2 digest=$3 url=$4 manifest="$HDM_STATE/rustdesk-cache.tsv" temp
   [[ $tag =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
-  [[ $asset =~ ^rustdesk-[0-9]+\.[0-9]+\.[0-9]+-x86_64\.deb$ ]] || return 1
+  [[ $asset =~ ^rustdesk-[0-9]+\.[0-9]+\.[0-9]+-(x86_64|aarch64)\.deb$ && $asset == *-"$(hdm_arch)".deb ]] || return 1
   [[ $digest =~ ^[0-9a-fA-F]{64}$ ]] || return 1
   [[ $url == https://github.com/rustdesk/rustdesk/releases/download/* ]] || return 1
   [[ -r $HDM_CACHE/downloads/$asset ]] || return 1
@@ -67,7 +69,7 @@ hdm_rustdesk_cache_list() {
   local manifest="$HDM_STATE/rustdesk-cache.tsv" tag asset digest url file
   [[ -r $manifest ]] || { hdm_warn '本机尚无经 HDM 校验的历史 RustDesk 安装包。'; return 1; }
   while IFS=$'\t' read -r tag asset digest url; do
-    [[ $asset =~ ^rustdesk-[0-9]+\.[0-9]+\.[0-9]+-x86_64\.deb$ && $digest =~ ^[0-9a-fA-F]{64}$ ]] || continue
+    [[ $asset =~ ^rustdesk-[0-9]+\.[0-9]+\.[0-9]+-(x86_64|aarch64)\.deb$ && $asset == *-"$(hdm_arch)".deb && $digest =~ ^[0-9a-fA-F]{64}$ ]] || continue
     file="$HDM_CACHE/downloads/$asset"
     if [[ -f $file ]] && printf '%s  %s\n' "$digest" "$file" | sha256sum --status -c -; then
       printf '%s\t%s\t%s\t%s\n' "$tag" "$asset" "$digest" "$url"
@@ -108,8 +110,8 @@ hdm_rustdesk_rollback() {
   hdm_rustdesk_install_deb "$file"
 }
 hdm_rustdesk_uninstall() {
-  hdm_danger '卸载 RustDesk 客户端？默认保留配置，可能失去图形远程连接。' || return 2
-  hdm_apt_call remove -y rustdesk
+  hdm_warn '卸载 RustDesk 可能失去图形远程连接。将保留配置并仅确认一次。'
+  hdm_pkg_remove rustdesk
 }
 # Validate a RustDesk ID/relay host endpoint without calling shell or DNS.
 # Supports DNS/IPv4 optionally with :port, and bracketed IPv6 optionally with :port.

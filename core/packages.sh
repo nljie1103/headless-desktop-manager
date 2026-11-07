@@ -1,28 +1,50 @@
 #!/usr/bin/env bash
 # All distro packages use the system package manager; never disable package signatures.
 HDM_APT_OPTIONS=()
-hdm_apt_source_test() {
-  # Ubuntu 24.04 archive mirror via a TEMPORARY deb822 source; does not modify user's global sources.
-  hdm_guard_platform || return 1
-  local tmp mirror security arch
-  arch=$(dpkg --print-architecture)
-  case "$arch" in amd64) mirror='https://archive.ubuntu.com/ubuntu'; security='https://security.ubuntu.com/ubuntu';; arm64) mirror='https://ports.ubuntu.com/ubuntu-ports'; security=$mirror;; *) return 1;; esac
-  tmp=$(mktemp "$HDM_STATE/ubuntu-backup.XXXXXX.sources") || return 1
-  cat > "$tmp" <<CONF
+# Choose a matching Ubuntu mirror only when the host is actually Ubuntu.
+# Never substitute a different release series (e.g. noble on resolute).
+# Pure deb822 renderer: unit-tested for codename/architecture pairing.
+hdm_ubuntu_source_render() {
+  local codename=${1:-} arch=${2:-} mirror security
+  [[ $codename =~ ^[a-z]+$ ]] || return 1
+  case "$arch" in
+    amd64) mirror='https://archive.ubuntu.com/ubuntu'; security='https://security.ubuntu.com/ubuntu' ;;
+    arm64|armhf|ppc64el|riscv64|s390x) mirror='https://ports.ubuntu.com/ubuntu-ports'; security=$mirror ;;
+    *) return 1 ;;
+  esac
+  cat <<CONF
 Types: deb
 URIs: $mirror
-Suites: noble noble-updates
+Suites: $codename $codename-updates
 Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 
 Types: deb
 URIs: $security
-Suites: noble-security
+Suites: $codename-security
 Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 CONF
+}
+hdm_apt_source_test() {
+  hdm_guard_platform || return 1
+  [[ -r /etc/os-release ]] || return 1
+  local ID VERSION_CODENAME UBUNTU_CODENAME arch codename mirror security tmp
+  . /etc/os-release
+  [[ ${ID:-} == ubuntu ]] || { hdm_warn '非 Ubuntu 系统不自动添加 Ubuntu 软件源。'; return 1; }
+  codename=${VERSION_CODENAME:-${UBUNTU_CODENAME:-}}
+  [[ $codename =~ ^[a-z]+$ ]] || { hdm_warn '无法确认发行版代号，不生成备用源。'; return 1; }
+  hdm_has dpkg || return 1
+  arch=$(dpkg --print-architecture)
+  mkdir -p "$HDM_STATE"
+  tmp=$(mktemp "$HDM_STATE/ubuntu-backup.XXXXXX.sources") || return 1
+  if ! hdm_ubuntu_source_render "$codename" "$arch" > "$tmp"; then
+    rm -f -- "$tmp"
+    return 1
+  fi
   printf '%s\n' "$tmp"
 }
+
 hdm_apt_transient_error() {
   local file=$1
   # Refuse fallback for broken deps, signature failures or disk errors.
@@ -31,6 +53,7 @@ hdm_apt_transient_error() {
 }
 hdm_apt_call() {
   hdm_root || return 1; hdm_guard_platform || return 1
+  hdm_has apt-get || { hdm_error '当前系统没有 apt-get，请在对应发行版使用其包管理器。'; return 1; }
   local log choice src
   log=$(mktemp "$HDM_CACHE/downloads/.apt-log.XXXXXX") || return 1
   local -a cmd=(apt-get "$@")
@@ -59,21 +82,36 @@ hdm_pkg_install() {
   if [[ ${HDM_QUICK_APPROVED:-0} != 1 ]]; then
     hdm_confirm '继续安装（可能使用大量磁盘空间）？' || { hdm_warn '用户取消安装。'; return 2; }
   fi
-  hdm_apt_call update && hdm_apt_call install -y -o Dpkg::Options::=--force-confold "${list[@]}"
+  case "$(hdm_type)" in
+    apt) hdm_apt_call update && hdm_apt_call install -y -o Dpkg::Options::=--force-confold "${list[@]}" ;;
+    dnf|yum)
+      local pm; pm=$(hdm_type)
+      hdm_warn "$pm 包名可能与 Ubuntu 不同；通过系统仓库解析，不使用 Ubuntu 安装包。"
+      if [[ ${HDM_DRY_RUN:-0} == 1 ]]; then printf '[DRY RUN] %s install -y %s\n' "$pm" "${list[*]}"; else "$pm" install -y "${list[@]}"; fi ;;
+    *) hdm_error '未识别 APT/DNF/YUM，无法自动安装系统软件包。' ;;
+  esac
 }
 hdm_pkg_upgrade() {
   local -a list=("$@")
   [[ ${#list[@]} -gt 0 ]] || return 1
   for pkg in "${list[@]}"; do [[ $pkg =~ ^[a-z0-9][a-z0-9.+-]*$ ]] || return 1; done
   hdm_confirm "仅升级指定软件包：${list[*]}？" || return 0
-  hdm_apt_call update && hdm_apt_call install -y --only-upgrade "${list[@]}"
+  case "$(hdm_type)" in
+    apt) hdm_apt_call update && hdm_apt_call install -y --only-upgrade "${list[@]}" ;;
+    dnf|yum) local pm; pm=$(hdm_type); "$pm" upgrade -y "${list[@]}" ;;
+    *) hdm_error '没有可用的系统包管理器' ;;
+  esac
 }
 hdm_pkg_remove() {
   local -a list=("$@")
   [[ ${#list[@]} -gt 0 ]] || return 1
   for pkg in "${list[@]}"; do [[ $pkg =~ ^[a-z0-9][a-z0-9.+-]*$ ]] || return 1; done
   hdm_danger "移除软件包 ${list[*]}，可能破坏远程桌面；不会自动 autoremove" || return 0
-  hdm_apt_call remove -y "${list[@]}"
+  case "$(hdm_type)" in
+    apt) hdm_apt_call remove -y "${list[@]}" ;;
+    dnf|yum) local pm; pm=$(hdm_type); "$pm" remove -y "${list[@]}" ;;
+    *) hdm_error '没有可用的系统包管理器' ;;
+  esac
 }
 hdm_pkg_versions() { local pkg=$1; apt-cache policy "$pkg" 2>/dev/null || true; }
 hdm_sources_status() {

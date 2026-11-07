@@ -8,6 +8,9 @@ hdm_menu() {
     printf '\n==============================================================\n'
     printf ' Headless Desktop Manager v%s\n' "$HDM_VERSION"
     printf ' 系统：%s / %s\n' "$(hdm_os)" "$(hdm_arch)"
+    if hdm_gnome_wayland_only; then
+      printf ' 实验提示：本机 GNOME 为 Wayland-only；不会强制 GDM3 X11。\n'
+    fi
     if [[ $path == root ]]; then
       printf ' GNOME：%s | Dummy：%s | RustDesk：%s\n' "$(hdm_pkg_version gnome-shell)" "$(hdm_pkg_version xserver-xorg-video-dummy)" "$(hdm_pkg_version rustdesk)"
     else

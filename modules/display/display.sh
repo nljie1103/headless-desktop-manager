@@ -60,6 +60,10 @@ CONF
 }
 hdm_display_dummy_config() {
   hdm_root && hdm_guard_platform || return 1
+  if hdm_gnome_wayland_only; then
+    hdm_warn '当前 GNOME 为 Wayland-only：Xorg Dummy 全局配置不会提供 GNOME Wayland 虚拟显示。'
+    hdm_warn '可独立测试 Xorg Dummy，但不会自动重启 GDM3 或宣称 RustDesk 画面可用。'
+  fi
   hdm_installed xserver-xorg-video-dummy || { hdm_error '请先安装 Xorg Dummy 软件包'; return 1; }
   local target=/etc/X11/xorg.conf.d/20-hdm-dummy.conf tmp
   hdm_display_dummy_render "$HDM_DEFAULT_RESOLUTION" || return 1
