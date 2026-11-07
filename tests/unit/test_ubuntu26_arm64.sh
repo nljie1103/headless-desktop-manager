@@ -5,6 +5,7 @@ TMP=$(mktemp -d)
 trap 'rm -rf -- "$TMP"' EXIT
 export HDM_STATE="$TMP/state" HDM_ETC="$TMP/etc" HDM_CACHE="$TMP/cache" HDM_LOG_DIR="$TMP/log"
 source "$ROOT/core/common.sh"
+source "$ROOT/core/environment.sh"
 source "$ROOT/core/packages.sh"
 source "$ROOT/modules/quick-install/quick-install.sh"
 source "$ROOT/modules/desktop/desktop.sh"
@@ -27,6 +28,9 @@ grep -q 'URIs: https://archive.ubuntu.com/ubuntu' "$TMP/apt24.sources"
 if hdm_ubuntu_source_render invalid 'aarch64;rm'; then exit 1; fi
 
 # Simulate a modern Ubuntu platform without touching /etc/os-release or any service.
+hdm_env_desktop_kind() { printf "none\n"; }
+hdm_env_drm_state() { printf "not-connected\n"; }
+hdm_env_report() { :; }
 hdm_gnome_wayland_only() { return 0; }
 hdm_quick_init_steps
 [[ "${HDM_QUICK_STEPS[*]}" == 'gnome-pkg wayland-deps rustdesk-pkg' ]]

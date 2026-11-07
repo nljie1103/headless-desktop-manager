@@ -6,12 +6,17 @@ trap 'rm -rf -- "$TMP"' EXIT
 export HDM_STATE="$TMP/state" HDM_ETC="$TMP/etc" HDM_CACHE="$TMP/cache" HDM_LOG_DIR="$TMP/log"
 mkdir -p "$HDM_STATE" "$HDM_ETC" "$HDM_CACHE/downloads" "$HDM_LOG_DIR" "$TMP/stages"
 source "$ROOT/core/common.sh"
+source "$ROOT/core/environment.sh"
 source "$ROOT/modules/quick-install/quick-install.sh"
 # Fully mocked host operations: the test must not modify the real system.
+hdm_env_desktop_kind() { printf "none\n"; }
+hdm_env_drm_state() { printf "not-connected\n"; }
+hdm_env_report() { :; }
 hdm_root() { :; }
 hdm_guard_platform() { :; }
 hdm_quick_preflight() { :; }
 hdm_danger() { :; }
+hdm_confirm() { :; }
 hdm_diag_full() { :; }
 hdm_quick_check() { [[ -e $TMP/stages/$1 ]]; }
 hdm_quick_execute_step() {

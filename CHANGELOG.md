@@ -1,5 +1,15 @@
 # 更新记录 / Changelog
 
+## v0.3.3 — 启动环境识别与按需安装（2026-11-07）
+
+- 新增 `core/environment.sh` 只读检测：已安装的 GNOME/XFCE/MATE/KDE、DRM 连接状态、真实 X11/Wayland 会话、GDM3/RustDesk 服务，并清楚标记未知情况。
+- HDM 菜单首页显示环境识别结果及操作建议；增加 `hdm --preflight` 独立只读入口，不再假定所有服务器都无显示输出与无桌面。
+- 一键安装根据检测生成步骤：保留已有桌面，已有连接输出时跳过 Xorg Dummy，未知显示状态时保守处理；Ubuntu 26 GNOME Wayland-only 不强制 GDM3 X11。
+- 新增 RustDesk 安全/网络灰色设置只读诊断：`hdm --rustdesk-permissions`、菜单 `7 → 12`；区分 Polkit 授权、systemd 服务用户及不同用户的 TOML 配置，不绕过权限保护。
+- 明确区分显示器有输出、息屏、锁屏、注销与重启前登录；`WaylandEnable=false` 不是息屏可连接开关，且不适用于 Ubuntu 26 GNOME。
+- 原 10 个主菜单及 473 个旧条目均保留，新增一项权限诊断；加入四种环境组合、未知 DRM、权限诊断及只读行为单元测试。
+- **仍未完成**：Ubuntu 26 ARM64 无显示输出下 GNOME Wayland 虚拟屏幕及 RustDesk 无人值守实机验收。
+
 ## v0.3.2 — 终端交互与 RustDesk 配置闭环修复（2026-11-07）
 
 - 默认隐藏 APT/DNF/YUM 的逐包解压、下载与安装过程，仅显示步骤和成功/失败；原始输出写入权限受限的日志文件，`HDM_DEBUG_INSTALL=1` 可打开详细输出。

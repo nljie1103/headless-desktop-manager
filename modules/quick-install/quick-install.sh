@@ -3,12 +3,35 @@
 # The ledger is a progress hint, not proof that a GUI is externally usable.
 HDM_QUICK_STEPS=(dummy-pkg gnome-pkg rustdesk-pkg dummy-config gdm-x11)
 hdm_quick_init_steps() {
+  local desktop output
+  desktop=$(hdm_env_desktop_kind)
+  output=$(hdm_env_drm_state)
+  HDM_QUICK_STEPS=()
+  # A desktop installed by the user must never be silently replaced with GNOME.
   if hdm_gnome_wayland_only; then
-    HDM_QUICK_STEPS=(gnome-pkg wayland-deps rustdesk-pkg)
+    [[ $desktop == none ]] && HDM_QUICK_STEPS+=(gnome-pkg)
+    if [[ $desktop == none || $desktop == GNOME ]]; then HDM_QUICK_STEPS+=(wayland-deps); fi
+    HDM_QUICK_STEPS+=(rustdesk-pkg)
   else
-    HDM_QUICK_STEPS=(dummy-pkg gnome-pkg rustdesk-pkg dummy-config gdm-x11)
+    # Explicitly disconnected connectors, not missing sysfs, justify proposing
+    # an Xorg Dummy configuration; connected/unknown means preserve it.
+    if [[ $output == not-connected && ( $desktop == none || $desktop == GNOME ) ]]; then
+      HDM_QUICK_STEPS+=(dummy-pkg)
+    fi
+    [[ $desktop == none ]] && HDM_QUICK_STEPS+=(gnome-pkg)
+    HDM_QUICK_STEPS+=(rustdesk-pkg)
+    if [[ $output == not-connected ]]; then
+      if [[ $desktop == none || $desktop == GNOME ]]; then
+        HDM_QUICK_STEPS+=(dummy-config gdm-x11)
+      else
+        # A pre-existing XFCE/MATE/etc desktop may have its own display manager.
+        # Do not force GDM or change its login/session settings automatically.
+        :
+      fi
+    fi
   fi
 }
+
 
 hdm_quick_ledger() { printf '%s/quick-install-state.tsv' "$HDM_STATE"; }
 hdm_quick_step_valid() {
@@ -87,13 +110,19 @@ hdm_quick_preflight() {
   mem_kb=$(awk '/^MemAvailable:/ {print $2; exit}' /proc/meminfo)
   [[ $avail_kb =~ ^[0-9]+$ ]] || { hdm_error '无法读取可用磁盘空间'; return 1; }
   printf '根分区剩余：%s MiB；可用内存：%s MiB\n' "$((avail_kb/1024))" "$((${mem_kb:-0}/1024))"
-  # 4GiB free is a conservative minimum for Ubuntu Desktop installation and updates.
-  if ((avail_kb < 4 * 1024 * 1024)); then
-    if ! hdm_installed ubuntu-desktop || ! hdm_installed rustdesk || { ! hdm_gnome_wayland_only && ! hdm_installed xserver-xorg-video-dummy; }; then
-      hdm_warn '根分区剩余不足 4 GiB，停止安装缺失软件包以避免填满系统盘。'; failed=1
-    else
-      hdm_warn '剩余空间不足 4 GiB，但核心软件包已存在；允许验证和配置，建议尽快清理磁盘。'
+  # Large GNOME install needs more space than a RustDesk-only update.
+  local required_kb=$((1024 * 1024)) step
+  for step in "${HDM_QUICK_STEPS[@]}"; do
+    if [[ $step == gnome-pkg ]] && ! hdm_quick_check gnome-pkg; then
+      required_kb=$((4 * 1024 * 1024))
     fi
+  done
+  if ((avail_kb < required_kb)); then
+    for step in "${HDM_QUICK_STEPS[@]}"; do
+      if ! hdm_quick_check "$step"; then
+        hdm_warn "空间不足（至少建议 $((required_kb/1024)) MiB 可用），停止缺失组件的安装。"; failed=1; break
+      fi
+    done
   fi
   if [[ $mem_kb =~ ^[0-9]+$ ]] && ((mem_kb < 2 * 1024 * 1024)); then
     hdm_warn '可用内存不足 2 GiB，GNOME 安装/运行可能需要更多内存或 swap；不自动切换 XFCE。'
@@ -106,26 +135,25 @@ hdm_quick_preflight() {
 }
 hdm_quick_plan() {
   hdm_quick_init_steps
+  hdm_env_report
+  printf '\n=== 按本机状态生成的安装步骤 ===\n'
+  local step
+  for step in "${HDM_QUICK_STEPS[@]}"; do
+    printf '  - %s\n' "$(hdm_quick_step_label "$step")"
+  done
   if hdm_gnome_wayland_only; then
     cat <<'MODERN'
-实验组合：GNOME (Wayland-only) + PipeWire/Portal + RustDesk。
-Ubuntu 26.xx ARM64 不再默认执行 Xorg Dummy 全局配置与 GDM3 X11 强制设置。
-可在菜单1单独试验 VKMS / Xvfb / Xorg Dummy，但不保证 GNOME Wayland 捕获画面。
-RustDesk 官方无人值守 Wayland 预览版目前主要针对 x86_64，ARM64 未验收。
-保留 SSH/云控制台及快照；安装包成功不等于可无人值守远程登录。
+当前 GNOME Wayland-only：不强制 GDM X11、不创建 Xorg Dummy 全局配置。
+无已连接的虚拟输出时，安装 GNOME / Portal 并不会自动产生可被捕获的屏幕。
+RustDesk 标准 ARM64 Wayland 版尚未通过登录前无人值守验收；安装完成仍需实测。
 MODERN
-    hdm_quick_status
-    return 0
+  else
+    printf '如果有现成显示输出或检测结果未知，不会强制写入 Xorg Dummy/GDM X11 配置。\n'
   fi
-  cat <<'INFO'
-推荐组合：Ubuntu 24.04 x86_64 + Xorg Dummy + 完整 GNOME + GDM3/X11 + RustDesk。
-优先使用系统 APT；对网络失败尝试可信 Ubuntu 官方镜像；RustDesk 优先官方 Releases。
-不自动启用 GNOME 自动登录、不关闭锁屏、不停用 SSH、不重启 GDM3、不强制重启机器。
-安装进度会保存在 /var/lib/hdm/quick-install-state.tsv；重新执行将复核组件并跳过已满足的步骤。
-注意：软件包安装成功 != 图形桌面可被 RustDesk 远程控制；必须外部测试并冷启动验证。
-INFO
+  printf '自动跳过已安装且已验证的组件，保留 SSH、桌面配置、锁屏及防火墙。\n'
   hdm_quick_status
 }
+
 hdm_quick_execute_step() {
   case "$1" in
     dummy-pkg) hdm_pkg_install xserver-xorg-video-dummy xserver-xorg-core ;;
@@ -141,10 +169,10 @@ hdm_quick_install() {
   hdm_quick_init_steps
   hdm_quick_preflight || return 1
   hdm_quick_plan
-  if hdm_gnome_wayland_only; then
-    hdm_danger '在新版本 Ubuntu / ARM64 测试 GNOME Wayland + RustDesk？不强制 GDM X11，也不保证无人值守成功；请保留 SSH/快照。' || return 2
+  if [[ " ${HDM_QUICK_STEPS[*]} " == *' dummy-config '* || " ${HDM_QUICK_STEPS[*]} " == *' gdm-x11 '* ]]; then
+    hdm_danger '将写入全局 Xorg/GDM 配置，可能影响远程连接。请确保 SSH、云控制台与快照可用。继续？' || return 2
   else
-    hdm_danger '执行/续装 GNOME + Dummy + RustDesk？显示配置可能改变远程访问。请保留 SSH、云控制台与快照。' || return 2
+    hdm_confirm '仅对上述缺失步骤进行安装/修复（不更改全局 Xorg/GDM 配置），继续？' || return 2
   fi
   local lock_file="$HDM_STATE/quick-install.lock"
   mkdir -p "$HDM_STATE"

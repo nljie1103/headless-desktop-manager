@@ -103,7 +103,7 @@ hdm_gdm_x11_enabled() {
     END { exit !(last == "false") }
   ' "$file"
 }
-hdm_service_state() { systemctl is-active "$1" 2>/dev/null || true; }
+hdm_service_state() { local state; state=$(systemctl is-active "$1" 2>/dev/null) || :; printf '%s\n' "${state:-unknown}"; }
 hdm_installed() { if hdm_has dpkg-query; then dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -qx 'install ok installed'; else return 1; fi; }
 hdm_pkg_version() { dpkg-query -W -f='${Version}' "$1" 2>/dev/null || printf '未安装'; }
 hdm_os() { if [[ -r /etc/os-release ]]; then ( . /etc/os-release; printf '%s %s' "$ID" "$VERSION_ID" ); else uname -s; fi; }

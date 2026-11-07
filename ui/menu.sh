@@ -10,9 +10,9 @@ hdm_menu() {
     fi
     printf '\n  HDM v%s  |  %s  |  %s\n' "$HDM_VERSION" "$(hdm_os)" "$(hdm_arch)"
     if [[ $path == root ]]; then
-      printf '  GNOME: %s  |  GDM3: %s  |  RustDesk: %s\n'         "$([[ $(hdm_pkg_version gnome-shell) == 未安装 ]] && echo 未安装 || echo 已安装)"         "$(hdm_service_state gdm3)" "$(hdm_pkg_version rustdesk)"
-      printf '  虚拟显示: %s  |  远程桌面: 未验证\n' "$(hdm_pkg_version xserver-xorg-video-dummy)"
-      printf '  推荐：9 一键安装    7 连接设置    10 故障诊断\n'
+      printf '  GNOME: %s  |  GDM3: %s  |  RustDesk: %s\n'         "$(hdm_installed gnome-shell && echo 已安装 || echo 未安装)"         "$(hdm_service_state gdm3)" "$(hdm_pkg_version rustdesk)"
+      hdm_env_summary
+      printf '  快速入口：9 检测后安装    7 连接配置    10 故障诊断\n'
     else
       printf '  当前位置：%s\n' "$(hdm_menu_label "$path")"
       if [[ $path == 7.1 ]]; then
@@ -25,7 +25,8 @@ hdm_menu() {
       shown=$label
       if hdm_gnome_wayland_only; then
         [[ $ident == 1.1 ]] && shown='安装 Xorg Dummy [仅用于 X11，非 GNOME Wayland 虚拟屏]'
-        [[ $ident == 9 ]] && shown='一键安装推荐组合 — GNOME Wayland + RustDesk [实验]'
+        [[ $ident == 3.1.5 ]] && shown='配置 GNOME X11 [当前系统不支持，禁止强制切换]'
+        [[ $ident == 9 ]] && shown='按本机状态一键安装 — GNOME Wayland + RustDesk [实验]'
       fi
       printf '  %-3s %s\n' "$code" "$shown"
     done < "$HDM_ROOT/ui/menus.tsv"

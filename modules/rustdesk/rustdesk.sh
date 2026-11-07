@@ -401,3 +401,44 @@ hdm_rustdesk_check_import_file() {
   [[ $path == /* && -f $path && $path == *.toml ]] || { hdm_error '路径无效'; return 1; }
   python3 "$HDM_ROOT/scripts/rustdesk_config.py" validate "$path"
 }
+
+# Diagnose disabled GUI settings without bypassing polkit or weakening permissions.
+hdm_rustdesk_permission_report() {
+  local service_user root_cfg user_home user_cfg
+  hdm_show 'RustDesk 安全/网络设置：只读权限诊断'
+  printf 'RustDesk 版本：%s；系统服务：%s\n' "$(hdm_pkg_version rustdesk)" "$(hdm_service_state rustdesk)"
+  if hdm_has systemctl; then
+    service_user=$(systemctl show rustdesk -p User --value 2>/dev/null) || service_user=''
+    printf 'systemd 服务用户：%s（留空表示系统默认，通常是 root）\n' "${service_user:-未显式指定}"
+  fi
+  if hdm_has pkexec; then printf '[存在] pkexec：界面解锁通常通过 Polkit 进行授权。\n'
+  else printf '[缺失] pkexec：部分图形化授权按钮可能无法正常弹出。\n'; fi
+  if hdm_has systemctl; then
+    printf 'Polkit 进程：%s（不等于图形授权代理一定可用）\n' "$(hdm_service_state polkit)"
+  fi
+  root_cfg=$(hdm_rustdesk_root_config)
+  if [[ -r $root_cfg ]]; then
+    printf '[存在] root CLI 配置（不代表已被 RustDesk 后台或桌面用户加载）\n'
+    hdm_rustdesk_root_inspect || printf '[无法解析] root CLI 配置\n'
+  else
+    printf '[未发现] root CLI 配置文件；并不证明其他账户没有配置。\n'
+  fi
+  if [[ -n ${SUDO_USER:-} && ${SUDO_USER:-root} != root ]] && hdm_has getent; then
+    user_home=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+    user_cfg="$user_home/.config/rustdesk/RustDesk2.toml"
+    if [[ -r $user_cfg ]]; then
+      printf '[存在] 当前登录用户 %s 的配置（可能与服务不同）\n' "$SUDO_USER"
+      python3 "$HDM_ROOT/scripts/rustdesk_config.py" inspect "$user_cfg" || :
+    else
+      printf '[未发现] 用户 %s 的 RustDesk2.toml 配置文件\n' "$SUDO_USER"
+    fi
+  fi
+  printf 'GUI 的 Security / Network 通常需要 Unlock 并通过管理员/Polkit 授权。\n'
+  printf 'HDM 可用菜单 7.1 保存自建服务器，再做磁盘读回校验；不能据此证明服务已加载。\n'
+  printf '不建议 sudo rustdesk 图形界面、chmod 777、关闭认证或手动复制密码到配置文件。\n'
+  if hdm_gnome_wayland_only; then
+    printf '[Wayland] 未登录、锁屏、熄屏和没有任何显示输出互不等同；标准版预登录捕获可能不可用。\n'
+  fi
+  hdm_rustdesk_get_id || :
+  printf '[待实测] 以上诊断不证明管理员解锁按钮已可用，也不证明自建服务器注册成功。\n'
+}

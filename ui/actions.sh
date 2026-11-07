@@ -170,6 +170,7 @@ hdm_dispatch() {
   6.10.1|6.10.2) hdm_warn '卸载默认保留 RustDesk 配置；不自动清理用户数据。';;
   6.10.3) hdm_rustdesk_uninstall;;
   # 7. RustDesk ID/Relay config
+  7.12) hdm_rustdesk_permission_report;;
   7.1.1) hdm_rustdesk_draft_wizard;;
   7.1.2|7.5.1) hdm_rustdesk_draft_edit relay;;
   7.1.3|7.6.1) hdm_rustdesk_draft_edit key;;
@@ -210,7 +211,7 @@ hdm_dispatch() {
   8.8.1|8.8.2|8.8.3) hdm_warn 'V0.1 支持手动稳定版检查，自动后台更新和 Preview 暂不启用。';;
   8.10.1) hdm_danger '恢复 HDM 的下载策略和分辨率默认值，不修改系统桌面？' && { hdm_setting HDM_DEFAULT_RESOLUTION 1920x1080; hdm_setting HDM_SOURCE_POLICY official-mirror-github; };;
   # 9. One click install
-  9.1.1|9.1.2|9.1.5|9.4.1|9.4.2|9.5.1|9.5.2) hdm_quick_plan;;
+  9.1.1|9.1.2|9.1.5|9.4.1|9.4.2|9.5.1|9.5.2) hdm_env_report; hdm_quick_plan;;
   9.1.7|9.6.1|9.7.1) hdm_quick_status;;
   9.1.3|9.3.4) hdm_display_select_res;;
   9.1.4|9.3.6) hdm_warn '可在完整安装后通过菜单 7 配置自建 ID/Relay；避免在 RustDesk 未安装时导入。';;
