@@ -146,6 +146,90 @@ hdm_rustdesk_input_host() {
   hdm_rustdesk_endpoint_valid "$host" || { hdm_error '地址格式错误（仅支持合法域名/IPv4 或 [IPv6]:1-65535）'; return 1; }
   printf -v "$variable" '%s' "$host"
 }
+# Independent editable draft. File is data, never sourced/executed; saved root-only.
+hdm_rustdesk_draft_file() { printf '%s/rustdesk-server-draft.tsv' "$HDM_STATE"; }
+hdm_rustdesk_draft_get() {
+  local field=$1 path
+  path=$(hdm_rustdesk_draft_file)
+  [[ -r $path ]] || return 0
+  awk -F '\t' -v k="$field" '$1==k {v=$2} END {print v}' "$path"
+}
+hdm_rustdesk_draft_set() {
+  local field=$1 value=$2 file temp
+  hdm_root || return 1
+  case "$field" in
+    id|relay) hdm_rustdesk_endpoint_valid "$value" || { hdm_error '地址格式无效'; return 1; } ;;
+    key) [[ $value =~ ^[A-Za-z0-9+/=:_-]{20,256}$ ]] || { hdm_error '公钥格式无效'; return 1; } ;;
+    *) return 1;;
+  esac
+  [[ $value != *$'\n'* && $value != *$'\t'* ]] || return 1
+  mkdir -p "$HDM_STATE"
+  file=$(hdm_rustdesk_draft_file)
+  temp=$(mktemp "$HDM_STATE/.server-draft.XXXXXX") || return 1
+  if [[ -f $file ]]; then awk -F '\t' -v k="$field" '$1!=k' "$file" > "$temp"; fi
+  printf '%s\t%s\n' "$field" "$value" >> "$temp"
+  chmod 600 "$temp" && mv -f -- "$temp" "$file"
+}
+hdm_rustdesk_draft_ready() {
+  local id relay key
+  id=$(hdm_rustdesk_draft_get id)
+  relay=$(hdm_rustdesk_draft_get relay)
+  key=$(hdm_rustdesk_draft_get key)
+  hdm_rustdesk_endpoint_valid "$id" && hdm_rustdesk_endpoint_valid "$relay" && [[ $key =~ ^[A-Za-z0-9+/=:_-]{20,256}$ ]]
+}
+hdm_rustdesk_draft_preview() {
+  local id relay key
+  id=$(hdm_rustdesk_draft_get id); relay=$(hdm_rustdesk_draft_get relay); key=$(hdm_rustdesk_draft_get key)
+  printf '当前待应用配置（草稿，并非已生效）：\n'
+  printf '  ID 服务器：%s\n  中继服务器：%s\n  公钥：%s\n' "${id:-未填写}" "${relay:-未填写}" "$([[ -n $key ]] && echo '已填写（隐藏）' || echo '未填写')"
+  if hdm_rustdesk_draft_ready; then printf '  输入完整，可选择 7.1.7 保存。\n'; else printf '  尚缺必需字段，请完成填写。\n'; fi
+}
+hdm_rustdesk_draft_wizard() {
+  local id relay key
+  printf '一次填写三个字段，保存到待应用草稿；不会立即修改 RustDesk。\n'
+  hdm_rustdesk_input_host id 'ID 服务器（可带端口）' || return 1
+  hdm_rustdesk_input_host relay '中继服务器（可带端口）' || return 1
+  printf '服务器公钥（输入不回显）：'; IFS= read -rs key || return 1; printf '\n'
+  [[ $key =~ ^[A-Za-z0-9+/=:_-]{20,256}$ ]] || { hdm_error '公钥格式无效'; return 1; }
+  hdm_rustdesk_draft_set id "$id" && hdm_rustdesk_draft_set relay "$relay" && hdm_rustdesk_draft_set key "$key" || return 1
+  unset key
+  hdm_rustdesk_draft_preview
+}
+hdm_rustdesk_draft_edit() {
+  local field=$1 value
+  case "$field" in
+    id) hdm_rustdesk_input_host value '新的 ID 服务器（主机:端口）' || return 1;;
+    relay) hdm_rustdesk_input_host value '新的中继服务器（主机:端口）' || return 1;;
+    key) printf '输入新公钥（不回显）：'; IFS= read -rs value || return 1; printf '\n';;
+    *) return 1;;
+  esac
+  hdm_rustdesk_draft_set "$field" "$value" || return 1
+  unset value
+  printf '已保存至待应用草稿，选择 7.1.7 才会导入。\n'
+}
+hdm_rustdesk_draft_apply() {
+  local id relay key
+  hdm_rustdesk_draft_ready || { hdm_error '草稿不完整，先在 7.1.1 填写。'; return 1; }
+  id=$(hdm_rustdesk_draft_get id); relay=$(hdm_rustdesk_draft_get relay); key=$(hdm_rustdesk_draft_get key)
+  hdm_rustdesk_import_config "$id" "$relay" "$key"
+  local rc=$?
+  unset key
+  return "$rc"
+}
+hdm_rustdesk_root_config() { printf '%s' "${HDM_RUSTDESK_CONFIG_ROOT:-/root/.config/rustdesk/RustDesk2.toml}"; }
+hdm_rustdesk_root_inspect() {
+  python3 "$HDM_ROOT/scripts/rustdesk_config.py" inspect "$(hdm_rustdesk_root_config)"
+}
+hdm_rustdesk_draft_port_defaults() {
+  printf 'RustDesk 常见端口：ID 21116，Relay 21117。当前自定义端口不会被静默覆盖。\n'
+  hdm_rustdesk_draft_preview
+}
+# Read-only ID is never coupled to configuration editing.
+hdm_rustdesk_registration_status() {
+  hdm_rustdesk_get_id
+  printf '注意：取得设备 ID 不代表自建服务器注册、认证或画面捕获成功。\n'
+}
+
 hdm_rustdesk_import_config() {
   local id_server=$1 relay=$2 public_key=$3 tmp
   hdm_root && hdm_guard_platform || return 1
@@ -153,7 +237,7 @@ hdm_rustdesk_import_config() {
   [[ $public_key =~ ^[A-Za-z0-9+/=:_-]{20,256}$ ]] || { hdm_error '服务器公钥格式无效（字符/长度不符合要求）'; return 1; }
   hdm_rustdesk_endpoint_valid "$id_server" && hdm_rustdesk_endpoint_valid "$relay" || { hdm_error 'ID/中继服务器地址不合法'; return 1; }
   # Config import delegates persistence and version-specific handling to the upstream CLI.
-  hdm_snapshot_create /root/.config/rustdesk/RustDesk2.toml || return 1
+  hdm_snapshot_create "$(hdm_rustdesk_root_config)" || return 1
   tmp=$(mktemp "$HDM_CACHE/downloads/.rustdesk-config.XXXXXX") || return 1
   chmod 600 "$tmp"
   cat > "$tmp" <<EOF_CFG
@@ -166,7 +250,13 @@ EOF_CFG
   hdm_danger '将导入 RustDesk 自建服务器配置，现有连接可能中断；请确保 SSH 可用' || { rm -f "$tmp"; return 2; }
   # Do not copy credentials to log and do not claim registration success from CLI success alone.
   if rustdesk --import-config "$tmp" >/dev/null 2>&1; then
-    hdm_info 'RustDesk CLI 已接受配置导入。实际 ID 注册/运行账户配置仍需菜单 7.9 和远端验证。'
+    if python3 "$HDM_ROOT/scripts/rustdesk_config.py" verify "$(hdm_rustdesk_root_config)" --draft "$(hdm_rustdesk_draft_file)"; then
+      hdm_info '配置文件读回与输入一致；但服务加载、服务器注册和远控仍待实测。'
+    else
+      hdm_warn 'RustDesk CLI 返回成功，但无法从 root CLI 配置文件读回一致结果。不能认定保存成功。'
+      rm -f "$tmp"
+      return 1
+    fi
   else
     rm -f "$tmp"
     # A failed upstream CLI might have partially changed its root-scope TOML.
@@ -194,7 +284,7 @@ hdm_rustdesk_server_import_file() {
   hdm_prompt 'RustDesk 原生配置文件完整路径：' path || return 1
   [[ $path == /* && -f $path && $path == *.toml ]] || { hdm_error '无效的 .toml 路径'; return 1; }
   hdm_danger '通过 RustDesk 原生导入接口导入该配置，可能改变远控服务器？' || return 2
-  hdm_snapshot_create /root/.config/rustdesk/RustDesk2.toml || return 1
+  hdm_snapshot_create "$(hdm_rustdesk_root_config)" || return 1
   rustdesk --import-config "$path" >/dev/null 2>&1 && hdm_info '已执行原生导入，仍需验证实际生效。'
 }
 hdm_rustdesk_password() {
@@ -212,7 +302,13 @@ SEC
   [[ $p1 == "$p2" && ${#p1} -ge 12 ]] || { unset p1 p2; hdm_error '两次输入不一致或少于12字符'; return 1; }
   if rustdesk --password "$p1" >/dev/null 2>&1; then unset p1 p2; hdm_info 'RustDesk CLI 已处理密码设置请求；请从另一台设备验证认证有效。'; else unset p1 p2; hdm_error '设置失败，请核对 RustDesk 版本及服务账户'; return 1; fi
 }
-hdm_rustdesk_get_id() { if hdm_has rustdesk; then timeout 8 rustdesk --get-id 2>/dev/null || hdm_warn '无法获得 ID'; else hdm_warn 'RustDesk 未安装'; fi; }
+hdm_rustdesk_get_id() {
+  local id
+  hdm_has rustdesk || { hdm_warn 'RustDesk 未安装，无法查询设备 ID'; return 1; }
+  id=$(timeout 8 rustdesk --get-id 2>/dev/null) || { hdm_warn '查询设备 ID 失败（超时、服务异常或运行账户问题）'; return 1; }
+  [[ -n $id ]] || { hdm_warn 'RustDesk 返回了空 ID，需检查服务与注册状态'; return 1; }
+  printf '本机 RustDesk ID：%s\n' "$id"
+}
 hdm_rustdesk_set_id() {
   local id
   hdm_prompt '输入期望 ID（必须以字母开头，可能被自建服务器拒绝）：' id || return 1
@@ -222,13 +318,22 @@ hdm_rustdesk_set_id() {
   hdm_rustdesk_get_id
 }
 hdm_rustdesk_server_status() {
-  local file=/root/.config/rustdesk/RustDesk2.toml
-  printf 'RustDesk（root CLI）配置文件：%s\n' "$file"
-  if [[ -r $file ]]; then
-    # Output only endpoint names and redacted key; do not dump full toml or private settings.
-    awk -F "'" '/^[[:space:]]*(rendezvous_server|custom-rendezvous-server|relay-server)[[:space:]]*=/{print $1 "<已配置/请验证>"} /^[[:space:]]*key[[:space:]]*=/{print "key = <已隐藏>"}' "$file"
-  else printf '尚未找到 root CLI 配置；可能使用其他服务账户。\n'; fi
-  hdm_rustdesk_status
+  local file user_home
+  printf 'RustDesk 已安装：%s；systemd 服务：%s\n' "$(hdm_pkg_version rustdesk)" "$(hdm_service_state rustdesk)"
+  file=$(hdm_rustdesk_root_config)
+  printf '\n[Root CLI 已保存配置（读取磁盘，不代表服务生效）]\n'
+  hdm_rustdesk_root_inspect || printf '无法确认 root CLI 配置，菜单 7.1.7 保存后可复查。\n'
+  if [[ -n ${SUDO_USER:-} && ${SUDO_USER:-root} != root ]] && hdm_has getent; then
+    user_home=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+    if [[ -n $user_home && -r $user_home/.config/rustdesk/RustDesk2.toml ]]; then
+      printf '\n[用户 %s 的配置（可能与系统服务不同）]\n' "$SUDO_USER"
+      python3 "$HDM_ROOT/scripts/rustdesk_config.py" inspect "$user_home/.config/rustdesk/RustDesk2.toml" || :
+    fi
+  fi
+  printf '\n[当前编辑草稿]\n'
+  hdm_rustdesk_draft_preview
+  printf '\n[本机设备 ID]\n'
+  hdm_rustdesk_get_id
 }
 hdm_network_test() {
   local host=${1:-} port=${2:-21116}
@@ -237,8 +342,62 @@ hdm_network_test() {
   if timeout 4 bash -c 'exec 3<>/dev/tcp/$1/$2' _ "$host" "$port" 2>/dev/null; then hdm_info "TCP $host:$port 可达；不代表 RustDesk 已注册。"; else hdm_warn "TCP $host:$port 不可达"; return 1; fi
 }
 hdm_rustdesk_server_network_wizard() {
-  local host port
-  hdm_prompt '输入要测试的服务器域名 / IPv4：' host || return 1
-  hdm_prompt '输入 TCP 端口（21116 / 21117）：' port || return 1
+  local endpoint pair host port
+  hdm_prompt '输入服务器地址（主机:端口，允许省略端口默认 21116）：' endpoint || return 1
+  pair=$(hdm_rustdesk_endpoint_parts "$endpoint" 21116) || { hdm_error '地址格式错误'; return 1; }
+  read -r host port <<< "$pair"
   hdm_network_test "$host" "$port"
+}
+
+# Connection tests consume configured endpoints; never ask for the same address again.
+hdm_rustdesk_endpoint_parts() {
+  local endpoint=$1 default_port=$2 host port
+  hdm_rustdesk_endpoint_valid "$endpoint" || return 1
+  if [[ $endpoint =~ ^\[([^]]+)\](:([0-9]+))?$ ]]; then
+    host=${BASH_REMATCH[1]}; port=${BASH_REMATCH[3]:-$default_port}
+  elif [[ $endpoint == *:* ]]; then
+    host=${endpoint%:*}; port=${endpoint##*:}
+  else host=$endpoint; port=$default_port; fi
+  printf '%s %s\n' "$host" "$port"
+}
+hdm_rustdesk_current_endpoint() {
+  local field=$1 path value
+  path=$(hdm_rustdesk_root_config)
+  if [[ -r $path ]]; then
+    value=$(python3 "$HDM_ROOT/scripts/rustdesk_config.py" "get-$field" "$path" 2>/dev/null) || value=''
+    if [[ -n $value ]]; then printf '%s\n' "$value"; return 0; fi
+  fi
+  # Do NOT fall back to a draft silently and call it an active configuration.
+  return 1
+}
+hdm_rustdesk_check_connection() {
+  local role=$1 mode=${2:-active} endpoint host port pair
+  case "$role" in id|relay) ;; *) return 1;; esac
+  if [[ $mode == draft ]]; then endpoint=$(hdm_rustdesk_draft_get "$role"); else endpoint=$(hdm_rustdesk_current_endpoint "$role") || { hdm_error '未读到已保存的服务器地址，无法测试；请先检查 7.3。'; return 1; }; fi
+  [[ -n $endpoint ]] || { hdm_error '当前地址为空，无法检查'; return 1; }
+  pair=$(hdm_rustdesk_endpoint_parts "$endpoint" "$([[ $role == id ]] && echo 21116 || echo 21117)") || return 1
+  read -r host port <<< "$pair"
+  printf '目标：%s（%s 配置；TCP 连通性）\n' "$endpoint" "$mode"
+  hdm_network_test "$host" "$port"
+}
+hdm_rustdesk_check_dns() {
+  local endpoint pair host port
+  endpoint=$(hdm_rustdesk_current_endpoint id) || { hdm_error '未读到已保存的 ID 地址'; return 1; }
+  pair=$(hdm_rustdesk_endpoint_parts "$endpoint" 21116) || return 1
+  read -r host port <<< "$pair"
+  if getent ahosts "$host" >/dev/null 2>&1; then printf 'DNS/地址解析成功：%s\n' "$host"; else hdm_error "DNS/地址解析失败：$host"; fi
+}
+hdm_rustdesk_check_full() {
+  local rc=0
+  hdm_rustdesk_server_status
+  hdm_rustdesk_check_connection id || rc=1
+  hdm_rustdesk_check_connection relay || rc=1
+  printf '提示：以上无法确认 UDP 打洞、服务器公钥握手或远端画面可用，需外部 RustDesk 客户端验证。\n'
+  return "$rc"
+}
+hdm_rustdesk_check_import_file() {
+  local path
+  hdm_prompt '要检查的 .toml 绝对路径：' path || return 1
+  [[ $path == /* && -f $path && $path == *.toml ]] || { hdm_error '路径无效'; return 1; }
+  python3 "$HDM_ROOT/scripts/rustdesk_config.py" validate "$path"
 }

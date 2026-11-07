@@ -6,7 +6,7 @@ hdm_display_status() {
   printf 'VKMS 模块：'; if lsmod 2>/dev/null | grep -q '^vkms '; then printf '已加载\n'; else printf '未加载 / 不可查看\n'; fi
   printf 'HDM Dummy 配置：'; [[ -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]] && printf '存在\n' || printf '不存在\n'
   printf 'Xvfb 服务：%s（DISPLAY :%s，%s，%s-bit）\n' "$(hdm_service_state hdm-xvfb)" "$HDM_XVFB_DISPLAY" "$HDM_XVFB_RESOLUTION" "$HDM_XVFB_DEPTH"
-  printf '当前会话：'; loginctl list-sessions --no-legend 2>/dev/null | head -6 || true
+  printf '活动图形会话：'; loginctl list-sessions --no-legend 2>/dev/null | awk '$0 ~ /wayland|x11/ {n++} END{print n+0}' || true
   if hdm_has xrandr && [[ -n ${DISPLAY:-} ]]; then xrandr --current 2>&1 | head -24 || :; else printf '当前 shell 无可连接的 DISPLAY；不能据此断言图形服务失败。\n'; fi
   printf 'GDM3：%s\n' "$(hdm_service_state gdm3)"
   printf '服务/驱动安装状态并不代表 GNOME 会话可用。\n'

@@ -3,7 +3,7 @@ set -uo pipefail
 HDM_ENTRY_ROOT="$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")" && pwd)"
 # Only local installed scripts, no remote source, eval or arbitrary plugin execution.
 for module in \
-  core/common.sh core/backup.sh core/packages.sh core/downloader.sh \
+  core/common.sh core/operation.sh core/backup.sh core/packages.sh core/downloader.sh \
   modules/display/display.sh modules/desktop/desktop.sh modules/rustdesk/rustdesk.sh \
   modules/updater/updater.sh modules/diagnostics/diagnostics.sh \
   modules/quick-install/quick-install.sh ui/actions.sh ui/menu.sh; do

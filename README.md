@@ -6,7 +6,7 @@
 
 **GNOME 优先 · 虚拟显示 · RustDesk · 安全恢复 · 终端菜单**
 
-[![版本](https://img.shields.io/badge/version-v0.3.1-blue)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-v0.3.2-blue)](CHANGELOG.md)
 [![CI](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml/badge.svg)](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml)
 [![平台](https://img.shields.io/badge/实验平台-Ubuntu%2026%20ARM64-9cf)](docs/implementation-status.md)
 [![阶段](https://img.shields.io/badge/阶段-Preview-orange)](docs/testing-and-limitations.md)
@@ -18,10 +18,16 @@
 </div>
 
 > [!WARNING]
-> **当前为 v0.3.1 Preview，不是生产环境已验证版本。** 菜单与部分安装逻辑已实现，但 GNOME 登录界面是否被 RustDesk 正确捕获、无 GPU 软件渲染、重启后无人值守访问等，尚未在真实云服务器完成验收。强烈建议先建立云快照，保留 SSH 和云平台控制台。
+> **当前为 v0.3.2 Preview，不是生产环境已验证版本。** 菜单与部分安装逻辑已实现，但 GNOME 登录界面是否被 RustDesk 正确捕获、无 GPU 软件渲染、重启后无人值守访问等，尚未在真实云服务器完成验收。强烈建议先建立云快照，保留 SSH 和云平台控制台。
 
 > [!IMPORTANT]
 > **Ubuntu 26 ARM64 实验说明**：GNOME 49+ 不支持 GNOME on Xorg；在 Ubuntu 26 上，HDM 不会自动写入 `WaylandEnable=false`。RustDesk 的标准 ARM64 版在 Wayland 下不保证登录界面无人值守控制。**允许安装 ≠ 已打通无显示器远控**。请保留 SSH 和云控制台，并阅读 [Ubuntu 26 ARM64 测试指引](docs/ubuntu26-arm64.md)。
+
+## 🌿 简洁交互 · 详细日志按需查看
+
+**v0.3.2 起默认静默安装**：执行 APT/DNF/YUM 时不再把几千行包管理日志刷到屏幕，只提示当前任务与最终结果；失败时归类网络、磁盘、超时、镜像、依赖或权限原因，详细日志保存在 `/var/log/hdm/`（仅管理员可读）。需要完整输出时可运行 `sudo env HDM_DEBUG_INSTALL=1 hdm`。
+
+**RustDesk 服务器配置采用草稿 → 预览 → 导入 → 磁盘读回校验**。`7 → 1 → 8` 只负责设备 ID 查询；`7 → 3` 读取实际配置。**配置写入一致 ≠ 服务器注册成功 ≠ GNOME 远控可用**。
 
 ## ✨ 项目可以做什么？
 
@@ -66,7 +72,7 @@ sudo hdm
 
 ```text
 ╭──────────────────────────────────────────────────────────╮
-│       Headless Desktop Manager (HDM) · v0.3.1           │
+│       Headless Desktop Manager (HDM) · v0.3.2           │
 │  虚拟显示器  /  GNOME 桌面  /  RustDesk 远程管理         │
 ├──────────────────────────────────────────────────────────┤
 │  1  安装虚拟显示器         6  更新 RustDesk             │
@@ -179,7 +185,7 @@ bash tests/run.sh
 
 - [x] v0.1.x — 模块化工程、完整菜单树、基础安装与诊断、初版发布脚本
 - [x] v0.2.0 — 中文首页、英文次级文档、Windows 自动推送、Xvfb 配置完善及增强测试
-- [x] v0.3.1 — 测试安装放开发行版/架构白名单，加入 Ubuntu 26 ARM64 Wayland 流程与分架构 RustDesk 校验
+- [x] v0.3.2 — 测试安装放开发行版/架构白名单，加入 Ubuntu 26 ARM64 Wayland 流程与分架构 RustDesk 校验
 - [x] v0.3.0 — 一键安装断点续装、GNOME 只读诊断、RustDesk 端点校验与更安全的配置操作
 - [ ] 云服务器实机：GNOME/GDM3/Xorg Dummy/RustDesk 画面捕获和无人值守验证
 - [ ] 完整官方/自建 ID/Relay 服务器端到端测试与版本兼容性矩阵

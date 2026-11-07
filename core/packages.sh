@@ -53,25 +53,31 @@ hdm_apt_transient_error() {
 }
 hdm_apt_call() {
   hdm_root || return 1; hdm_guard_platform || return 1
-  hdm_has apt-get || { hdm_error '当前系统没有 apt-get，请在对应发行版使用其包管理器。'; return 1; }
-  local log choice src
-  log=$(mktemp "$HDM_CACHE/downloads/.apt-log.XXXXXX") || return 1
+  hdm_has apt-get || { hdm_error '当前系统没有 apt-get'; return 1; }
+  local src rc=0 label="APT ${1:-操作}" log
   local -a cmd=(apt-get "$@")
-  if [[ ${HDM_DRY_RUN:-0} == 1 ]]; then printf '[DRY RUN]'; printf ' %q' "${cmd[@]}"; printf '\n'; rm -f "$log"; return 0; fi
-  if DEBIAN_FRONTEND=noninteractive "${cmd[@]}" 2>&1 | tee "$log"; then rm -f "$log"; return 0; fi
+  if [[ ${HDM_DRY_RUN:-0} == 1 ]]; then printf '[DRY RUN]'; printf ' %q' "${cmd[@]}"; printf '\n'; return 0; fi
+  hdm_operation_begin "$label" || return 1
+  log=$HDM_LAST_OPERATION_LOG
+  hdm_operation_exec "$log" env DEBIAN_FRONTEND=noninteractive "${cmd[@]}" || rc=$?
+  if ((rc==0)); then hdm_operation_ok "$label"; return 0; fi
+  # Only transient download/connection failures are eligible for alternative sources.
   if [[ $HDM_SOURCE_POLICY == system-only ]] || ! hdm_apt_transient_error "$log"; then
-    hdm_warn "APT 操作失败，未绕过校验；详细日志：$log"; return 1
+    hdm_operation_failed "$label" "$rc"; return "$rc"
   fi
-  if [[ $HDM_SOURCE_POLICY == ask ]]; then hdm_confirm '尝试官方 Ubuntu 备用镜像（仅此操作临时切换）？' || return 1; fi
-  hdm_warn '检测到软件源网络故障，尝试系统官方临时镜像（不覆盖源文件）。'
-  src=$(hdm_apt_source_test) || return 1
+  if [[ $HDM_SOURCE_POLICY == ask ]]; then
+    hdm_confirm '检测到网络故障。临时使用 Ubuntu 官方备用镜像？' || { hdm_operation_failed "$label" "$rc"; return "$rc"; }
+  fi
+  src=$(hdm_apt_source_test) || { hdm_operation_failed "$label" "$rc"; return "$rc"; }
   local -a apt_opts=(-o "Dir::Etc::sourcelist=$src" -o 'Dir::Etc::sourceparts=-')
-  # Cache update required when switching source. Never pass --allow-unauthenticated.
-  if ! DEBIAN_FRONTEND=noninteractive apt-get "${apt_opts[@]}" update; then rm -f "$src"; return 1; fi
-  if DEBIAN_FRONTEND=noninteractive apt-get "${apt_opts[@]}" "$@"; then rm -f "$src" "$log"; return 0; fi
-  rm -f "$src"
-  hdm_warn "备用镜像仍不可用；完整 GNOME 的依赖不以散装 GitHub 包代替。"
-  return 1
+  printf '  原软件源连接失败，尝试 Ubuntu 官方备用镜像 ...\n'
+  if hdm_operation_exec "$log" env DEBIAN_FRONTEND=noninteractive apt-get "${apt_opts[@]}" update; then
+    rc=0
+    hdm_operation_exec "$log" env DEBIAN_FRONTEND=noninteractive apt-get "${apt_opts[@]}" "$@" || rc=$?
+  else rc=$?; fi
+  rm -f -- "$src"
+  if ((rc==0)); then hdm_operation_ok "$label（备用源）"; return 0; fi
+  hdm_operation_failed "$label（含备用源）" "$rc"; return "$rc"
 }
 hdm_pkg_install() {
   hdm_root || return 1; hdm_guard_platform || return 1
@@ -87,7 +93,7 @@ hdm_pkg_install() {
     dnf|yum)
       local pm; pm=$(hdm_type)
       hdm_warn "$pm 包名可能与 Ubuntu 不同；通过系统仓库解析，不使用 Ubuntu 安装包。"
-      if [[ ${HDM_DRY_RUN:-0} == 1 ]]; then printf '[DRY RUN] %s install -y %s\n' "$pm" "${list[*]}"; else "$pm" install -y "${list[@]}"; fi ;;
+      if [[ ${HDM_DRY_RUN:-0} == 1 ]]; then printf '[DRY RUN] %s install -y %s\n' "$pm" "${list[*]}"; else hdm_run_quiet "$pm 安装" "$pm" install -y "${list[@]}"; fi ;;
     *) hdm_error '未识别 APT/DNF/YUM，无法自动安装系统软件包。' ;;
   esac
 }
@@ -98,7 +104,7 @@ hdm_pkg_upgrade() {
   hdm_confirm "仅升级指定软件包：${list[*]}？" || return 0
   case "$(hdm_type)" in
     apt) hdm_apt_call update && hdm_apt_call install -y --only-upgrade "${list[@]}" ;;
-    dnf|yum) local pm; pm=$(hdm_type); "$pm" upgrade -y "${list[@]}" ;;
+    dnf|yum) local pm; pm=$(hdm_type); hdm_run_quiet "$pm 更新" "$pm" upgrade -y "${list[@]}" ;;
     *) hdm_error '没有可用的系统包管理器' ;;
   esac
 }
@@ -109,7 +115,7 @@ hdm_pkg_remove() {
   hdm_danger "移除软件包 ${list[*]}，可能破坏远程桌面；不会自动 autoremove" || return 0
   case "$(hdm_type)" in
     apt) hdm_apt_call remove -y "${list[@]}" ;;
-    dnf|yum) local pm; pm=$(hdm_type); "$pm" remove -y "${list[@]}" ;;
+    dnf|yum) local pm; pm=$(hdm_type); hdm_run_quiet "$pm 卸载" "$pm" remove -y "${list[@]}" ;;
     *) hdm_error '没有可用的系统包管理器' ;;
   esac
 }
