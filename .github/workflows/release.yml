@@ -10,17 +10,41 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Validate version
+      - name: Validate version and public release notes
+        shell: bash
         run: |
+          set -euo pipefail
           test "v$(cat VERSION)" = "${GITHUB_REF_NAME}"
+          python3 scripts/validate-public-release.py
           bash tests/run.sh
       - name: Build release bundle
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p dist/headless-desktop-manager
           tar --exclude=.git --exclude=dist --exclude='__pycache__' --exclude='*.pyc' -cf - . | tar -xf - -C dist/headless-desktop-manager
           tar -czf "hdm-${GITHUB_REF_NAME}.tar.gz" -C dist headless-desktop-manager
           sha256sum "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh > SHA256SUMS
-      - name: Upload GitHub Release assets
+      - name: Publish release with user-facing title and notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh SHA256SUMS --title "HDM ${GITHUB_REF_NAME}" --prerelease --notes "Preview release. See README and testing limitations."
+        shell: bash
+        run: |
+          set -euo pipefail
+          title=$(cat release/RELEASE_TITLE.txt)
+          gh release create "$GITHUB_REF_NAME" "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh SHA256SUMS \
+            --title "$title" --prerelease --notes-file release/RELEASE_NOTES.md
+      - name: Correct v0.3.4 release display without rewriting commits or tags
+        if: github.ref_name == 'v0.3.5'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v0.3.4 >/dev/null 2>&1; then
+            gh release edit v0.3.4 \
+              --title "$(cat release/history/v0.3.4/RELEASE_TITLE.txt)" \
+              --notes-file release/history/v0.3.4/RELEASE_NOTES.md
+          else
+            echo 'v0.3.4 release not found; skip metadata correction.'
+          fi

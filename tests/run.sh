@@ -24,6 +24,7 @@ bash "$ROOT/tests/unit/test_operation_quiet.sh"
 bash "$ROOT/tests/unit/test_rustdesk_menu.sh"
 bash "$ROOT/tests/unit/test_preview_update.sh"
 python3 "$ROOT/tests/unit/test_publisher.py"
+python3 "$ROOT/tests/unit/test_public_release.py"
 python3 "$ROOT/tests/unit/test_status.py"
 python3 "$ROOT/tests/unit/test_doctor.py"
 echo 'PASS: syntax, menus, runtime settings/cache index, publisher checks, release parser, archive verifier, spec and commit policy'

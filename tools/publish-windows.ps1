@@ -16,14 +16,29 @@ function Invoke-Git([string[]]$Arguments) {
 }
 function Publish-VersionTag([string]$Version, [string]$CommitMessage) {
     $tag = ('v' + $Version)
-    $remoteTag = & $script:Git ls-remote --tags --refs origin ('refs/tags/' + $tag)
+    $tagRef = 'refs/tags/' + $tag
+    $remoteLines = @(& $script:Git ls-remote --tags origin $tagRef ($tagRef + '^{}'))
     if ($LASTEXITCODE -ne 0) { throw ('Could not query remote tag: ' + $tag) }
-    if ($remoteTag) {
-        Write-Host ('Release tag already exists: ' + $tag) -ForegroundColor Yellow
+    if ($remoteLines.Count -gt 0) {
+        $tagObject = $null
+        $tagCommit = $null
+        foreach ($line in $remoteLines) {
+            $parts = $line -split '\s+'
+            if ($parts.Count -lt 2) { continue }
+            if ($parts[1] -eq ($tagRef + '^{}')) { $tagCommit = $parts[0] }
+            elseif ($parts[1] -eq $tagRef) { $tagObject = $parts[0] }
+        }
+        if (-not $tagCommit) { $tagCommit = $tagObject }  # lightweight tag
+        $head = (& $script:Git rev-parse HEAD | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or -not $head) { throw 'Could not inspect current commit.' }
+        if ($tagCommit -ne $head) {
+            throw ('Existing tag ' + $tag + ' points to a different commit; refusing to overwrite it.')
+        }
+        Write-Host ('Tag already correct: ' + $tag) -ForegroundColor Green
         return
     }
     Invoke-Git -Arguments @('tag', '-a', $tag, '-m', $CommitMessage)
-    Invoke-Git -Arguments @('push', 'origin', ('refs/tags/' + $tag))
+    Invoke-Git -Arguments @('push', 'origin', $tagRef)
     Write-Host ('Tag pushed: ' + $tag + '; GitHub Actions should create the Release.') -ForegroundColor Green
 }
 function Get-LocalVersion([string]$Path) {
@@ -45,6 +60,23 @@ try {
     $summary = (Get-Content -LiteralPath (Join-Path $ProjectDir 'release\COMMIT_SUMMARY.txt') -Encoding UTF8 -TotalCount 1).Trim()
     if ($summary.Length -lt 12 -or $summary -match '^(?:[vV]\d+\.\d+\.\d+|update files|fix bugs|wip|xxx)' -or $summary -match '(?i)xxx') {
         throw 'Commit summary is too generic or contains a version prefix.'
+    }
+    $titlePath = Join-Path $ProjectDir 'release\RELEASE_TITLE.txt'
+    $notesPath = Join-Path $ProjectDir 'release\RELEASE_NOTES.md'
+    if (-not (Test-Path -LiteralPath $titlePath) -or -not (Test-Path -LiteralPath $notesPath)) {
+        throw 'Release title and notes files must be present.'
+    }
+    $title = (Get-Content -LiteralPath $titlePath -Encoding UTF8 -Raw).Trim()
+    $notes = (Get-Content -LiteralPath $notesPath -Encoding UTF8 -Raw).Trim()
+    if ($title -notmatch ('^v' + [regex]::Escape($version) + '\s+\S+') -or $notes.Length -lt 90) {
+        throw 'Release metadata does not match VERSION or lacks specific notes.'
+    }
+    if ($notes.Contains($title) -or $notes -match '^#{1,6}\s') {
+        throw 'Release body must not repeat the title.'
+    }
+    $internalTerms = '(?i)Windows|PowerShell|GitHub Actions|CI/CD|自动推送|自动上传|上传脚本|触发Release|推送标签|git push|发布工作流|打标签'
+    if (($summary + $title + $notes) -match $internalTerms) {
+        throw 'Public release text contains internal publishing operations.'
     }
     $message = ('v' + $version + ' ' + $summary)
     $gitCommand = Get-Command git -ErrorAction SilentlyContinue

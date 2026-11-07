@@ -13,7 +13,7 @@ vMAJOR.MINOR.PATCH 具体且真实的变更内容
 **实际存在的例子：**
 
 - `v0.1.0 初始实现 HDM 模块化框架、菜单导航与测试`（历史基础版）
-- `v0.1.1 修复 Windows PowerShell 5.1 解析乱码并增加提交信息校验`（此修订）
+- `v0.1.1 改善初始版本的跨平台兼容性与提交验证`（格式参考）
 
 **以下仅是未来开发的格式范例，不代表功能已经实现：**
 
@@ -30,13 +30,22 @@ vMAJOR.MINOR.PATCH 具体且真实的变更内容
 5. 同一预发布版本允许多次提交，但每条提交都以当前开发版本为前缀；发布标签 `vX.Y.Z` 仅在实际发布时创建。
 6. GitHub Pull Request 应使用 **Squash merge**，合并提交标题同样必须遵循此规则，避免自动生成无版本前缀的 `Merge pull request ...`。
 
-## 3. 自动检查的边界
+## 3. 公开变更摘要与内部维护操作分离
+
+- `release/COMMIT_SUMMARY.txt` 是对外可见的 Git 提交标题内容：仅描述本版项目功能、体验、缺陷修复或文档变化，不包含 Windows 上传、Git 推送、打标签、CI 工作流等内部发布操作。
+- `release/RELEASE_TITLE.txt` 是 GitHub Release 的**唯一标题**，格式为 `vX.Y.Z · 简明功能主题`；`VERSION` 与发布 Tag 必须一致。
+- `release/RELEASE_NOTES.md` 是 GitHub Release **正文**：仅列具体可核验的改动及真实限制；禁止再次写版本标题、版本号或内部发布步骤。
+- 维护者需要的 Windows 发布方法仍保存在 `docs/windows-publish.md`，它不属于公开版本的功能亮点。
+- `scripts/validate-public-release.py` 在测试和正式 Release 构建前检查以上规范。
+- 已发布的 Git commit 标题不能不改写历史就直接修改；对于历史 Release 可安全更改其展示标题和正文，保留原标签/提交不变。
+
+## 4. 自动检查的边界
 
 `tools/publish-windows.ps1` 自动从 `VERSION` 读取版本前缀，打印真实修改清单，要求开发者填写真正的更改说明。
 
 `scripts/check-commit-messages.py` 和 GitHub Actions 负责检查格式、空泛占位词等；**机器无法仅凭提交标题证明技术修复的真实性**，必须由开发者复核代码差异、测试结果与更新记录。
 
-## 4. Windows 自动发布模式（v0.2.0 起）
+## 5. Windows 自动发布模式（v0.2.0 起）
 
 维护者已授权每次在自己的 Windows 本地运行一条上传命令来发布交付 ZIP，**不需要再次输入 YES，也不需要填写 commit 标题**。
 

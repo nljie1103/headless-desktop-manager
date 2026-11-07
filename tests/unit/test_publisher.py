@@ -11,7 +11,12 @@ assert 'git push --force' not in s and "'--force'" not in s
 assert 'Invoke-Git -Arguments' in s
 assert "'--no-pager', 'diff'" in s, 'Git pager can hang CMD at colon prompt'
 assert "'HEAD:refs/heads/main'" in s
-assert 'Publish-VersionTag' in s and "'refs/tags/'" in s
+assert 'Publish-VersionTag' in s
+assert 'points to a different commit' in s, 'Remote tag cannot silently target an unrelated commit'
+assert 'Release body must not repeat the title' in s
+assert 'release\\RELEASE_TITLE.txt' in s  # publisher checks release metadata before pushing
+assert (root/'release/RELEASE_TITLE.txt').is_file()
+assert (root/'release/RELEASE_NOTES.md').is_file() and "'refs/tags/'" in s
 assert 'release\\COMMIT_SUMMARY.txt' in s
 assert "[version]$version -lt [version]$remoteVersion" in s
 v = (root / 'VERSION').read_text().strip()
