@@ -61,7 +61,7 @@ hdm_env_plan_hint() {
   local desktop=$1 output=$2
   if [[ $desktop != none && $desktop != unknown ]]; then
     case "$output" in
-      connected) printf '保留现有桌面与显示配置，优先检查 RustDesk。';;
+      connected) printf '保留桌面与显示设置；先确认图形会话正常，再检查 RustDesk。';;
       not-connected) printf '保留现有桌面，先核实虚拟输出兼容性，再配置远控。';;
       *) printf '保留现有桌面；显示状态未知，先只读诊断，勿强制更改 GDM/Xorg。';;
     esac
@@ -93,7 +93,11 @@ hdm_env_report() {
   printf '显示连接：%s\n' "$(hdm_env_drm_label "$output")"
   printf '图形登录会话：%s（SSH 会话不计入）\n' "$session"
   printf 'GDM3 服务：%s；RustDesk 服务：%s\n' "$(hdm_service_state gdm3)" "$(hdm_service_state rustdesk)"
-  printf '推荐操作：%s\n' "$(hdm_env_plan_hint "$desktop" "$output")"
+  if [[ $desktop != none && $session != x11 && $session != wayland ]]; then
+    printf '推荐操作：图形会话尚未证实运行；检查 GDM3 状态和日志，然后再连接 RustDesk。\n'
+  else
+    printf '推荐操作：%s\n' "$(hdm_env_plan_hint "$desktop" "$output")"
+  fi
   if hdm_gnome_wayland_only; then
     printf '[兼容提示] 当前 GNOME Wayland-only，绝不自动强制 WaylandEnable=false。\n'
     printf '[远控限制] 标准 RustDesk 的 Wayland 登录前/无人值守捕获仍待验收。\n'

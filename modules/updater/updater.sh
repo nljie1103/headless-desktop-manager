@@ -77,7 +77,7 @@ hdm_update_preview_install() {
   fi
   printf '来源：GitHub main 的固定提交 %s\n' "$sha"
   hdm_warn '当前更新来源为 GitHub main 的固定提交，通过 HTTPS 传输，未使用独立签名。'
-  hdm_danger "将 HDM 管理器更新至 v$version？保留旧版本，不修改 GNOME/RustDesk。" || return 2
+  # Selecting Update is explicit consent to replace HDM code; no duplicate YES.
   base=${HDM_UPDATE_BASE:-/opt/hdm}
   [[ $base == /* && $base != / ]] || { hdm_error '非法 HDM 安装根目录'; return 1; }
   mkdir -p "$base/releases" || return 1
@@ -122,7 +122,7 @@ hdm_update_preview_install() {
   rm -rf -- "$stage"
   exec {lock_fd}>&-
   hdm_info "HDM 已更新到 v$version（main ${sha:0:12}）；旧版本已保留。"
-  printf '当前菜单进程仍是旧版，请退出后重新执行 sudo hdm。\n'
+  printf '正在切换到新版 HDM 菜单...\n'
 }
 hdm_update_trusted_digest() {
   local tag=$1 digest=$2 manifest="$HDM_ETC/trusted-releases.tsv"

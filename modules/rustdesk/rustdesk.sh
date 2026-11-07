@@ -258,7 +258,7 @@ hdm_rustdesk_import_config() {
   for path in "${config_paths[@]}"; do
     [[ ! -L $path && ! -L $(dirname -- "$path") ]] || { hdm_error "配置路径为符号链接，拒绝覆盖：$path"; return 1; }
   done
-  hdm_danger '将备份并更新 root/当前登录用户的 RustDesk 服务器配置；若服务运行则短暂重启，SSH 不受影响' || return 2
+  # An explicit Save action is sufficient; avoid redundant confirmation.
   state=$(hdm_service_state rustdesk)
   if [[ $state == active ]]; then
     if ! systemctl stop rustdesk >/dev/null 2>&1; then
@@ -337,20 +337,30 @@ hdm_rustdesk_server_import_file() {
   rustdesk --import-config "$path" >/dev/null 2>&1 && hdm_info '已执行原生导入，仍需验证实际生效。'
 }
 hdm_rustdesk_password() {
-  local p1 p2
+  local password
   hdm_root || return 1
-  hdm_has rustdesk || return 1
-  cat <<'SEC'
-RustDesk CLI --password 可能短暂暴露密码于同机 /proc 进程参数。
-HDM 不记录密码、不会写入明文 TOML，但不能消除上游 CLI 的进程参数泄露风险。
-如无法接受，请用 RustDesk 官方图形设置界面手动设置。
-SEC
-  hdm_danger '理解上述风险，继续使用 RustDesk 官方 CLI 设置永久密码？' || return 2
-  printf '请输入永久密码（输入不回显）：'; IFS= read -rs p1 || return 1; printf '\n'
-  printf '再次输入永久密码（输入不回显）：'; IFS= read -rs p2 || return 1; printf '\n'
-  [[ $p1 == "$p2" && ${#p1} -ge 12 ]] || { unset p1 p2; hdm_error '两次输入不一致或少于12字符'; return 1; }
-  if rustdesk --password "$p1" >/dev/null 2>&1; then unset p1 p2; hdm_info 'RustDesk CLI 已处理密码设置请求；请从另一台设备验证认证有效。'; else unset p1 p2; hdm_error '设置失败，请核对 RustDesk 版本及服务账户'; return 1; fi
+  hdm_has rustdesk || { hdm_error 'RustDesk 尚未安装'; return 1; }
+  # No HDM-specific arbitrary length requirement. RustDesk itself validates.
+  # The user specifically requested visible input without repeated prompts.
+  printf '永久密码（输入可见）：'
+  IFS= read -r password || return 1
+  [[ -n $password ]] || { hdm_error '密码不能为空'; return 1; }
+  if rustdesk --password "$password" >/dev/null 2>&1; then
+    unset password
+    hdm_info 'RustDesk 已接受永久密码设置。'
+    # Permit password-only authorization where a GUI acceptance dialog cannot
+    # be displayed. Verify on-disk auth options independently from CLI success.
+    if ! hdm_rustdesk_permissions_apply auth N; then
+      hdm_warn '永久密码已提交，但无人值守密码验证模式尚未配置成功。'
+      return 1
+    fi
+    printf '仍需从另一台设备验证连接；没有图形会话时连接可能被拒绝。\n'
+  else
+    unset password
+    hdm_error 'RustDesk 拒绝设置密码，请检查客户端日志'; return 1
+  fi
 }
+
 hdm_rustdesk_get_id() {
   local id
   hdm_has rustdesk || { hdm_warn 'RustDesk 未安装，无法查询设备 ID'; return 1; }
@@ -493,4 +503,84 @@ hdm_rustdesk_permission_report() {
   fi
   hdm_rustdesk_get_id || :
   printf '[待实测] 以上诊断不证明管理员解锁按钮已可用，也不证明自建服务器注册成功。\n'
+}
+
+# RustDesk documented permissions are stored in [options]. Different accounts
+# and server-side Override/Strategy policies may have distinct effective values.
+hdm_rustdesk_permissions_apply() {
+  local mode=$1 remote=${2:-N} state root_file profile user_file='' uid='' gid='' snapshot='' rc=0 file
+  local -a files=()
+  hdm_root || return 1
+  hdm_has rustdesk || { hdm_error '请先安装 RustDesk'; return 1; }
+  case "$mode" in custom|full|view|auth) ;; *) return 1;; esac
+  [[ $remote == Y || $remote == N ]] || return 1
+  root_file=$(hdm_rustdesk_root_config)
+  files=("$root_file")
+  if profile=$(hdm_rustdesk_login_profile); then
+    IFS=$'\t' read -r user_file uid gid <<< "$profile"
+    [[ $user_file == "$root_file" ]] || files+=("$user_file")
+  fi
+  # Check every ancestor before snapshotting; root backups must not follow
+  # an attacker-controlled symlink into an unrelated system path.
+  python3 - "${files[@]}" <<'PY_PATHCHECK' || return 1
+import pathlib, sys
+for name in sys.argv[1:]:
+    path = pathlib.Path(name)
+    if not path.is_absolute() or any(part.is_symlink() for part in (path, *path.parents)):
+        raise SystemExit('Refusing unsafe RustDesk configuration path')
+PY_PATHCHECK
+  state=$(hdm_service_state rustdesk)
+  if [[ $state == active ]] && ! systemctl stop rustdesk >/dev/null 2>&1; then
+    hdm_error '无法停止 RustDesk，配置保持不变'; return 1
+  fi
+  if ! hdm_snapshot_create "${files[@]}"; then
+    [[ $state != active ]] || systemctl start rustdesk >/dev/null 2>&1 || :
+    return 1
+  fi
+  snapshot=$HDM_LAST_SNAPSHOT
+  python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" apply "$root_file" --mode "$mode" --remote "$remote" --uid 0 --gid 0 >/dev/null || rc=1
+  if ((rc == 0)) && [[ -n $user_file ]]; then
+    python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" apply "$user_file" --mode "$mode" --remote "$remote" --uid "$uid" --gid "$gid" >/dev/null || rc=1
+  fi
+  if ((rc == 0)) && [[ $state == active ]]; then
+    systemctl start rustdesk >/dev/null 2>&1 || rc=1
+  fi
+  if ((rc == 0)); then
+    for file in "${files[@]}"; do
+      python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" verify "$file" --mode "$mode" --remote "$remote" >/dev/null || { rc=1; break; }
+    done
+  fi
+  if ((rc != 0)); then
+    [[ $state != active ]] || systemctl stop rustdesk >/dev/null 2>&1 || :
+    hdm_snapshot_restore "$snapshot" || hdm_warn '权限设置恢复快照失败，请手动恢复。'
+    [[ $state != active ]] || systemctl start rustdesk >/dev/null 2>&1 || :
+    hdm_error '权限写入或读回验证失败，已尝试恢复原设置'; return 1
+  fi
+  printf '权限配置已保存并读回一致（%s）。\n' "$mode"
+  printf '服务是否实际采用，仍取决于 RustDesk 运行账户和更高优先级策略。\n'
+}
+hdm_rustdesk_permissions_show() {
+  local profile file
+  file=$(hdm_rustdesk_root_config)
+  printf 'root 账户：\n'
+  python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" inspect "$file" || :
+  if profile=$(hdm_rustdesk_login_profile); then
+    file=${profile%%$'\t'*}
+    printf '\n登录用户：\n'
+    python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" inspect "$file" || :
+  fi
+}
+hdm_rustdesk_permissions_menu() {
+  local choice value
+  printf '\nRustDesk 访问权限\n  1 自定义（常用权限开启，远程修改配置关闭）\n  2 完全访问\n  3 仅共享屏幕\n  4 允许远程修改配置\n  5 禁止远程修改配置\n  6 查看当前设置\n'
+  hdm_prompt '请选择：' choice || return 1
+  case "$choice" in
+    1) hdm_rustdesk_permissions_apply custom N;;
+    2) hdm_rustdesk_permissions_apply full N;;
+    3) hdm_rustdesk_permissions_apply view N;;
+    4) printf '启用后已授权的远程用户可以修改本机 RustDesk 配置。\n'; hdm_rustdesk_permissions_apply custom Y;;
+    5) hdm_rustdesk_permissions_apply custom N;;
+    6) hdm_rustdesk_permissions_show;;
+    *) hdm_error '无效选项'; return 1;;
+  esac
 }

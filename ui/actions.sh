@@ -64,12 +64,12 @@ hdm_dispatch() {
   1.2.2) hdm_xvfb_set_display;;
   1.2.5) hdm_xvfb_configure;;
   1.2.6) hdm_xvfb_verify;;
-  1.2.7|1.5.2|1.4.2|2.3.4) hdm_desktop_compare;;
+  1.2.7|1.5.2|1.4.2|2.3.4) hdm_display_compare;;
   1.3.1|1.3.4|1.3.5) hdm_display_vkms_check; ls -l /dev/dri 2>/dev/null || :;;
   1.3.2) hdm_display_vkms_load;;
   1.3.3) hdm_display_vkms_persist;;
   1.3.6) hdm_display_vkms_unset;;
-  1.5.1|1.5.3) hdm_desktop_compare;;
+  1.5.1|1.5.3) hdm_display_compare;;
   # 2. Display management
   2.2.1|2.2.4|2.2.5|2.2.6) hdm_action_pkg_detail "$(hdm_display_current_package)";;
   2.2.2) local pkg; pkg=$(hdm_display_current_package); [[ -n $pkg ]] && hdm_pkg_upgrade "$pkg" || hdm_warn '没有检测到可升级的 HDM 虚拟显示方案';;
@@ -171,6 +171,7 @@ hdm_dispatch() {
   6.10.3) hdm_rustdesk_uninstall;;
   # 7. RustDesk ID/Relay config
   7.12) hdm_rustdesk_permission_report;;
+  7.13) hdm_rustdesk_permissions_menu;;
   7.1.1) hdm_rustdesk_draft_wizard;;
   7.1.2|7.5.1) hdm_rustdesk_draft_edit relay;;
   7.1.3|7.6.1) hdm_rustdesk_draft_edit key;;
@@ -222,7 +223,7 @@ hdm_dispatch() {
   9.1.6|9.2.1|9.4.3|9.7.2) hdm_quick_install;;
   9.2.2|9.2.3|9.2.4|9.2.5|9.2.6|9.2.7) hdm_warn 'GNOME + Dummy 是唯一默认主路径。其他组合已保留菜单但未经外部实机回归验证，请逐模块在 1、3、5 中手动完成。';;
   9.3.1) hdm_display_status;;
-  9.3.2) hdm_desktop_compare;;
+  9.3.2) hdm_desktop_compare; hdm_resource_recommendation;;
   9.3.3) hdm_rustdesk_status;;
   9.3.5) hdm_sources_policy;;
   9.3.7) hdm_quick_plan;;

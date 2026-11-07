@@ -201,3 +201,16 @@ hdm_display_remove_config() {
 hdm_display_current_package() {
   if [[ -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]]; then printf 'xserver-xorg-video-dummy'; elif hdm_installed xvfb; then printf 'xvfb'; else printf ''; fi
 }
+
+hdm_display_compare() {
+  cat <<'END_DISPLAY'
+显示方式    典型额外内存*   用途                       注意
+Xorg Dummy  40–200 MB       X11 虚拟显示、部分旧版 GNOME  不等于 Wayland 显示
+Xvfb        20–120 MB       独立 X11 虚拟帧缓冲         不自动成为 GDM 登录屏幕
+VKMS        依合成器与分辨率  DRM/KMS 虚拟显示驱动         需要内核支持及会话适配
+
+* 仅粗略估算。1920×1080 RGBA 帧缓冲约 8 MiB/帧；多缓冲、
+  合成器与远控编码会显著增加实际占用。
+必须根据桌面协议、内核 DRM、GPU/软件渲染及真实会话选择。
+END_DISPLAY
+}

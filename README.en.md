@@ -43,3 +43,7 @@ The interface uses two columns on wide terminals and one column on narrow termin
 Keep SSH and provider console access before changing remote display settings. The `main` installer follows a mutable branch; use a pinned archive hash when independent artifact integrity is required.
 
 See the [Chinese main documentation](README.md), [changelog](CHANGELOG.md), and [menu guide](docs/menu-guide.md).
+
+## Host sizing and display options
+
+HDM preserves any installed desktop. On a new host it recommends XFCE below 4 GiB RAM and GNOME for 4 GiB or more; MATE is an optional manual choice. Typical idle RAM estimates: GNOME 1.2–2.0 GB, MATE 0.5–0.9 GB, XFCE 0.4–0.8 GB. Display drivers: Xorg Dummy (~40–200 MB, X11), Xvfb (~20–120 MB, separate X server), and VKMS (kernel DRM and compositor-dependent). These are rough planning estimates, not verified benchmarks. RustDesk permissions are configurable via menu `7 → 13`, including the remote-configuration toggle.

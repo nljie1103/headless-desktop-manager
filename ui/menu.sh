@@ -36,7 +36,8 @@ hdm_menu_header() {
     desktop=$(hdm_env_desktop_kind)
     output=$(hdm_env_drm_state)
     session=$(hdm_env_active_session)
-    printf '  桌面 %s  ·  显示 %s  ·  会话 %s  ·  RustDesk %s\n' \
+    [[ $session == unknown || $session == none ]] && session='未检测到'
+    printf '  桌面 %s  ·  DRM %s  ·  会话 %s  ·  RustDesk %s\n' \
       "$desktop" "$(hdm_env_drm_short "$output")" "$session" "$(hdm_pkg_version rustdesk)"
   else
     printf '  %s\n' "$(hdm_menu_label "$path")"
@@ -89,6 +90,14 @@ hdm_menu() {
     else
       hdm_show "$ident $(hdm_menu_label "$ident")"
       if ! hdm_dispatch "$ident"; then hdm_warn '操作未完成，可在菜单 10 查看日志。'; fi
+      # The parent menus have sourced old code. After an atomic HDM upgrade or
+      # rollback, replace this entire process so Enter never returns to old UI.
+      local active_base=${HDM_UPDATE_BASE:-/opt/hdm} active_root
+      active_root=$(readlink -f -- "$active_base/current" 2>/dev/null) || active_root=''
+      if [[ -n $active_root && $active_root != "$HDM_ROOT" && -f $active_root/hdm.sh ]]; then
+        printf '\nHDM 已切换至 %s，进入新菜单...\n' "$(cat "$active_root/VERSION")"
+        exec bash "$active_root/hdm.sh"
+      fi
       hdm_pause
     fi
   done

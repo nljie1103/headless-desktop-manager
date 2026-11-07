@@ -4,7 +4,7 @@
 
 **Linux 无显示器远程桌面 · 虚拟显示 · RustDesk 统一管理**
 
-[![版本](https://img.shields.io/badge/version-v0.3.7-2f81f7)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-v0.3.8-2f81f7)](CHANGELOG.md)
 [![CI](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml/badge.svg)](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml)
 [![许可](https://img.shields.io/badge/license-MIT-6aa84f)](LICENSE)
 
@@ -64,7 +64,7 @@ HDM 启动时读取桌面安装状态、DRM 输出连接和 X11/Wayland 会话�
 | 缺失组件安装 / 续装 | 菜单 `9`；`sudo hdm --quick-status` 与 `sudo hdm --quick-resume` |
 | 健康诊断 | 菜单 `10`；`sudo hdm --doctor` / `sudo hdm --preflight` |
 
-RustDesk 的 ID 服务器、中继服务器和**公钥完整显示**，以便输入前后核对；系统密码仍采取隐藏输入。配置保存在受权限保护的文件中，完成写入后会进行读回校验。**文件保存成功、设备注册成功、远程桌面可用，是三个不同的判断。**
+RustDesk 的 ID 服务器、中继服务器和**公钥完整显示**，以便输入前后核对；永久密码在终端中可见（按操作者要求），请使用可信终端输入，且不会写入 HDM 日志。配置保存在受权限保护的文件中，完成写入后会进行读回校验。**文件保存成功、设备注册成功、远程桌面可用，是三个不同的判断。**
 
 ## 兼容与安全
 
@@ -72,6 +72,28 @@ RustDesk 的 ID 服务器、中继服务器和**公钥完整显示**，以便输
 - Xorg Dummy、Xvfb 与 VKMS 的选择取决于发行版、桌面会话和内核能力，不保证所有组合都能直接实现无显示器远控。
 - 远程修改显示配置前请保留 SSH 和云控制台，必要时建立快照；HDM 的配置快照与自动恢复功能不替代云服务商的系统恢复能力。
 - RustDesk 的后台服务启动和设备 ID 可用不代表已经存在图形画面。Ubuntu 26 ARM64 的 GNOME Wayland 登录前无人值守连接仍需要实机验证。
+
+## 按服务器性能选择
+
+**HDM 优先保留现有桌面**；仅在没有桌面时根据物理内存推荐：4 GiB 及以上优先 GNOME，低于 4 GiB 优先 XFCE。MATE 可以手动选择。推荐结果不等于图形会话已启动。
+
+| 桌面 | 典型空闲内存（参考） | 推荐物理内存 | 特点 |
+|---|---:|---:|---|
+| GNOME | 约 1.2–2.0 GB | ≥4 GB | 完整现代桌面、Wayland，会用到软件渲染 |
+| MATE | 约 0.5–0.9 GB | 2–4 GB | 传统桌面、较轻量 |
+| XFCE | 约 0.4–0.8 GB | 1–3 GB | 资源占用较低、适合小型云主机 |
+
+| 显示技术 | 典型额外内存（参考） | 适用场景 | 关键限制 |
+|---|---:|---|---|
+| Xorg Dummy | 约 40–200 MB | X11 虚拟显示 | **不提供 GNOME Wayland 显示** |
+| Xvfb | 约 20–120 MB | 独立的 X11 虚拟屏幕 | 不等同于图形登录界面 |
+| VKMS | 取决于合成器与帧缓冲 | DRM/KMS 虚拟输出 | 需要内核、合成器与会话兼容 |
+
+以上数值是容量规划的粗略范围，不是基准测试数据；具体占用与分辨率、系统服务、图形合成和 RustDesk 编码有关。例如 1920×1080 32-bit 单帧约 8 MiB，多帧缓存和软件渲染会增加开销。**是否使用虚拟显示器还取决于 X11/Wayland、DRM 输出和图形会话状态，不能只按内存决定。**
+
+## RustDesk 访问权限
+
+在菜单 `7 → 13` 可以选择**自定义、完全访问、仅共享屏幕**，单独开启或关闭“允许远程修改配置”，并查看当前 root / 登录用户的权限配置。自定义模式启用常用权限，但默认关闭远程修改配置。设置永久密码时不再额外要求 12 位，也不重复要求输入；输入会直接显示在终端，请在可信终端操作。实际认证取决于 RustDesk 服务是否加载这些设置，以及图形会话是否存在。
 
 ## 开发与维护
 

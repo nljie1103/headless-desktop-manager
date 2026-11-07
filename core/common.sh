@@ -70,7 +70,15 @@ hdm_gnome_wayland_only() {
   return 1
 }
 hdm_confirm() { local text=$1 response; printf '\n%s [y/N]: ' "$text"; IFS= read -r response || return 1; [[ $response == y || $response == Y || $response == yes ]]; }
-hdm_danger() { local text=$1 response; printf '\n风险操作：%s\n请输入 YES 继续（其他任意输入取消）：' "$text"; IFS= read -r response || return 1; [[ $response == YES ]]; }
+hdm_danger() {
+  local text=$1 response
+  # Explicit interactive selection is already intent; for system-wide changes
+  # require one simple confirmation, never repeated literal YES phrases.
+  [[ ${HDM_QUICK_APPROVED:-0} == 1 ]] && return 0
+  printf '\n%s [y/N]：' "$text"
+  IFS= read -r response || return 1
+  [[ $response == y || $response == Y || $response == yes || $response == YES ]]
+}
 hdm_pause() { if [[ -t 0 ]]; then printf '\n按回车返回...'; IFS= read -r _ || :; fi; }
 hdm_prompt() { local prompt=$1 __var=$2 answer; printf '%s' "$prompt"; IFS= read -r answer || return 1; printf -v "$__var" '%s' "$answer"; }
 hdm_has() { command -v "$1" >/dev/null 2>&1; }

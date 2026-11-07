@@ -83,11 +83,13 @@ hdm_desktop_repair() {
 }
 hdm_desktop_compare() {
   cat <<'END_COMPARE'
-GNOME：完整功能，HDM 默认支持目标；建议更高内存，无 GPU 时软件渲染需验证。
-XFCE：轻量 X11，供低资源设备选择；GNOME 不是自动替代对象。
-MATE：轻量传统桌面，会话管理器适配需进一步验证。
-旧版主路径：Ubuntu 24.04 + GNOME X11 + Xorg Dummy + RustDesk。
-Ubuntu 25.10 / 26.xx：GNOME 已改为 Wayland-only；先安装 GNOME + PipeWire + RustDesk，显示方案需独立检查。
-Xvfb/VKMS 与 GNOME/RustDesk 的组合需核实图形会话与捕获能力。
+桌面      典型空闲内存*     主机内存建议       适合情况
+GNOME     约 1.2–2.0 GB    4 GB 起          完整现代桌面、Wayland
+MATE      约 0.5–0.9 GB    2–4 GB           传统布局、轻量桌面
+XFCE      约 0.4–0.8 GB    1–3 GB           小型云服务器、低资源
+
+* 空闲内存为经验区间，不含浏览器、RustDesk 和实际业务，受发行版/服务影响。
+Ubuntu 26 的 GNOME 使用 Wayland，不要通过 WaylandEnable=false 强制 X11。
+已有桌面会被保留；低于 4 GB 内存且未安装桌面时，一键安装优先 XFCE。
 END_COMPARE
 }

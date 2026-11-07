@@ -2,32 +2,56 @@
 # Resumable, idempotent recommended GNOME + Dummy + RustDesk installer.
 # The ledger is a progress hint, not proof that a GUI is externally usable.
 HDM_QUICK_STEPS=(dummy-pkg gnome-pkg rustdesk-pkg dummy-config gdm-x11)
+hdm_physical_ram_mib() {
+  local mem
+  mem=$(awk '/^MemTotal:/ {print $2; exit}' "${HDM_MEMINFO_PATH:-/proc/meminfo}" 2>/dev/null)
+  [[ $mem =~ ^[0-9]+$ ]] || { printf '0\n'; return; }
+  printf '%s\n' "$((mem / 1024))"
+}
+hdm_quick_desktop_choice() {
+  local desktop=$1 ram
+  [[ $desktop != none ]] && { printf '%s\n' "$desktop"; return; }
+  ram=$(hdm_physical_ram_mib)
+  # GNOME remains the full-featured default on hosts with sufficient RAM.
+  # On smaller hosts, choose XFCE before changing any system config.
+  if ((ram > 0 && ram < 4096)); then printf 'XFCE\n';
+  else printf 'GNOME\n'; fi
+}
+hdm_resource_recommendation() {
+  local total available kind
+  total=$(hdm_physical_ram_mib)
+  available=$(awk '/^MemAvailable:/ {print int($2/1024); exit}' "${HDM_MEMINFO_PATH:-/proc/meminfo}" 2>/dev/null)
+  kind=$(hdm_quick_desktop_choice none)
+  printf '内存：总量 %s MiB · 当前可用 %s MiB\n' "$total" "${available:-未知}"
+  printf '桌面推荐：%s（小于 4 GiB 推荐 XFCE；否则优先 GNOME；已安装桌面永不覆盖）。\n' "$kind"
+  printf '显示方案要根据桌面协议和 DRM/内核判断，不仅由内存大小决定。\n'
+}
+
 hdm_quick_init_steps() {
-  local desktop output
+  local desktop output choice
   desktop=$(hdm_env_desktop_kind)
   output=$(hdm_env_drm_state)
+  choice=$(hdm_quick_desktop_choice "$desktop")
   HDM_QUICK_STEPS=()
-  # A desktop installed by the user must never be silently replaced with GNOME.
   if hdm_gnome_wayland_only; then
-    [[ $desktop == none ]] && HDM_QUICK_STEPS+=(gnome-pkg)
-    if [[ $desktop == none || $desktop == GNOME ]]; then HDM_QUICK_STEPS+=(wayland-deps); fi
+    if [[ $desktop == none ]]; then
+      [[ $choice == XFCE ]] && HDM_QUICK_STEPS+=(xfce-pkg) || HDM_QUICK_STEPS+=(gnome-pkg)
+    fi
+    if [[ $desktop == GNOME || ( $desktop == none && $choice == GNOME ) ]]; then
+      HDM_QUICK_STEPS+=(wayland-deps)
+    fi
     HDM_QUICK_STEPS+=(rustdesk-pkg)
   else
-    # Explicitly disconnected connectors, not missing sysfs, justify proposing
-    # an Xorg Dummy configuration; connected/unknown means preserve it.
-    if [[ $output == not-connected && ( $desktop == none || $desktop == GNOME ) ]]; then
+    if [[ $output == not-connected && $choice == GNOME ]]; then
       HDM_QUICK_STEPS+=(dummy-pkg)
     fi
-    [[ $desktop == none ]] && HDM_QUICK_STEPS+=(gnome-pkg)
+    if [[ $desktop == none ]]; then
+      [[ $choice == XFCE ]] && HDM_QUICK_STEPS+=(xfce-pkg) || HDM_QUICK_STEPS+=(gnome-pkg)
+    fi
     HDM_QUICK_STEPS+=(rustdesk-pkg)
-    if [[ $output == not-connected ]]; then
-      if [[ $desktop == none || $desktop == GNOME ]]; then
-        HDM_QUICK_STEPS+=(dummy-config gdm-x11)
-      else
-        # A pre-existing XFCE/MATE/etc desktop may have its own display manager.
-        # Do not force GDM or change its login/session settings automatically.
-        :
-      fi
+    if [[ $output == not-connected && $choice == GNOME ]]; then
+      HDM_QUICK_STEPS+=(dummy-config)
+      [[ $choice != XFCE ]] && HDM_QUICK_STEPS+=(gdm-x11)
     fi
   fi
 }
@@ -35,7 +59,7 @@ hdm_quick_init_steps() {
 
 hdm_quick_ledger() { printf '%s/quick-install-state.tsv' "$HDM_STATE"; }
 hdm_quick_step_valid() {
-  case "$1" in dummy-pkg|gnome-pkg|wayland-deps|rustdesk-pkg|dummy-config|gdm-x11) return 0;; *) return 1;; esac
+  case "$1" in dummy-pkg|gnome-pkg|xfce-pkg|wayland-deps|rustdesk-pkg|dummy-config|gdm-x11) return 0;; *) return 1;; esac
 }
 hdm_quick_mark() {
   hdm_root || return 1
@@ -59,6 +83,7 @@ hdm_quick_check() {
   case "$1" in
     dummy-pkg) hdm_installed xserver-xorg-video-dummy && hdm_installed xserver-xorg-core ;;
     gnome-pkg) hdm_installed ubuntu-desktop && hdm_installed gdm3 && hdm_installed gnome-shell ;;
+    xfce-pkg) hdm_installed xfce4 && hdm_installed lightdm ;;
     wayland-deps) hdm_installed pipewire && hdm_installed xdg-desktop-portal && hdm_installed xdg-desktop-portal-gnome ;;
     rustdesk-pkg) hdm_installed rustdesk && hdm_has rustdesk ;;
     dummy-config)
@@ -74,6 +99,7 @@ hdm_quick_step_label() {
   case "$1" in
     dummy-pkg) printf 'Xorg Dummy 系统软件包';;
     gnome-pkg) printf '完整 GNOME + GDM3';;
+    xfce-pkg) printf 'XFCE + LightDM';;
     wayland-deps) printf 'Wayland/PipeWire/Portal 组件';;
     rustdesk-pkg) printf 'RustDesk 客户端';;
     dummy-config) printf 'Xorg Dummy 虚拟屏幕配置';;
@@ -124,8 +150,8 @@ hdm_quick_preflight() {
       fi
     done
   fi
-  if [[ $mem_kb =~ ^[0-9]+$ ]] && ((mem_kb < 2 * 1024 * 1024)); then
-    hdm_warn '可用内存不足 2 GiB，GNOME 安装/运行可能需要更多内存或 swap；不自动切换 XFCE。'
+  if [[ $mem_kb =~ ^[0-9]+$ ]] && ((mem_kb < 1024 * 1024)); then
+    hdm_warn '可用内存较少，安装大型桌面时可能需要 swap。'
   fi
   if [[ -r $HDM_STATE/pending-rollback ]]; then
     hdm_warn '存在尚未确认的显示配置回滚任务。请先验证并确认或恢复；为了避免覆盖恢复点，暂不继续。'
@@ -136,6 +162,7 @@ hdm_quick_preflight() {
 hdm_quick_plan() {
   hdm_quick_init_steps
   hdm_env_report
+  hdm_resource_recommendation
   printf '\n=== 按本机状态生成的安装步骤 ===\n'
   local step
   for step in "${HDM_QUICK_STEPS[@]}"; do
@@ -158,6 +185,7 @@ hdm_quick_execute_step() {
   case "$1" in
     dummy-pkg) hdm_pkg_install xserver-xorg-video-dummy xserver-xorg-core ;;
     gnome-pkg) hdm_desktop_install_gnome full ;;
+    xfce-pkg) hdm_desktop_install_light xfce standard ;;
     wayland-deps) hdm_pkg_install pipewire xdg-desktop-portal xdg-desktop-portal-gnome ;;
     rustdesk-pkg) hdm_rustdesk_install_online latest ;;
     dummy-config) hdm_display_dummy_config ;;
