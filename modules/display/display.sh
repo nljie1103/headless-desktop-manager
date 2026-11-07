@@ -214,3 +214,35 @@ VKMS        依合成器与分辨率  DRM/KMS 虚拟显示驱动         需要�
 必须根据桌面协议、内核 DRM、GPU/软件渲染及真实会话选择。
 END_DISPLAY
 }
+
+# Individual menu actions must report the data their labels promise.
+hdm_display_packages_report() {
+  hdm_show '显示驱动与软件包版本'
+  for package in xserver-xorg-core xserver-xorg-video-dummy xvfb; do
+    printf '%-30s %s\n' "$package" "$(hdm_pkg_version "$package")"
+  done
+  printf 'VKMS 内核模块：'
+  if command -v lsmod >/dev/null 2>&1 && lsmod 2>/dev/null | grep -q '^vkms '; then printf '已加载\n'; else printf '未加载\n'; fi
+}
+hdm_display_session_report() {
+  hdm_show '显示服务与图形会话'
+  printf 'GDM3：%s\n' "$(hdm_service_state gdm3)"
+  printf 'Xvfb：%s\n' "$(hdm_service_state hdm-xvfb)"
+  printf 'DRM 连接：%s\n' "$(hdm_env_drm_label "$(hdm_env_drm_state)")"
+  printf '活动图形用户会话：%s\n' "$(hdm_env_active_session)"
+  for socket in /tmp/.X11-unix/X0 /tmp/.X11-unix/X1 /tmp/.X11-unix/X99; do
+    [[ ! -S "$socket" ]] || printf 'X11 socket：%s\n' "$socket"
+  done
+  printf 'DRM 连接状态与图形会话是独立检查；有 DRM 输出不代表桌面正在运行。\n'
+}
+hdm_display_modes_report() {
+  hdm_show '当前分辨率与显示日志'
+  if [[ -n ${DISPLAY:-} ]] && command -v xrandr >/dev/null 2>&1; then
+    timeout 5 xrandr --current 2>&1 | head -32 || :
+  else
+    printf '当前终端没有可用 X11 DISPLAY；不猜测实际分辨率。\n'
+  fi
+  if command -v journalctl >/dev/null 2>&1; then
+    journalctl -b -u hdm-xvfb -u gdm3 --no-pager -n 35 2>/dev/null || :
+  fi
+}

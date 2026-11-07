@@ -46,8 +46,8 @@ def inspect(report: dict) -> list[dict]:
     platform_ok = (system.get('id') == 'ubuntu' and system.get('version_id') == '24.04'
                    and system.get('architecture') == 'x86_64')
     checks.append(finding('platform', 'ok' if platform_ok else 'warning', '系统兼容性',
-        '旧 GNOME X11 基准平台，仍需实机验证。' if platform_ok else
-        '当前平台允许执行实验安装；CPU 和发行版不在旧版白名单也不会被自动拦截。'))
+        '系统支持传统 GNOME X11 方案，具体输出需按设备确认。' if platform_ok else
+        '当前平台可使用系统包管理器部署；图形兼容性需要根据实际设备验证。'))
 
     if not modern:
         dummy = packages.get('xserver-xorg-video-dummy', {}).get('installed')
@@ -77,7 +77,7 @@ def inspect(report: dict) -> list[dict]:
     gdm = display.get('gdm3_service')
     checks.append(finding('gdm_service', 'ok' if gdm == 'active' else 'action', 'GDM3 服务',
         f'服务状态：{gdm or "unknown"}。' + ('' if gdm == 'active' else '请检查相关日志。'),
-        '菜单 10.3.7' if gdm != 'active' else ''))
+        'sudo hdm --session-start；必要时 sudo hdm --session-repair' if gdm != 'active' else ''))
 
     if modern:
         # On GNOME 49+, advising WaylandEnable=false would break login.
@@ -86,7 +86,7 @@ def inspect(report: dict) -> list[dict]:
             'GNOME Wayland 用户会话',
             '检测到 Wayland 用户会话（不代表 RustDesk 已获得捕获授权）。' if
             gnome.get('active_gnome_wayland_user_session_detected') else
-            '没有确认正在运行的 GNOME Wayland 用户会话。', '菜单 10.3.3'))
+            '没有确认正在运行的 GNOME Wayland 用户会话。', '菜单 4.5.1 → 4.5.5'))
     else:
         gdm_x11 = display.get('gdm_x11_config_present')
         checks.append(finding('gdm_x11', 'ok' if gdm_x11 else 'action', 'GDM3 X11 设置',
@@ -130,7 +130,7 @@ def build() -> dict:
         'schema': 1,
         'hdm_version': report['hdm_version'],
         'generated_at': status_json.utc_now(),
-        'scope': ('gnome-wayland-rustdesk-experimental' if gnome_wayland_only(report['system'], report['packages']) else 'gnome-x11-dummy-rustdesk'),
+        'scope': ('gnome-wayland-rustdesk' if gnome_wayland_only(report['system'], report['packages']) else 'gnome-x11-dummy-rustdesk'),
         'summary': {
             'ok': sum(x['level'] == 'ok' for x in findings),
             'action': sum(x['level'] == 'action' for x in findings),

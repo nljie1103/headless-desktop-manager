@@ -4,7 +4,7 @@ HDM_ENTRY_ROOT="$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")" 
 # Only local installed scripts, no remote source, eval or arbitrary plugin execution.
 for module in \
   core/common.sh core/environment.sh core/operation.sh core/backup.sh core/packages.sh core/downloader.sh \
-  modules/display/display.sh modules/desktop/desktop.sh modules/rustdesk/rustdesk.sh \
+  modules/display/display.sh modules/desktop/desktop.sh modules/desktop/session.sh modules/rustdesk/rustdesk.sh \
   modules/updater/updater.sh modules/diagnostics/diagnostics.sh \
   modules/quick-install/quick-install.sh ui/actions.sh ui/menu.sh; do
   # shellcheck disable=SC1090
@@ -12,7 +12,7 @@ for module in \
 done
 # Diagnostic and informational operations must be read-only, even when run as root.
 case "${1:-}" in
-  --help|-h|--version|--menu-tree|--self-test|--diagnose|--doctor|--doctor-json|--status-json|--quick-status|--preflight|--rustdesk-permissions|--check-update)
+  --help|-h|--version|--menu-tree|--self-test|--diagnose|--doctor|--doctor-json|--status-json|--quick-status|--preflight|--rustdesk-permissions|--check-update|--session-status)
     hdm_init readonly ;;
   *) hdm_init ;;
 esac
@@ -25,6 +25,10 @@ Headless Desktop Manager (HDM)
   hdm --self-test                Local non-destructive basic check
   sudo hdm --diagnose            Read-only system check
   hdm --doctor                   Chinese read-only actionable diagnosis
+  hdm --session-status           Check GNOME/GDM3 user graphical session
+  sudo hdm --session-start       Start GDM3 once and verify service and user session
+  sudo hdm --session-repair      Check DRM/VKMS and try to restore a graphical login
+  sudo hdm --export-diagnostics Export full HDM/APT/journal diagnostic bundle
   hdm --preflight                Detect installed desktop and usable display outputs
   hdm --rustdesk-permissions     Read-only privileged settings / service diagnosis
   hdm --doctor-json              Sanitized diagnosis JSON
@@ -41,6 +45,10 @@ HELP
   --menu-tree) hdm_menu_tree; exit 0;;
   --self-test) hdm_update_integrity && python3 "$HDM_ROOT/scripts/verify-menus.py"; exit $?;;
   --diagnose) hdm_diag_full; exit 0;;
+  --session-status) hdm_session_report; exit $?;;
+  --session-start) hdm_session_start_gdm; exit $?;;
+  --session-repair) hdm_session_repair; exit $?;;
+  --export-diagnostics) hdm_diag_export_full; exit $?;;
   --preflight) hdm_env_report; exit $?;;
   --rustdesk-permissions) hdm_rustdesk_permission_report; exit $?;;
   --doctor) hdm_diag_doctor; exit $?;;

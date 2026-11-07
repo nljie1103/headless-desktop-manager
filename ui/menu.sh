@@ -37,8 +37,9 @@ hdm_menu_header() {
     output=$(hdm_env_drm_state)
     session=$(hdm_env_active_session)
     [[ $session == unknown || $session == none ]] && session='未检测到'
-    printf '  桌面 %s  ·  DRM %s  ·  会话 %s  ·  RustDesk %s\n' \
-      "$desktop" "$(hdm_env_drm_short "$output")" "$session" "$(hdm_pkg_version rustdesk)"
+    printf '  桌面 %s  ·  DRM %s  ·  GDM %s  ·  会话 %s\n' \
+      "$desktop" "$(hdm_env_drm_short "$output")" "$(hdm_service_state gdm3)" "$session"
+    printf '  RustDesk %s（服务 %s）\n' "$(hdm_pkg_version rustdesk)" "$(hdm_service_state rustdesk)"
   else
     printf '  %s\n' "$(hdm_menu_label "$path")"
   fi
@@ -89,7 +90,14 @@ hdm_menu() {
       hdm_menu "$ident" || { local ret=$?; [[ $ret != 99 ]] || return 99; }
     else
       hdm_show "$ident $(hdm_menu_label "$ident")"
-      if ! hdm_dispatch "$ident"; then hdm_warn '操作未完成，可在菜单 10 查看日志。'; fi
+      local operation_rc=0
+      hdm_dispatch "$ident" || operation_rc=$?
+      if [[ $EUID -eq 0 && -n ${HDM_LOG_DIR:-} && -d $HDM_LOG_DIR ]]; then
+        printf '%s | HDM %s | menu %s | %s | exit=%s\n' \
+          "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$HDM_VERSION" "$ident" "$(hdm_menu_label "$ident")" "$operation_rc" \
+          >> "$HDM_LOG_DIR/steps.log"
+      fi
+      ((operation_rc == 0)) || hdm_warn "操作未完成（退出码 $operation_rc），可从菜单 10 导出诊断包。"
       # The parent menus have sourced old code. After an atomic HDM upgrade or
       # rollback, replace this entire process so Enter never returns to old UI.
       local active_base=${HDM_UPDATE_BASE:-/opt/hdm} active_root

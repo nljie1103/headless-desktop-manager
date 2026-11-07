@@ -4,7 +4,7 @@
 
 **Desktop, virtual display and RustDesk management for Linux**
 
-[![Version](https://img.shields.io/badge/version-v0.3.7-2f81f7)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.3.9-2f81f7)](CHANGELOG.md)
 
 [简体中文](README.md) · **English**
 
@@ -47,3 +47,16 @@ See the [Chinese main documentation](README.md), [changelog](CHANGELOG.md), and 
 ## Host sizing and display options
 
 HDM preserves any installed desktop. On a new host it recommends XFCE below 4 GiB RAM and GNOME for 4 GiB or more; MATE is an optional manual choice. Typical idle RAM estimates: GNOME 1.2–2.0 GB, MATE 0.5–0.9 GB, XFCE 0.4–0.8 GB. Display drivers: Xorg Dummy (~40–200 MB, X11), Xvfb (~20–120 MB, separate X server), and VKMS (kernel DRM and compositor-dependent). These are rough planning estimates, not verified benchmarks. RustDesk permissions are configurable via menu `7 → 13`, including the remote-configuration toggle.
+
+## Session troubleshooting and full diagnostics
+
+The manager checks installed packages, DRM connectivity, GDM3 service state, logged-in user graphical sessions, and RustDesk service state separately. These results **do not verify remote screen capture**. Use:
+
+```bash
+sudo hdm --session-status
+sudo hdm --session-start
+sudo hdm --session-repair
+sudo hdm --export-diagnostics
+```
+
+A diagnostics archive contains captured HDM operation logs and available apt/dpkg and GDM3/RustDesk journal evidence. It is stored in a root-only location with best-effort secret redaction; review before sharing. RustDesk local `.deb` installation now runs an APT dependency-resolution dry run before installing.

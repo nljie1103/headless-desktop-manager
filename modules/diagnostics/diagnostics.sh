@@ -35,6 +35,8 @@ hdm_diag_log() {
     desktop) journalctl -b --no-pager -u gdm3 -u display-manager -n 65 2>/dev/null || :;;
     rustdesk) journalctl -b --no-pager -u rustdesk -n 65 2>/dev/null || :;;
     system) systemctl --failed --no-pager || :;;
+    sources) if [[ -f $HDM_LOG_FILE ]]; then grep -Ei "APT|镜像|源|mirror|source|DNS|Failed to fetch" "$HDM_LOG_FILE" | tail -90 || :; else printf "未记录到软件源切换日志\n"; fi;;
+    update) if [[ -f $HDM_LOG_FILE ]]; then grep -Ei "更新|升级|回滚|rollback|Release|update|版本" "$HDM_LOG_FILE" | tail -90 || :; else printf "未记录到更新/回滚日志\n"; fi;;
     *) hdm_warn '未知日志类别';;
   esac
 }
@@ -134,3 +136,22 @@ hdm_diag_status_json() {
 # Independent, read-only recommendation engine using sanitized local signals.
 hdm_diag_doctor() { python3 "$HDM_ROOT/modules/diagnostics/doctor.py"; }
 hdm_diag_doctor_json() { python3 "$HDM_ROOT/modules/diagnostics/doctor.py" --json; }
+
+# Collect all retained HDM package operation logs plus apt/dpkg and journal
+# evidence; this is not the old status-only diagnostic text.
+hdm_diag_export_full() {
+  hdm_root || return 1
+  local bundle
+  bundle=$(python3 "$HDM_ROOT/scripts/export_diagnostics.py" --output-dir "$HDM_STATE/exports" --hdm-log-dir "$HDM_LOG_DIR") || {
+    hdm_error '诊断包创建失败；请检查可用磁盘空间及 /var/lib/hdm 权限'; return 1;
+  }
+  printf '\n[完成] 已汇总历史安装步骤、APT、GDM3、RustDesk、系统状态与启动错误：\n%s\n' "$bundle"
+  printf '仅汇总系统仍保留的日志。部分内容会自动脱敏；分享给 AI 前仍请检查敏感信息。\n'
+}
+hdm_diag_operation_list() {
+  hdm_show '历史安装操作日志'
+  if [[ ! -d $HDM_LOG_DIR ]]; then printf '尚无 HDM 操作日志\n'; return 0; fi
+  find "$HDM_LOG_DIR" -maxdepth 1 -type f -name 'operation-*.log' -printf '%TY-%Tm-%Td %TH:%TM:%TS  %f\n' 2>/dev/null | sort -r | head -40 || :
+  printf '完整日志位于：%s（root 可读）\n' "$HDM_LOG_DIR"
+  printf '菜单 10 → 日志查看 → 一键导出完整诊断包，可合并后分享。\n'
+}

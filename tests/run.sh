@@ -10,7 +10,7 @@ bash "$ROOT/hdm.sh" --self-test
 bash "$ROOT/hdm.sh" --version | grep -Fq "$(cat "$ROOT/VERSION")"
 [[ $(bash "$ROOT/hdm.sh" --menu-tree | wc -l) -ge 470 ]]
 printf '0\n' | bash "$ROOT/hdm.sh" > "$TMP/menu.out"
-grep -q '一键安装' "$TMP/menu.out"
+grep -q '智能安装' "$TMP/menu.out"
 python3 "$ROOT/tests/unit/test_release.py"
 python3 "$ROOT/tests/unit/test_archive.py"
 python3 "$ROOT/tests/unit/test_spec.py"
@@ -35,4 +35,7 @@ python3 "$ROOT/tests/unit/test_publisher.py"
 python3 "$ROOT/tests/unit/test_public_release.py"
 python3 "$ROOT/tests/unit/test_status.py"
 python3 "$ROOT/tests/unit/test_doctor.py"
+python3 "$ROOT/tests/unit/test_export_diagnostics.py"
+bash "$ROOT/tests/unit/test_menu_routing.sh"
+bash "$ROOT/tests/unit/test_session_state.sh"
 echo 'PASS: syntax, menus, runtime settings/cache index, publisher checks, release parser, archive verifier, spec and commit policy'

@@ -6,6 +6,30 @@ hdm_rustdesk_status() {
   printf '设备 ID：'; if hdm_has rustdesk; then timeout 8 rustdesk --get-id 2>/dev/null || printf '无法获取 / 需进一步检查\n'; else printf '未安装\n'; fi
   printf '系统使用的配置位置需按服务实际运行账户核实。\n'
 }
+# Simulate dependency resolution before modifying the package database.
+# apt-get install of a local .deb is the supported method: it fetches missing
+# dependencies from configured, signed distro repositories automatically.
+hdm_rustdesk_deb_preflight() {
+  local deb=$1 rc=0
+  hdm_root && hdm_guard_platform || return 1
+  [[ -r $deb ]] || return 1
+  if ! command -v apt-get >/dev/null 2>&1; then
+    hdm_error 'RustDesk .deb 依赖检查需要 apt-get'; return 1
+  fi
+  hdm_operation_begin '检查 RustDesk 依赖可解析性' || return 1
+  {
+    printf 'RustDesk package dependencies:\n'
+    dpkg-deb -f "$deb" Depends 2>&1 || :
+    printf '\nAPT dry-run:\n'
+    env DEBIAN_FRONTEND=noninteractive apt-get -s -y install "$deb"
+  } >> "$HDM_LAST_OPERATION_LOG" 2>&1 || rc=$?
+  if ((rc != 0)); then
+    hdm_operation_failed 'RustDesk 依赖检查' "$rc"
+    printf '依赖预检失败时不会强装 .deb，也不会自动执行全局 apt -f install。\n' >&2
+    return "$rc"
+  fi
+  hdm_operation_ok 'RustDesk 依赖可由 APT 解析'
+}
 hdm_rustdesk_install_deb() {
   local deb=$1 arch package
   hdm_root && hdm_guard_platform || return 1
@@ -18,8 +42,14 @@ hdm_rustdesk_install_deb() {
   if [[ ${HDM_QUICK_APPROVED:-0} != 1 ]]; then
     hdm_danger "将通过 APT 安装 $(basename -- "$deb")，可能重启 RustDesk 并断开远程会话" || return 2
   fi
+  hdm_rustdesk_deb_preflight "$deb" || return 1
   hdm_apt_call install -y "$deb" || return 1
-  systemctl enable --now rustdesk 2>/dev/null || hdm_warn 'RustDesk systemd 服务未成功启动，请查看诊断菜单。'
+  local service_rc=0
+  hdm_run_quiet '启动 RustDesk 服务' systemctl enable --now rustdesk || service_rc=$?
+  if [[ $(hdm_service_state rustdesk) != active ]]; then
+    hdm_warn 'RustDesk 软件包已安装，但服务未正常运行。查看 sudo hdm --export-diagnostics。'
+    return 1
+  fi
   hdm_state_set rustdesk-last-installed "$(dpkg-query -W -f='${Version}' rustdesk 2>/dev/null || echo unknown)" || :
   hdm_rustdesk_status
 }

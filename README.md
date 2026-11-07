@@ -4,7 +4,7 @@
 
 **Linux 无显示器远程桌面 · 虚拟显示 · RustDesk 统一管理**
 
-[![版本](https://img.shields.io/badge/version-v0.3.8-2f81f7)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-v0.3.9-2f81f7)](CHANGELOG.md)
 [![CI](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml/badge.svg)](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml)
 [![许可](https://img.shields.io/badge/license-MIT-6aa84f)](LICENSE)
 
@@ -35,14 +35,15 @@ sudo hdm
 ## 简洁的终端菜单
 
 ```text
-  HDM 0.3.7 · ubuntu 26.04 aarch64
-  桌面 GNOME · 显示 已连接 · 会话 unknown · RustDesk 1.5.1
+  HDM 0.3.9 · ubuntu 26.04 aarch64
+  桌面 GNOME · DRM 已连接 · GDM inactive · 会话 未建立
+  RustDesk 1.5.1（服务 active）
 
-  1  安装虚拟显示             6  更新 RustDesk
-  2  管理虚拟显示             7  服务器配置
-  3  安装桌面                 8  更新 HDM
-  4  管理桌面                 9  一键安装
-  5  安装 RustDesk          10  故障诊断
+  1  安装虚拟显示器         6  更新 RustDesk
+  2  管理显示与分辨率       7  RustDesk 连接配置
+  3  安装桌面环境           8  更新 HDM 管理器
+  4  管理桌面与会话         9  智能安装与续装
+  5  安装 RustDesk         10  系统诊断与日志
 
   0 返回    q 退出
   请选择：
@@ -63,8 +64,28 @@ HDM 启动时读取桌面安装状态、DRM 输出连接和 X11/Wayland 会话�
 | HDM 在线更新 | 菜单 `8`；`sudo hdm --check-update` 与 `sudo hdm --update-main` |
 | 缺失组件安装 / 续装 | 菜单 `9`；`sudo hdm --quick-status` 与 `sudo hdm --quick-resume` |
 | 健康诊断 | 菜单 `10`；`sudo hdm --doctor` / `sudo hdm --preflight` |
+| 图形会话修复 | 菜单 `4 → 管理图形会话`；`sudo hdm --session-start` |
+| 一键导出完整诊断包 | 菜单 `10 → 日志查看`；`sudo hdm --export-diagnostics` |
 
 RustDesk 的 ID 服务器、中继服务器和**公钥完整显示**，以便输入前后核对；永久密码在终端中可见（按操作者要求），请使用可信终端输入，且不会写入 HDM 日志。配置保存在受权限保护的文件中，完成写入后会进行读回校验。**文件保存成功、设备注册成功、远程桌面可用，是三个不同的判断。**
+
+
+## 图形会话故障排查与日志归档
+
+GNOME **软件包已安装**、DRM 接口**显示已连接**、GDM3 **服务正在运行**、系统存在**已登录的图形用户会话**以及 RustDesk **成功显示画面**是五项不同的检查；只有最后一项需要另一台设备实际连接才能验证。Ubuntu 26 GNOME Wayland 不应强制配置 `WaylandEnable=false`。
+
+```bash
+sudo hdm --session-status       # 只读检查 GDM3、图形用户会话与 DRM
+sudo hdm --session-start        # 尝试启动 GDM3 并检查实际状态
+sudo hdm --session-repair       # 依据 DRM/VKMS 能力逐步排查缺失的图形会话
+sudo hdm --export-diagnostics  # 一键导出保留的安装日志和系统诊断档案
+```
+
+其中 `--session-repair` 仅在内核确实提供 VKMS、设备确实没有连接输出时才尝试临时加载 VKMS，不会开启自动登录或强制改成 X11。云服务器没有适配的 DRM/KMS 时，脚本会给出明确阻断原因，而不是报告“修复成功”。菜单 `4 → 管理图形会话` 可执行会话检查、服务启动和默认图形启动目标管理。
+
+**安装过程默认简洁，详细记录持续保留。** HDM 将 APT 等原始输出保存到 `/var/log/hdm/operation-*.log`；每个已执行菜单动作的结果记录到 `/var/log/hdm/steps.log`。菜单 `10 → 日志查看 → 一键导出完整诊断包` 将这些记录与仍存在的 APT/dpkg/GDM3/RustDesk 日志汇总成一个受限权限的 `.tar.gz` 文件，适合排障。导出会尝试隐去密钥和密码，但分享给其他人或 AI 前仍须检查其中的服务器地址和其他敏感数据。
+
+RustDesk 的 Linux `.deb` 安装会在正式安装之前使用 APT 模拟解析依赖；APT 会从系统签名软件源补齐缺包，不使用不受验证的强行修复命令。若只有 `Failed to stop rustdesk.service: Unit rustdesk.service not loaded` 而随后正常完成安装，这通常只是首次安装时没有可停止的旧服务，并不代表依赖缺失。
 
 ## 兼容与安全
 

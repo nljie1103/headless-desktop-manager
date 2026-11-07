@@ -28,17 +28,25 @@ hdm_env_desktop_kind() {
   else printf 'unknown\n'; fi
 }
 hdm_env_active_session() {
-  local sid typ seen=0 capped=0
+  local sid typ cls state seen=0 capped=0 known=0
   hdm_has loginctl || { printf 'unknown\n'; return 0; }
   # SSH/TTY sessions are ignored; scan at most 32 sessions, not a noisy full list.
   while IFS= read -r sid; do
     [[ $sid =~ ^[A-Za-z0-9_-]{1,48}$ ]] || continue
-    ((seen >= 32)) && { capped=1; break; }
+    ((seen >= 128)) && { capped=1; break; }
     ((seen+=1))
     typ=$(loginctl show-session "$sid" -p Type --value 2>/dev/null) || continue
-    case "$typ" in wayland|x11) printf '%s\n' "$typ"; return 0;; esac
-  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=33{print $1}')
-  if ((seen && !capped)); then printf 'none\n'; else printf 'unknown\n'; fi
+    known=1
+    case "$typ" in
+      wayland|x11)
+        cls=$(loginctl show-session "$sid" -p Class --value 2>/dev/null || :)
+        state=$(loginctl show-session "$sid" -p State --value 2>/dev/null || :)
+        if [[ $cls == user && ( $state == active || $state == online ) ]]; then
+          printf '%s\n' "$typ"; return 0
+        fi;;
+    esac
+  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=129{print $1}')
+  if ((!capped && (known || seen==0))); then printf 'none\n'; else printf 'unknown\n'; fi
 }
 hdm_env_drm_short() {
   case "$1" in connected) printf 已连接;; not-connected) printf 未连接;; *) printf 未知;; esac

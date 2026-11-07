@@ -4,7 +4,7 @@ hdm_action_not_ready() {
   local id=$1
   printf '[尚无自动处理逻辑] %s：%s\n' "$id" "$(hdm_menu_label "$id")"
   printf '此操作需要额外兼容性验证或安全前置条件。没有修改系统；参见 docs/AI_DEVELOPMENT_SPEC.md。\n'
-  return 0
+  return 2
 }
 hdm_action_show_services() { systemctl status gdm3 rustdesk hdm-xvfb --no-pager --lines 6 2>&1 || :; }
 hdm_action_rustdesk_version() { hdm_rustdesk_status; hdm_release_query rustdesk latest || hdm_warn '官方 Release 元数据不可用'; }
@@ -59,7 +59,10 @@ hdm_dispatch() {
   1.1.2.D) hdm_display_dummy_render "$HDM_DEFAULT_RESOLUTION";;
   1.1.2.E) hdm_display_install_dummy;;
   1.1.3) hdm_action_pkg_detail xserver-xorg-video-dummy; df -h /;;
-  1.1.4|1.4.1|2.1.1|2.1.2|2.1.3|2.4.6) hdm_display_status;;
+  1.1.4|1.4.1|2.4.6) hdm_display_status;;
+  2.1.1) hdm_display_packages_report;;
+  2.1.2) hdm_display_session_report;;
+  2.1.3) hdm_display_modes_report;;
   1.2.1) hdm_display_install_xvfb;;
   1.2.2) hdm_xvfb_set_display;;
   1.2.5) hdm_xvfb_configure;;
@@ -118,7 +121,16 @@ hdm_dispatch() {
   3.4.2) hdm_desktop_compare;;
   3.4.3|3.5.1|3.5.2) hdm_desktop_compare;;
   # 4. Manage desktop
-  4.1.1|4.1.2|4.4.1|4.5.1|4.6.1|4.6.3|4.6.5) hdm_desktop_status;;
+  4.1.1|4.1.2|4.4.1|4.6.1|4.6.3|4.6.5) hdm_desktop_status;;
+  4.5.1) hdm_session_report;;
+  4.5.2) hdm_session_protocol_report;;
+  4.5.3) hdm_session_service_report;;
+  4.5.4) hdm_session_user_report;;
+  4.5.5) hdm_session_start_gdm;;
+  4.5.6) hdm_session_logs;;
+  4.5.7) hdm_session_dependencies;;
+  4.5.8) hdm_session_enable_graphical_boot;;
+  4.5.9) hdm_session_repair;;
   4.2.1|4.2.6) hdm_action_pkg_detail ubuntu-desktop;;
   4.2.2) hdm_desktop_update;;
   4.2.3|4.7.2) hdm_apt_call install -f -y;;
@@ -129,11 +141,11 @@ hdm_dispatch() {
   4.3.3) hdm_desktop_switch mate;;
   4.3.4) hdm_desktop_status;;
   4.3.5|4.4.6|4.6.7|4.7.3|4.9.2) hdm_snapshot_choose;;
-  4.4.2|4.5.2) hdm_gdm_x11;;
+  4.4.2) hdm_session_protocol_report;;
   4.4.3|4.4.4) hdm_warn '默认不替换 GDM3；LightDM 的自动切换在 V0.1 暂不支持。';;
-  4.4.5|4.5.5) hdm_action_service_wizard restart;;
-  4.5.3|4.5.4) hdm_desktop_status; loginctl user-status "${SUDO_USER:-root}" --no-pager 2>/dev/null | head -35 || :;;
-  4.5.6|4.6.2|4.6.6) hdm_diag_log desktop; hdm_warn 'RustDesk 抓屏仍需从另一台设备确认。';;
+  4.4.5) hdm_action_service_wizard restart;;
+  
+  4.6.2|4.6.6) hdm_diag_log desktop; hdm_warn 'RustDesk 抓屏仍需从另一台设备确认。';;
   4.6.4) hdm_warn '默认保留屏幕锁定和用户认证。此版本不自动降低安全设置。';;
   4.8.1) hdm_warn '卸载桌面可能连带移除大量依赖，默认不自动执行。请先使用 apt -s remove 自行审核。';;
   4.8.2) hdm_warn '避免远程失联，暂不提供无人值守桌面卸载。';;
@@ -232,10 +244,16 @@ hdm_dispatch() {
   # 10. Diagnostics and mirrors
   10.1.1|10.1.2|10.1.4) hdm_diag_full;;
   10.2.1|10.2.2|10.2.3|10.2.4|10.2.6) hdm_diag_display;;
-  10.3.1|10.3.2|10.3.3|10.3.4|10.3.5|10.3.6) hdm_diag_gnome;;
+  10.3.1) hdm_session_dependencies;;
+  10.3.2) hdm_session_report;;
+  10.3.3) hdm_session_service_report;;
+  10.3.4) hdm_session_user_report;;
+  10.3.5) hdm_session_logs;;
+  10.3.6) hdm_session_protocol_report;;
   10.4.1|10.4.2|10.4.6) hdm_diag_rustdesk;;
   10.1.3|10.10.1|10.10.7) hdm_diag_doctor;;
-  10.1.5|10.8.7) hdm_diag_export;;
+  10.1.5) hdm_diag_export_full;;
+  10.8.7) hdm_diag_export_full;;
   10.2.5|10.8.2) hdm_diag_log display;;
   10.3.7|10.8.3) hdm_diag_log desktop;;
   10.4.7|10.8.4) hdm_diag_log rustdesk;;
@@ -270,7 +288,10 @@ hdm_dispatch() {
   10.7.1|10.7.2|10.7.3|10.7.4|10.7.7) hdm_diag_services;;
   10.7.5) hdm_action_service_wizard restart;;
   10.7.6) hdm_action_service_wizard enable;;
-  10.8.1|10.8.5|10.8.6) hdm_diag_log hdm;;
+  10.8.1) hdm_diag_log hdm;;
+  10.8.5) hdm_diag_log sources;;
+  10.8.6) hdm_diag_log update;;
+  10.8.9) hdm_diag_operation_list;;
   10.8.8) hdm_warn '日志默认保留供诊断，V0.1 不自动清理系统 journal。';;
   10.9.1) hdm_snapshot_create /etc/X11/xorg.conf.d/20-hdm-dummy.conf /etc/gdm3/custom.conf /etc/hdm/config.conf;;
   10.9.2) hdm_snapshots;;

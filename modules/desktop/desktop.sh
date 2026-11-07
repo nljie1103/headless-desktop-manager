@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 hdm_desktop_status() {
-  hdm_show '桌面环境状态'
-  for pkg in ubuntu-desktop ubuntu-desktop-minimal gnome-shell gdm3 xfce4 mate-desktop-environment lightdm; do
-    printf '%-28s %s\n' "$pkg" "$(hdm_pkg_version "$pkg")"
+  hdm_show '桌面软件与会话状态'
+  for pkg in ubuntu-desktop gnome-shell gdm3 xfce4 mate-desktop-environment lightdm; do
+    if hdm_installed "$pkg"; then printf '%-28s %s\n' "$pkg" "$(hdm_pkg_version "$pkg")"; fi
   done
   printf 'GDM3：%s / LightDM：%s\n' "$(hdm_service_state gdm3)" "$(hdm_service_state lightdm)"
-  printf '图形会话（登录用户、显示类型）：\n'
-  loginctl list-sessions --no-legend 2>/dev/null || :
-  if hdm_has pgrep; then pgrep -a -f 'gnome-shell|gnome-session' 2>/dev/null | head -12 || :; fi
-  printf '仅服务进程存在不能证明完整 GNOME 图形会话可用。\n'
+  hdm_session_report
 }
+
 hdm_gdm_x11() {
   hdm_root && hdm_guard_platform || return 1
   if hdm_gnome_wayland_only; then
