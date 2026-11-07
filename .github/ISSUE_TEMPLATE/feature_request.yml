@@ -1,0 +1,9 @@
+name: Feature request
+about: Suggest a module or compatibility improvement
+body:
+  - type: textarea
+    id: feature
+    attributes:
+      label: Suggested feature
+    validations:
+      required: true

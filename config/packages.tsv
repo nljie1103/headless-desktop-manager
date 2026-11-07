@@ -1,0 +1,9 @@
+# component<TAB>ubuntu_24.04_package<TAB>status
+xorg-dummy	xserver-xorg-video-dummy	available
+xvfb	xvfb	available
+vkms	kernel-module	kernel-dependent
+gnome-full	ubuntu-desktop	available
+gnome-minimal	ubuntu-desktop-minimal	available
+xfce	xfce4	optional
+mate	mate-desktop-environment	optional
+rustdesk	rustdesk	upstream-native-deb

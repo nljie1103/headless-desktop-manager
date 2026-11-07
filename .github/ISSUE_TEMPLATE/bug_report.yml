@@ -1,0 +1,10 @@
+name: Bug report
+about: Report a problem without posting credentials
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Problem description
+      description: Do not paste passwords, private keys or unredacted RustDesk settings.
+    validations:
+      required: true

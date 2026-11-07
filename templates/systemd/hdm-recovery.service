@@ -1,0 +1,6 @@
+[Unit]
+Description=HDM safe display configuration rollback when not confirmed
+After=local-fs.target
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/hdm --rollback-pending

@@ -1,0 +1,26 @@
+name: Publish versioned HDM release
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate version
+        run: |
+          test "v$(cat VERSION)" = "${GITHUB_REF_NAME}"
+          bash tests/run.sh
+      - name: Build release bundle
+        run: |
+          mkdir -p dist/headless-desktop-manager
+          tar --exclude=.git --exclude=dist --exclude='__pycache__' --exclude='*.pyc' -cf - . | tar -xf - -C dist/headless-desktop-manager
+          tar -czf "hdm-${GITHUB_REF_NAME}.tar.gz" -C dist headless-desktop-manager
+          sha256sum "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh > SHA256SUMS
+      - name: Upload GitHub Release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh SHA256SUMS --title "HDM ${GITHUB_REF_NAME}" --notes "Preview release. See README and testing limitations."

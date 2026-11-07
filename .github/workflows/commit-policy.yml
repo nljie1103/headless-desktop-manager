@@ -1,0 +1,29 @@
+name: Commit Message Policy
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check commit titles
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            python3 scripts/check-commit-messages.py --range "$BASE_SHA..HEAD"
+          elif [[ "$BEFORE" =~ ^0+$ ]] || [[ -z "$BEFORE" ]]; then
+            python3 scripts/check-commit-messages.py --range HEAD
+          else
+            python3 scripts/check-commit-messages.py --range "$BEFORE..HEAD"
+          fi

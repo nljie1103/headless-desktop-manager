@@ -1,0 +1,7 @@
+[Unit]
+Description=HDM rollback safeguard, survives reboot
+[Timer]
+OnActiveSec=7min
+Unit=hdm-recovery.service
+[Install]
+WantedBy=timers.target

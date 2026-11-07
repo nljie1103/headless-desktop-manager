@@ -1,0 +1,5 @@
+# distro<TAB>release<TAB>arch<TAB>desktop<TAB>display<TAB>remote<TAB>status
+ubuntu	24.04	amd64	gnome	xorg-dummy	rustdesk	implementation-needs-vm-validation
+ubuntu	24.04	arm64	gnome	xorg-dummy	rustdesk	not-tested
+ubuntu	24.04	amd64	gnome	xvfb	rustdesk	experimental
+ubuntu	24.04	amd64	gnome	vkms	rustdesk	experimental

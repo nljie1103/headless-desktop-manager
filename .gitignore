@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.log
+*.zip
+*.tar.gz
+*.deb
+*.rpm
+.env
+.DS_Store
