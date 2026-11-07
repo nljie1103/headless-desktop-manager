@@ -4,6 +4,14 @@ hdm_backup_allow() {
   case "$1" in
     /etc/X11/xorg.conf.d/20-hdm-dummy.conf|/etc/gdm3/custom.conf|/etc/modules-load.d/hdm-vkms.conf|/etc/systemd/system/hdm-xvfb.service|/etc/hdm/config.conf|/etc/lightdm/lightdm.conf.d/90-hdm.conf|/etc/gdm3/daemon.conf) return 0;;
     /root/.config/rustdesk/RustDesk2.toml|/root/.config/rustdesk/RustDesk.toml) return 0;;
+    /home/*/.config/rustdesk/RustDesk2.toml)
+      # Allow only a real account's own config path, never an arbitrary home file.
+      local username home
+      username=${1#/home/}; username=${username%%/*}
+      [[ $username =~ ^[a-z_][a-z0-9_-]*$ ]] || return 1
+      home=$(getent passwd "$username" 2>/dev/null | cut -d: -f6)
+      [[ $home == "/home/$username" && $1 == "$home/.config/rustdesk/RustDesk2.toml" ]] ;;
+
     *) return 1;;
   esac
 }

@@ -230,45 +230,94 @@ hdm_rustdesk_registration_status() {
   printf '注意：取得设备 ID 不代表自建服务器注册、认证或画面捕获成功。\n'
 }
 
+# A root RustDesk service can launch the GUI helper as a login user. We must
+# inspect/persist BOTH explicit profile scopes rather than blindly assuming the
+# root CLI import wrote to /root/.config/rustdesk/RustDesk2.toml.
+hdm_rustdesk_login_profile() {
+  local user=${SUDO_USER:-} account home uid gid
+  [[ -n $user && $user != root && $user =~ ^[a-z_][a-z0-9_-]*$ ]] || return 1
+  account=$(getent passwd "$user" 2>/dev/null) || return 1
+  IFS=: read -r _ _ uid gid _ home _ <<< "$account"
+  [[ $uid =~ ^[0-9]+$ && $gid =~ ^[0-9]+$ && $home == "/home/$user" ]] || return 1
+  printf '%s\t%s\t%s\n' "$home/.config/rustdesk/RustDesk2.toml" "$uid" "$gid"
+}
 hdm_rustdesk_import_config() {
-  local id_server=$1 relay=$2 public_key=$3 tmp
+  local id_server=$1 relay=$2 public_key=$3 root_file user_profile='' user_file='' user_uid='' user_gid=''
+  local state snapshot rc=0 path attempt
+  local -a config_paths=()
   hdm_root && hdm_guard_platform || return 1
   hdm_has rustdesk || { hdm_error '请先安装 RustDesk'; return 1; }
-  [[ $public_key =~ ^[A-Za-z0-9+/=:_-]{20,256}$ ]] || { hdm_error '服务器公钥格式无效（字符/长度不符合要求）'; return 1; }
+  [[ $public_key =~ ^[A-Za-z0-9+/=:_-]{20,256}$ ]] || { hdm_error '服务器公钥格式无效'; return 1; }
   hdm_rustdesk_endpoint_valid "$id_server" && hdm_rustdesk_endpoint_valid "$relay" || { hdm_error 'ID/中继服务器地址不合法'; return 1; }
-  # Config import delegates persistence and version-specific handling to the upstream CLI.
-  hdm_snapshot_create "$(hdm_rustdesk_root_config)" || return 1
-  tmp=$(mktemp "$HDM_CACHE/downloads/.rustdesk-config.XXXXXX") || return 1
-  chmod 600 "$tmp"
-  cat > "$tmp" <<EOF_CFG
-rendezvous_server = '$id_server'
-[options]
-custom-rendezvous-server = '$id_server'
-relay-server = '$relay'
-key = '$public_key'
-EOF_CFG
-  hdm_danger '将导入 RustDesk 自建服务器配置，现有连接可能中断；请确保 SSH 可用' || { rm -f "$tmp"; return 2; }
-  # Do not copy credentials to log and do not claim registration success from CLI success alone.
-  if rustdesk --import-config "$tmp" >/dev/null 2>&1; then
-    if python3 "$HDM_ROOT/scripts/rustdesk_config.py" verify "$(hdm_rustdesk_root_config)" --draft "$(hdm_rustdesk_draft_file)"; then
-      hdm_info '配置文件读回与输入一致；但服务加载、服务器注册和远控仍待实测。'
-    else
-      hdm_warn 'RustDesk CLI 返回成功，但无法从 root CLI 配置文件读回一致结果。不能认定保存成功。'
-      rm -f "$tmp"
-      return 1
+  root_file=$(hdm_rustdesk_root_config)
+  config_paths=("$root_file")
+  if user_profile=$(hdm_rustdesk_login_profile); then
+    IFS=$'\t' read -r user_file user_uid user_gid <<< "$user_profile"
+    [[ $user_file == "$root_file" ]] || config_paths+=("$user_file")
+  fi
+  for path in "${config_paths[@]}"; do
+    [[ ! -L $path && ! -L $(dirname -- "$path") ]] || { hdm_error "配置路径为符号链接，拒绝覆盖：$path"; return 1; }
+  done
+  hdm_danger '将备份并更新 root/当前登录用户的 RustDesk 服务器配置；若服务运行则短暂重启，SSH 不受影响' || return 2
+  state=$(hdm_service_state rustdesk)
+  if [[ $state == active ]]; then
+    if ! systemctl stop rustdesk >/dev/null 2>&1; then
+      hdm_error 'RustDesk 服务无法停止，拒绝在运行时覆写配置'; return 1
     fi
-  else
-    rm -f "$tmp"
-    # A failed upstream CLI might have partially changed its root-scope TOML.
-    # Restore the captured file state, rather than falsely claiming it is untouched.
-    if ! hdm_snapshot_restore "$HDM_LAST_SNAPSHOT"; then
-      hdm_warn 'RustDesk 配置导入失败且自动恢复未完成，请使用菜单 10.9 手动恢复快照。'
-    fi
-    hdm_error '当前 RustDesk 版本/服务账户未能导入配置；已尝试恢复原配置，请从另一台设备检查实际状态。'
+  fi
+  # Snapshot after stopping RustDesk, so the service cannot overwrite one
+  # profile in the middle of capturing a consistent pair of TOML files.
+  if ! hdm_snapshot_create "${config_paths[@]}"; then
+    if [[ $state == active ]]; then systemctl start rustdesk >/dev/null 2>&1 || :; fi
     return 1
   fi
-  rm -f "$tmp"
+  snapshot=$HDM_LAST_SNAPSHOT
+  if ! python3 "$HDM_ROOT/scripts/rustdesk_config.py" apply "$root_file" --draft "$(hdm_rustdesk_draft_file)" --uid 0 --gid 0; then rc=1; fi
+  if ((rc == 0)) && [[ -n $user_file ]]; then
+    if ! python3 "$HDM_ROOT/scripts/rustdesk_config.py" apply "$user_file" --draft "$(hdm_rustdesk_draft_file)" --uid "$user_uid" --gid "$user_gid"; then rc=1; fi
+  fi
+  if ((rc == 0)); then
+    for path in "${config_paths[@]}"; do
+      if ! python3 "$HDM_ROOT/scripts/rustdesk_config.py" verify "$path" --draft "$(hdm_rustdesk_draft_file)" >/dev/null; then rc=1; break; fi
+    done
+  fi
+  if ((rc == 0)) && [[ $state == active ]]; then
+    if ! systemctl start rustdesk >/dev/null 2>&1; then rc=1; fi
+    # Some RustDesk builds rewrite TOML during service startup. Verify again.
+    if ((rc == 0)); then
+      for attempt in 1 2 3; do
+        sleep 1
+        rc=0
+        for path in "${config_paths[@]}"; do
+          if ! python3 "$HDM_ROOT/scripts/rustdesk_config.py" verify "$path" --draft "$(hdm_rustdesk_draft_file)" >/dev/null; then rc=1; break; fi
+        done
+        ((rc == 0)) || break
+      done
+    fi
+  fi
+  if ((rc != 0)); then
+    hdm_warn '至少一个 RustDesk 配置作用域写入失败、服务启动失败或保存后被覆盖，正在恢复快照。'
+    if [[ $state == active ]]; then systemctl stop rustdesk >/dev/null 2>&1 || :; fi
+    hdm_snapshot_restore "$snapshot" || hdm_warn '自动恢复失败，请通过菜单 7.11 查看并手动恢复配置快照。'
+    if [[ $state == active ]]; then systemctl start rustdesk >/dev/null 2>&1 || hdm_warn 'RustDesk 恢复后服务未能启动，需人工检查。'; fi
+    hdm_error '配置保存验证失败。未宣称成功；查看菜单 7.3 和 RustDesk 服务日志。'
+    return 1
+  fi
+  hdm_info 'root 配置已保存并读回一致。'
+  if [[ -n $user_file ]]; then
+    hdm_info "用户 ${SUDO_USER} 配置已保存并读回一致。"
+  else
+    hdm_warn '未检测到可确定的普通登录用户配置作用域；只更新了 root 配置。'
+  fi
+  if [[ $state == active ]]; then
+    hdm_info 'RustDesk 服务已重新启动；不代表自建 ID 服务器注册或图形捕获成功。'
+  else
+    hdm_warn "RustDesk 原服务状态为 $state；未自行启动原本未运行的服务。"
+  fi
+  hdm_rustdesk_get_id || :
+  hdm_warn '如果仍显示 cannot open display :0，须另行修复无显示器 GNOME/Wayland 会话；与配置保存无关。'
 }
+
 hdm_rustdesk_server_wizard() {
   local id relay key
   hdm_rustdesk_input_host id 'ID 服务器（域名或 IP，可带端口；默认 21116）' || return 1
@@ -334,6 +383,9 @@ hdm_rustdesk_server_status() {
   hdm_rustdesk_draft_preview
   printf '\n[本机设备 ID]\n'
   hdm_rustdesk_get_id
+  if hdm_has journalctl && journalctl -u rustdesk -b --since '30 minutes ago' --no-pager -n 100 2>/dev/null | grep -Fq 'cannot open display'; then
+    hdm_warn '最近服务日志含 cannot open display：图形输出仍需单独修复，配置文件一致并不能解决黑屏。'
+  fi
 }
 hdm_network_test() {
   local host=${1:-} port=${2:-21116}

@@ -13,6 +13,7 @@ hdm_root() { :; }
 hdm_guard_platform() { :; }
 hdm_snapshot_create() { HDM_LAST_SNAPSHOT=fixture; }
 hdm_danger() { :; }
+hdm_service_state() { printf 'inactive\n'; }
 hdm_has() { [[ $1 == rustdesk ]] || command -v "$1" >/dev/null 2>&1; }
 # No real RustDesk used or touched: stub executable for timeout(1) compatibility.
 mkdir -p "$TMP/bin"
@@ -33,9 +34,9 @@ preview=$(hdm_dispatch 7.1.6)
 [[ $preview == *'rd.example.com:10010'* && $preview == *'草稿'* && $preview != *'ABCDEFGHIJKLMNOPQRSTUVWXYZ'* ]]
 result=$(hdm_dispatch 7.1.8)
 [[ $result == *'123456789'* && $result != *'ID 服务器（'* ]]
-# Apply checks persisted TOML. No prompts; this exercises importing into a root-scope config file.
+# Apply checks persisted TOML. No prompts; test native atomic save without calling RustDesk CLI.
 hdm_dispatch 7.1.7 > "$TMP/apply.out"
-grep -q '配置文件读回与输入一致' "$TMP/apply.out"
+grep -q 'root 配置已保存并读回一致' "$TMP/apply.out"
 status=$(hdm_dispatch 7.3.1)
 [[ $status == *'rd.example.com:10011'* && $status != *'ABCDEFGHIJKLMNOPQRSTUVWXYZ'* ]]
 # Mismatched TOML reports unverifiable rather than success.
@@ -44,4 +45,4 @@ if python3 "$ROOT/scripts/rustdesk_config.py" verify "$HDM_RUSTDESK_CONFIG_ROOT"
   echo 'verify should reject wrong persisted file'; exit 1
 fi
 [[ $(stat -c %a "$(hdm_rustdesk_draft_file)") == 600 ]]
-echo 'PASS RustDesk menu actions, draft save, ID lookup, readback verification'
+echo 'PASS RustDesk menu actions, profile-aware save, ID lookup, readback verification'

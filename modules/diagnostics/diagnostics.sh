@@ -118,6 +118,13 @@ hdm_diag_rustdesk() {
     printf '设备 ID：'; timeout 8 rustdesk --get-id 2>/dev/null || printf '查询失败/请检查服务账户\n'
   fi
   printf '未在此输出配置文件、服务器公钥或远控密码。\n'
+  if hdm_has journalctl && journalctl -u rustdesk -b --since '30 minutes ago' --no-pager -n 100 2>/dev/null | grep -Fq 'cannot open display'; then
+    hdm_warn '最近 RustDesk 日志含 cannot open display：进程无法连接指定的 X11 DISPLAY。此错误与服务器配置保存独立。'
+    printf '排查：sudo hdm --preflight；sudo hdm --doctor；systemctl is-active gdm3\n'
+  fi
+  if hdm_gnome_wayland_only; then
+    printf 'GNOME Wayland-only：DISPLAY=:0 不是有效虚拟屏幕的保证。登录前无人值守在当前 ARM64 标准版未验证。\n'
+  fi
   hdm_warn '外部远控认证、画面和冷启动尚未在本机诊断中验证。'
 }
 hdm_diag_status_json() {

@@ -11,7 +11,7 @@
 </div>
 
 > [!WARNING]
-> **v0.3.5 is a preview, not a production-validated deployment.** GNOME graphical capture, software rendering without a GPU and cold-boot unattended connections still require validation on a real cloud VM.
+> **v0.3.6 is a preview, not a production-validated deployment.** GNOME graphical capture, software rendering without a GPU and cold-boot unattended connections still require validation on a real cloud VM.
 
 ## Features
 

@@ -6,7 +6,7 @@
 
 **GNOME 优先 · 虚拟显示 · RustDesk · 安全恢复 · 终端菜单**
 
-[![版本](https://img.shields.io/badge/version-v0.3.4-blue)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-v0.3.6-blue)](CHANGELOG.md)
 [![CI](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml/badge.svg)](https://github.com/nljie1103/headless-desktop-manager/actions/workflows/tests.yml)
 [![平台](https://img.shields.io/badge/实验平台-Ubuntu%2026%20ARM64-9cf)](docs/implementation-status.md)
 [![阶段](https://img.shields.io/badge/阶段-Preview-orange)](docs/testing-and-limitations.md)
@@ -18,7 +18,7 @@
 </div>
 
 > [!WARNING]
-> **当前为 v0.3.4 Preview，不是生产环境已验证版本。** 菜单与部分安装逻辑已实现，但 GNOME 登录界面是否被 RustDesk 正确捕获、无 GPU 软件渲染、重启后无人值守访问等，尚未在真实云服务器完成验收。强烈建议先建立云快照，保留 SSH 和云平台控制台。
+> **当前为 v0.3.6 Preview，不是生产环境已验证版本。** 菜单与部分安装逻辑已实现，但 GNOME 登录界面是否被 RustDesk 正确捕获、无 GPU 软件渲染、重启后无人值守访问等，尚未在真实云服务器完成验收。强烈建议先建立云快照，保留 SSH 和云平台控制台。
 
 > [!IMPORTANT]
 > **Ubuntu 26 ARM64 实验说明**：GNOME 49+ 不支持 GNOME on Xorg；在 Ubuntu 26 上，HDM 不会自动写入 `WaylandEnable=false`。RustDesk 的标准 ARM64 版在 Wayland 下不保证登录界面无人值守控制。`WaylandEnable=false` 并非息屏开关，Ubuntu 26 GNOME 不可强制使用。**允许安装 ≠ 已打通无显示器远控**。请保留 SSH 和云控制台，并阅读 [Ubuntu 26 ARM64 测试指引](docs/ubuntu26-arm64.md)。
@@ -29,7 +29,9 @@
 
 **v0.3.4 打开 HDM 就先检测桌面与显示输出**，不会把所有机器都当成没有显示器、没有桌面；已有 GNOME/XFCE/MATE 将优先保留，未知状态不强制覆盖 GDM/Xorg。`sudo hdm --preflight` 可以独立查看结果。
 
-**RustDesk 服务器配置采用草稿 → 预览 → 导入 → 磁盘读回校验**。`7 → 1 → 8` 只负责设备 ID 查询；`7 → 3` 读取实际配置。**配置写入一致 ≠ 服务器注册成功 ≠ GNOME 远控可用**。
+**RustDesk 服务器配置采用草稿 → 预览 → 备份 → 安全写入 → 服务启动后读回校验**。`7 → 1 → 8` 只负责设备 ID 查询；`7 → 3` 读取实际配置。**配置写入一致 ≠ 服务器注册成功 ≠ GNOME 远控可用**。
+
+**v0.3.6 修复自建服务器配置保存**：与 RustDesk 运行服务和桌面用户作用域保持一致，暂停服务后修改 root/登录用户的 `RustDesk2.toml`，保留原有其它设置，并在服务恢复后重新校验；失败尝试回滚。配置成功仍不意味着 GNOME 无显示器捕获已打通。
 
 ## ✨ 项目可以做什么？
 
@@ -73,7 +75,7 @@ sudo hdm
 
 ```text
 ╭──────────────────────────────────────────────────────────╮
-│       Headless Desktop Manager (HDM) · v0.3.4           │
+│       Headless Desktop Manager (HDM) · v0.3.6           │
 │  虚拟显示器  /  GNOME 桌面  /  RustDesk 远程管理         │
 ├──────────────────────────────────────────────────────────┤
 │  1  安装虚拟显示器         6  更新 RustDesk             │
