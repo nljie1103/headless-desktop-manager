@@ -60,3 +60,7 @@ sudo hdm --export-diagnostics
 ```
 
 A diagnostics archive contains captured HDM operation logs and available apt/dpkg and GDM3/RustDesk journal evidence. It is stored in a root-only location with best-effort secret redaction; review before sharing. RustDesk local `.deb` installation now runs an APT dependency-resolution dry run before installing.
+
+## Deployment readiness checklist
+
+Run `sudo hdm --readiness` for an itemized overview of installed and missing desktop packages, running display services, graphical sessions, RustDesk installation, saved server settings, and the next required action. This check is read-only. See the [Chinese README](README.md) for the complete workflow.

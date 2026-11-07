@@ -253,6 +253,7 @@ hdm_dispatch() {
   10.4.1|10.4.2|10.4.6) hdm_diag_rustdesk;;
   10.1.3|10.10.1|10.10.7) hdm_diag_doctor;;
   10.1.5) hdm_diag_export_full;;
+  10.1.6) hdm_readiness_report;;
   10.8.7) hdm_diag_export_full;;
   10.2.5|10.8.2) hdm_diag_log display;;
   10.3.7|10.8.3) hdm_diag_log desktop;;

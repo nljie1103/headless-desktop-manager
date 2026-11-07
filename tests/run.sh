@@ -36,6 +36,7 @@ python3 "$ROOT/tests/unit/test_public_release.py"
 python3 "$ROOT/tests/unit/test_status.py"
 python3 "$ROOT/tests/unit/test_doctor.py"
 python3 "$ROOT/tests/unit/test_export_diagnostics.py"
+bash "$ROOT/tests/unit/test_readiness.sh"
 bash "$ROOT/tests/unit/test_menu_routing.sh"
 bash "$ROOT/tests/unit/test_session_state.sh"
 echo 'PASS: syntax, menus, runtime settings/cache index, publisher checks, release parser, archive verifier, spec and commit policy'

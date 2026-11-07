@@ -5,14 +5,14 @@ HDM_ENTRY_ROOT="$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")" 
 for module in \
   core/common.sh core/environment.sh core/operation.sh core/backup.sh core/packages.sh core/downloader.sh \
   modules/display/display.sh modules/desktop/desktop.sh modules/desktop/session.sh modules/rustdesk/rustdesk.sh \
-  modules/updater/updater.sh modules/diagnostics/diagnostics.sh \
+  modules/updater/updater.sh modules/diagnostics/diagnostics.sh modules/diagnostics/readiness.sh \
   modules/quick-install/quick-install.sh ui/actions.sh ui/menu.sh; do
   # shellcheck disable=SC1090
   source "$HDM_ENTRY_ROOT/$module"
 done
 # Diagnostic and informational operations must be read-only, even when run as root.
 case "${1:-}" in
-  --help|-h|--version|--menu-tree|--self-test|--diagnose|--doctor|--doctor-json|--status-json|--quick-status|--preflight|--rustdesk-permissions|--check-update|--session-status)
+  --help|-h|--version|--menu-tree|--self-test|--diagnose|--doctor|--doctor-json|--status-json|--quick-status|--preflight|--rustdesk-permissions|--check-update|--session-status|--readiness)
     hdm_init readonly ;;
   *) hdm_init ;;
 esac
@@ -30,6 +30,7 @@ Headless Desktop Manager (HDM)
   sudo hdm --session-repair      Check DRM/VKMS and try to restore a graphical login
   sudo hdm --export-diagnostics Export full HDM/APT/journal diagnostic bundle
   hdm --preflight                Detect installed desktop and usable display outputs
+  hdm --readiness                Show installed, missing and unconfigured components
   hdm --rustdesk-permissions     Read-only privileged settings / service diagnosis
   hdm --doctor-json              Sanitized diagnosis JSON
   sudo hdm --quick-status        Read-only resumable install progress
@@ -50,6 +51,7 @@ HELP
   --session-repair) hdm_session_repair; exit $?;;
   --export-diagnostics) hdm_diag_export_full; exit $?;;
   --preflight) hdm_env_report; exit $?;;
+  --readiness) hdm_readiness_report; exit $?;;
   --rustdesk-permissions) hdm_rustdesk_permission_report; exit $?;;
   --doctor) hdm_diag_doctor; exit $?;;
   --doctor-json) hdm_diag_doctor_json; exit $?;;

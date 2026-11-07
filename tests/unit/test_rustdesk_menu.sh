@@ -11,7 +11,26 @@ source "$ROOT/modules/rustdesk/rustdesk.sh"
 source "$ROOT/ui/actions.sh"
 hdm_root() { :; }
 hdm_guard_platform() { :; }
-hdm_snapshot_create() { HDM_LAST_SNAPSHOT=fixture; }
+hdm_snapshot_create() {
+  HDM_LAST_SNAPSHOT=fixture
+  : > "$TMP/snapshot.manifest"
+  local path idx=0
+  for path in "$@"; do
+    idx=$((idx+1))
+    printf '%s\t%s\n' "$path" "$idx" >> "$TMP/snapshot.manifest"
+    if [[ -f $path ]]; then cp -p -- "$path" "$TMP/snapshot-$idx"; else rm -f -- "$TMP/snapshot-$idx"; fi
+  done
+}
+hdm_snapshot_restore() {
+  local path idx
+  while IFS=$'\t' read -r path idx; do
+    if [[ -f "$TMP/snapshot-$idx" ]]; then
+      cp -p -- "$TMP/snapshot-$idx" "$path"
+    else
+      rm -f -- "$path"
+    fi
+  done < "$TMP/snapshot.manifest"
+}
 hdm_danger() { :; }
 hdm_service_state() { printf 'inactive\n'; }
 hdm_has() { [[ $1 == rustdesk ]] || command -v "$1" >/dev/null 2>&1; }

@@ -273,13 +273,20 @@ hdm_rustdesk_login_profile() {
 }
 hdm_rustdesk_import_config() {
   local id_server=$1 relay=$2 public_key=$3 root_file user_profile='' user_file='' user_uid='' user_gid=''
-  local state snapshot rc=0 path attempt
+  local state snapshot rc=0 path attempt root_uid=0 root_gid=0
   local -a config_paths=()
   hdm_root && hdm_guard_platform || return 1
   hdm_has rustdesk || { hdm_error '请先安装 RustDesk'; return 1; }
   [[ $public_key =~ ^[A-Za-z0-9+/=:_-]{20,256}$ ]] || { hdm_error '服务器公钥格式无效'; return 1; }
   hdm_rustdesk_endpoint_valid "$id_server" && hdm_rustdesk_endpoint_valid "$relay" || { hdm_error 'ID/中继服务器地址不合法'; return 1; }
   root_file=$(hdm_rustdesk_root_config)
+  # With a temporary configuration override and an unprivileged CI runner,
+  # retain the caller's uid/gid. Real system installations still require root
+  # and always create the root profile as root:root.
+  if [[ -n ${HDM_RUSTDESK_CONFIG_ROOT:-} && $EUID -ne 0 ]]; then
+    root_uid=$EUID
+    root_gid=$(id -g)
+  fi
   config_paths=("$root_file")
   if user_profile=$(hdm_rustdesk_login_profile); then
     IFS=$'\t' read -r user_file user_uid user_gid <<< "$user_profile"
@@ -302,7 +309,7 @@ hdm_rustdesk_import_config() {
     return 1
   fi
   snapshot=$HDM_LAST_SNAPSHOT
-  if ! python3 "$HDM_ROOT/scripts/rustdesk_config.py" apply "$root_file" --draft "$(hdm_rustdesk_draft_file)" --uid 0 --gid 0; then rc=1; fi
+  if ! python3 "$HDM_ROOT/scripts/rustdesk_config.py" apply "$root_file" --draft "$(hdm_rustdesk_draft_file)" --uid "$root_uid" --gid "$root_gid"; then rc=1; fi
   if ((rc == 0)) && [[ -n $user_file ]]; then
     if ! python3 "$HDM_ROOT/scripts/rustdesk_config.py" apply "$user_file" --draft "$(hdm_rustdesk_draft_file)" --uid "$user_uid" --gid "$user_gid"; then rc=1; fi
   fi
@@ -538,13 +545,17 @@ hdm_rustdesk_permission_report() {
 # RustDesk documented permissions are stored in [options]. Different accounts
 # and server-side Override/Strategy policies may have distinct effective values.
 hdm_rustdesk_permissions_apply() {
-  local mode=$1 remote=${2:-N} state root_file profile user_file='' uid='' gid='' snapshot='' rc=0 file
+  local mode=$1 remote=${2:-N} state root_file profile user_file='' uid='' gid='' snapshot='' rc=0 file root_uid=0 root_gid=0
   local -a files=()
   hdm_root || return 1
   hdm_has rustdesk || { hdm_error '请先安装 RustDesk'; return 1; }
   case "$mode" in custom|full|view|auth) ;; *) return 1;; esac
   [[ $remote == Y || $remote == N ]] || return 1
   root_file=$(hdm_rustdesk_root_config)
+  if [[ -n ${HDM_RUSTDESK_CONFIG_ROOT:-} && $EUID -ne 0 ]]; then
+    root_uid=$EUID
+    root_gid=$(id -g)
+  fi
   files=("$root_file")
   if profile=$(hdm_rustdesk_login_profile); then
     IFS=$'\t' read -r user_file uid gid <<< "$profile"
@@ -568,7 +579,7 @@ PY_PATHCHECK
     return 1
   fi
   snapshot=$HDM_LAST_SNAPSHOT
-  python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" apply "$root_file" --mode "$mode" --remote "$remote" --uid 0 --gid 0 >/dev/null || rc=1
+  python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" apply "$root_file" --mode "$mode" --remote "$remote" --uid "$root_uid" --gid "$root_gid" >/dev/null || rc=1
   if ((rc == 0)) && [[ -n $user_file ]]; then
     python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" apply "$user_file" --mode "$mode" --remote "$remote" --uid "$uid" --gid "$gid" >/dev/null || rc=1
   fi
