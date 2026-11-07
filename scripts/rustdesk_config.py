@@ -3,7 +3,7 @@
 
 `apply` operates on one explicit profile while RustDesk is stopped by the caller.
 It preserves unrelated settings and verifies the updated TOML before an atomic
-replace. The CLI never prints public keys or passwords.
+replace. The CLI never prints passwords. Read-only inspect may show public keys for operator verification.
 """
 import argparse
 import json
@@ -186,7 +186,7 @@ def main():
         print('配置文件：' + args.path)
         print('ID 服务器：' + (ident or '未找到'))
         print('中继服务器：' + (relay or '未找到'))
-        print('服务器公钥：' + ('存在（内容不显示）' if key else '未找到'))
+        print('服务器公钥：' + (key or '未找到'))
         print('提示：文件内容不能证明后台服务已加载或成功注册。')
     elif args.action == 'get-id':
         if not ident:

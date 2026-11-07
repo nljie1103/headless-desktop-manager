@@ -54,13 +54,13 @@ hdm_update_check() {
     IFS=$'\t' read -r version sha <<< "$meta"
     printf '开发分支 main：v%s（提交 %.12s）\n' "$version" "$sha"
     if hdm_update_newer "$version" "$HDM_VERSION"; then
-      printf '检测到更新：菜单 8 → 2 → 5 可更新开发预览版。\n'
+      printf '检测到更新：菜单 8 → 2 → 5 可安装 main 更新。\n'
     else
       printf '本机版本不低于 main 版本；无须更新。\n'
     fi
     found=1
   else
-    hdm_warn 'main 预览分支查询失败，请检查网络或 GitHub API 限流。'
+    hdm_warn 'main 版本查询失败，请检查网络或 GitHub API 限流。'
   fi
   ((found == 1))
 }
@@ -76,7 +76,7 @@ hdm_update_preview_install() {
     return 0
   fi
   printf '来源：GitHub main 的固定提交 %s\n' "$sha"
-  hdm_warn '预览版并非独立签名的稳定 Release；通过 GitHub HTTPS 获取固定提交快照。'
+  hdm_warn '当前更新来源为 GitHub main 的固定提交，通过 HTTPS 传输，未使用独立签名。'
   hdm_danger "将 HDM 管理器更新至 v$version？保留旧版本，不修改 GNOME/RustDesk。" || return 2
   base=${HDM_UPDATE_BASE:-/opt/hdm}
   [[ $base == /* && $base != / ]] || { hdm_error '非法 HDM 安装根目录'; return 1; }

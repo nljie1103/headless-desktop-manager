@@ -181,7 +181,7 @@ hdm_rustdesk_draft_preview() {
   local id relay key
   id=$(hdm_rustdesk_draft_get id); relay=$(hdm_rustdesk_draft_get relay); key=$(hdm_rustdesk_draft_get key)
   printf '当前待应用配置（草稿，并非已生效）：\n'
-  printf '  ID 服务器：%s\n  中继服务器：%s\n  公钥：%s\n' "${id:-未填写}" "${relay:-未填写}" "$([[ -n $key ]] && echo '已填写（隐藏）' || echo '未填写')"
+  printf '  ID 服务器：%s\n  中继服务器：%s\n  公钥：%s\n' "${id:-未填写}" "${relay:-未填写}" "${key:-未填写}"
   if hdm_rustdesk_draft_ready; then printf '  输入完整，可选择 7.1.7 保存。\n'; else printf '  尚缺必需字段，请完成填写。\n'; fi
 }
 hdm_rustdesk_draft_wizard() {
@@ -189,7 +189,7 @@ hdm_rustdesk_draft_wizard() {
   printf '一次填写三个字段，保存到待应用草稿；不会立即修改 RustDesk。\n'
   hdm_rustdesk_input_host id 'ID 服务器（可带端口）' || return 1
   hdm_rustdesk_input_host relay '中继服务器（可带端口）' || return 1
-  printf '服务器公钥（输入不回显）：'; IFS= read -rs key || return 1; printf '\n'
+  printf '服务器公钥：'; IFS= read -r key || return 1
   [[ $key =~ ^[A-Za-z0-9+/=:_-]{20,256}$ ]] || { hdm_error '公钥格式无效'; return 1; }
   hdm_rustdesk_draft_set id "$id" && hdm_rustdesk_draft_set relay "$relay" && hdm_rustdesk_draft_set key "$key" || return 1
   unset key
@@ -200,7 +200,7 @@ hdm_rustdesk_draft_edit() {
   case "$field" in
     id) hdm_rustdesk_input_host value '新的 ID 服务器（主机:端口）' || return 1;;
     relay) hdm_rustdesk_input_host value '新的中继服务器（主机:端口）' || return 1;;
-    key) printf '输入新公钥（不回显）：'; IFS= read -rs value || return 1; printf '\n';;
+    key) printf '输入新公钥：'; IFS= read -r value || return 1;;
     *) return 1;;
   esac
   hdm_rustdesk_draft_set "$field" "$value" || return 1
@@ -324,7 +324,7 @@ hdm_rustdesk_server_wizard() {
   hdm_rustdesk_input_host relay '中继服务器（域名或 IP，可带端口；默认 21117）' || return 1
   printf '请输入服务器公钥（不会进入 HDM 日志）：'; IFS= read -r key || return 1
   [[ $key =~ ^[A-Za-z0-9+/=:_-]{20,256}$ ]] || { hdm_error '服务器公钥格式无效'; return 1; }
-  printf '\nID 服务器：%s\n中继服务器：%s\n公钥：%s...（已遮蔽）\n' "$id" "$relay" "${key:0:4}"
+  printf '\nID 服务器：%s\n中继服务器：%s\n公钥：%s\n' "$id" "$relay" "$key"
   hdm_rustdesk_import_config "$id" "$relay" "$key"
   unset key
 }

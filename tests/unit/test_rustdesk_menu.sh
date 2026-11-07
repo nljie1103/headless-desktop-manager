@@ -31,14 +31,14 @@ hdm_rustdesk_draft_set id 'rd.example.com:10010'
 hdm_rustdesk_draft_set relay 'rd.example.com:10011'
 hdm_rustdesk_draft_set key 'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345='
 preview=$(hdm_dispatch 7.1.6)
-[[ $preview == *'rd.example.com:10010'* && $preview == *'草稿'* && $preview != *'ABCDEFGHIJKLMNOPQRSTUVWXYZ'* ]]
+[[ $preview == *'rd.example.com:10010'* && $preview == *'草稿'* && $preview == *'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345='* ]]
 result=$(hdm_dispatch 7.1.8)
 [[ $result == *'123456789'* && $result != *'ID 服务器（'* ]]
 # Apply checks persisted TOML. No prompts; test native atomic save without calling RustDesk CLI.
 hdm_dispatch 7.1.7 > "$TMP/apply.out"
 grep -q 'root 配置已保存并读回一致' "$TMP/apply.out"
 status=$(hdm_dispatch 7.3.1)
-[[ $status == *'rd.example.com:10011'* && $status != *'ABCDEFGHIJKLMNOPQRSTUVWXYZ'* ]]
+[[ $status == *'rd.example.com:10011'* && $status == *'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345='* ]]
 # Mismatched TOML reports unverifiable rather than success.
 sed -i 's/rd.example.com:10010/rd.example.com:21116/g' "$HDM_RUSTDESK_CONFIG_ROOT"
 if python3 "$ROOT/scripts/rustdesk_config.py" verify "$HDM_RUSTDESK_CONFIG_ROOT" --draft "$(hdm_rustdesk_draft_file)" >/dev/null 2>&1; then

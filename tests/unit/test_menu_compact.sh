@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT=$(cd -- "$(dirname -- "$0")/../.." && pwd)
+TMP=$(mktemp -d)
+trap 'rm -rf -- "$TMP"' EXIT
+export HDM_ETC="$TMP/etc" HDM_STATE="$TMP/state" HDM_CACHE="$TMP/cache" HDM_LOG_DIR="$TMP/log"
+output=$(printf '0\n' | COLUMNS=100 bash "$ROOT/hdm.sh")
+[[ $output == *'1  安装虚拟显示'* && $output == *'6  更新 RustDesk'* ]]
+[[ $output == *'10  故障诊断'* && $output != *'快速入口'* && $output != *'实验'* ]]
+[[ $output != *'建议：'* ]]
+output=$(printf '0\n' | COLUMNS=54 bash "$ROOT/hdm.sh")
+[[ $output == *'1  安装虚拟显示'* && $output == *'10 故障诊断'* ]]
+python3 - "$ROOT" <<'PYTEST'
+import sys, pathlib, collections
+root=pathlib.Path(sys.argv[1]); rows=[]
+for line in (root/'ui/menus.tsv').read_text().splitlines():
+ if not line or line.startswith('#'):continue
+ p,code,label,i=line.split('|'); rows.append((p,code,label,i))
+assert len(rows)>=470
+assert len({i for _,_,_,i in rows}) == len(rows)
+assert [r[2] for r in rows if r[0]=='root'] == ['安装虚拟显示','管理虚拟显示','安装桌面','管理桌面','安装 RustDesk','更新 RustDesk','服务器配置','更新 HDM','一键安装','故障诊断']
+assert not any('实验' in s or 'Preview' in s for _,_,s,_ in rows)
+assert 'hdm_open_after_install' in (root/'install.sh').read_text()
+assert '[[ -t 0 && -t 1' in (root/'install.sh').read_text()
+PYTEST
+echo 'PASS compact menu, 2-column/1-column layouts, auto-open guard'

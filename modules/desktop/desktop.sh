@@ -87,7 +87,7 @@ GNOME：完整功能，HDM 默认支持目标；建议更高内存，无 GPU 时
 XFCE：轻量 X11，供低资源设备选择；GNOME 不是自动替代对象。
 MATE：轻量传统桌面，会话管理器适配需进一步验证。
 旧版主路径：Ubuntu 24.04 + GNOME X11 + Xorg Dummy + RustDesk。
-Ubuntu 25.10 / 26.xx：GNOME 已改为 Wayland-only；先安装 GNOME + PipeWire + RustDesk，显示器另行实验。
-Xvfb/VKMS + GNOME/RustDesk 仍属于实验性组合。
+Ubuntu 25.10 / 26.xx：GNOME 已改为 Wayland-only；先安装 GNOME + PipeWire + RustDesk，显示方案需独立检查。
+Xvfb/VKMS 与 GNOME/RustDesk 的组合需核实图形会话与捕获能力。
 END_COMPARE
 }

@@ -33,7 +33,7 @@ jobs:
           set -euo pipefail
           title=$(cat release/RELEASE_TITLE.txt)
           gh release create "$GITHUB_REF_NAME" "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh SHA256SUMS \
-            --title "$title" --prerelease --notes-file release/RELEASE_NOTES.md
+            --title "$title" --notes-file release/RELEASE_NOTES.md
       - name: Correct v0.3.4 release display without rewriting commits or tags
         if: github.ref_name == 'v0.3.5'
         env:

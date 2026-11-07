@@ -2,7 +2,7 @@
 hdm_diag_full() {
   hdm_show '全系统诊断（只读）'
   printf '系统：%s / %s\n' "$(hdm_os)" "$(hdm_arch)"
-  if hdm_supported; then printf '[目标基线] Ubuntu 24.04 x86_64（仍需实机验证）\n'; else printf '[实验环境] 当前系统可尝试安装，但尚未完成兼容性验收\n'; fi
+  if hdm_supported; then printf '[目标基线] Ubuntu 24.04 x86_64（仍需实机验证）\n'; else printf '[当前系统] 请根据实际软件源与显示协议配置组件\n'; fi
   for pkg in xserver-xorg-video-dummy gnome-shell gdm3 rustdesk; do
     if hdm_installed "$pkg"; then printf '[已安装] %s %s\n' "$pkg" "$(hdm_pkg_version "$pkg")"; else printf '[缺失] %s\n' "$pkg"; fi
   done
@@ -53,7 +53,7 @@ hdm_diag_repair_hint() {
   printf '\n建议修复路径：\n'
   if hdm_gnome_wayland_only; then
     printf 'Wayland-only：检查 GNOME / PipeWire / Portal → 菜单 3.1.1 和 10.3；\n'
-    printf 'VKMS 虚拟显示实验 → 菜单 1.3；RustDesk 服务异常 → 菜单 10.4.8；\n'
+    printf 'VKMS 虚拟显示 → 菜单 1.3；RustDesk 服务异常 → 菜单 10.4.8；\n'
   else
     printf 'Dummy 未安装 → 菜单 1.1.1；GNOME 未安装 → 菜单 3.1.1；\n'
     printf 'GDM3 未配置 X11 → 菜单 3.1.5；RustDesk 服务异常 → 菜单 10.4.8；\n'

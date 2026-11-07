@@ -35,5 +35,20 @@ for line in sections.splitlines():
 # ensure no duplicate ID
 assert len({r[3] for r in rows})==len(rows), 'menu IDs duplicated'
 output = root / 'ui/menus.tsv'
+# Display labels are intentionally concise; retain curated wording when regenerating
+# the menu tree from the original functional specification.
+if output.is_file():
+    existing = {}
+    for line in output.read_text(encoding='utf-8').splitlines():
+        data = line.split('|')
+        if len(data) == 4 and data[0] != '# parent':
+            existing[data[3]] = data[2]
+    original_rows = [tuple(line.split('|')) for line in output.read_text(encoding='utf-8').splitlines()
+                     if line and not line.startswith('#')]
+    generated_ids = {ident for _, _, _, ident in rows}
+    rows = [(parent, code, existing.get(ident, label), ident) for parent, code, label, ident in rows]
+    # Retain implemented menu additions that were made after the original spec.
+    rows.extend((parent, code, label, ident) for parent, code, label, ident in original_rows
+                if ident not in generated_ids)
 output.write_text('# parent|selection|label|action_id\n' + ''.join('|'.join(row)+'\n' for row in rows),encoding='utf-8')
 print(f'Generated {len(rows)} menu items, including {len(main)} main menu entries')

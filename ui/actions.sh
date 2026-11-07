@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Only approved action IDs are executable. Unknown/experimental leaves display an explicit notice.
+# Only approved action IDs are executable. Unavailable actions display an explicit notice.
 hdm_action_not_ready() {
   local id=$1
-  printf '[暂不支持自动执行 / 实验性] %s：%s\n' "$id" "$(hdm_menu_label "$id")"
+  printf '[尚无自动处理逻辑] %s：%s\n' "$id" "$(hdm_menu_label "$id")"
   printf '此操作需要额外兼容性验证或安全前置条件。没有修改系统；参见 docs/AI_DEVELOPMENT_SPEC.md。\n'
   return 0
 }
@@ -210,7 +210,7 @@ hdm_dispatch() {
   8.5.2) hdm_update_rollback;;
   8.6.1|8.6.7|8.9.1|8.9.2) hdm_update_integrity;;
   8.6.2|8.6.3|8.6.4|8.6.5|8.6.6) hdm_warn '模块必须与主程序同版本；无法单独替换。请使用 8.2 原子更新完整 HDM。';;
-  8.8.1) printf '稳定版：菜单 8 → 2 → 2；预览版 main：8 → 2 → 5。\n';;
+  8.8.1) printf '稳定版：菜单 8 → 2 → 2；main 通道：8 → 2 → 5。\n';;
   8.8.2) hdm_warn '当前手动检查更新；未启用后台定时升级。';;
   8.8.3) du -sh "$HDM_CACHE/downloads" 2>/dev/null || :; find /opt/hdm/releases -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null || :;;
   8.10.1) hdm_danger '恢复 HDM 的下载策略和分辨率默认值，不修改系统桌面？' && { hdm_setting HDM_DEFAULT_RESOLUTION 1920x1080; hdm_setting HDM_SOURCE_POLICY official-mirror-github; };;

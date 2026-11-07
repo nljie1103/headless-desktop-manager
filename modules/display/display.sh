@@ -161,7 +161,7 @@ hdm_xvfb_verify() {
   printf '[待人工验证] GNOME 会话 / RustDesk 画面是否可用\n'
 }
 hdm_display_install_xvfb() {
-  hdm_warn 'Xvfb 为独立显示实验路径，非 GNOME/GDM3 的无显示器自动替代。'
+  hdm_warn 'Xvfb 是独立显示服务，不会直接替代 GNOME/GDM3 的图形登录。'
   hdm_pkg_install xvfb x11-utils || return 1
   hdm_xvfb_configure
 }
@@ -172,7 +172,7 @@ hdm_display_vkms_check() {
 hdm_display_vkms_load() {
   hdm_root && hdm_guard_platform || return 1
   hdm_display_vkms_check || return 1
-  hdm_danger '加载实验性 VKMS（可能影响图形设备选择）？' || return 0
+  hdm_danger '加载 VKMS 内核模块（可能影响图形设备选择）？' || return 0
   modprobe vkms && hdm_info 'VKMS 内核模块已加载。此时未验证 GNOME / RustDesk 捕获。'
 }
 hdm_display_vkms_persist() {

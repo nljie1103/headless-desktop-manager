@@ -52,5 +52,5 @@ output=$(bash "$ROOT/hdm.sh" --rustdesk-permissions)
 for name in etc state cache log; do [[ ! -e $TMP/$name ]]; done
 # Main menu displays detection summary immediately, without modifying system.
 output=$(printf '0\n' | bash "$ROOT/hdm.sh")
-[[ $output == *'显示输出'* && $output == *'建议：'* ]]
+[[ $output == *'显示'* && $output == *'桌面'* && $output != *'快速入口'* && $output != *'建议：'* ]]
 echo 'PASS environmental four-way preflight, conservative detection and RustDesk permissions'
