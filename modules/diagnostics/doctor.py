@@ -109,7 +109,12 @@ def inspect(report: dict) -> list[dict]:
         '服务正在运行（不代表图形会话可捕获）。' if active else '服务未运行或状态不可用。',
         '菜单 10.4.8' if not active else ''))
 
-    if report.get('rollback_pending'):
+    pending = report.get('rollback_pending')
+    if pending is None:
+        checks.append(finding('rollback', 'warning', '安全回滚状态',
+            '无法读取 root 专用的回滚状态；请使用 sudo hdm --doctor 检查。',
+            'sudo hdm --doctor'))
+    elif pending:
         checks.append(finding('rollback', 'warning', '显示配置待确认',
             '存在回滚计时器，请从外部测试画面后选择确认或回滚。',
             'sudo hdm --confirm-display 或 sudo hdm --rollback-pending'))

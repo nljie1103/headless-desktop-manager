@@ -93,6 +93,14 @@ def gdm_x11_enabled(lines):
                 selected = value.split("#", 1)[0].split(";", 1)[0].strip().lower()
     return selected == "false"
 
+def rollback_marker_state(base: str | pathlib.Path) -> bool | None:
+    """Missing marker is False; inaccessible root-only state is unknown."""
+    try:
+        return (pathlib.Path(base) / 'pending-rollback').is_file()
+    except OSError:
+        return None
+
+
 def collect():
     try:
         version = (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
@@ -130,7 +138,7 @@ def collect():
                   'remote_picture_captured': 'not_tested'},
         'rustdesk': {'service': service('rustdesk'), 'external_connection': 'not_tested',
                      'authentication': 'not_tested'},
-        'rollback_pending': (pathlib.Path(os.environ.get('HDM_STATE', '/var/lib/hdm')) / 'pending-rollback').is_file(),
+        'rollback_pending': rollback_marker_state(os.environ.get('HDM_STATE', '/var/lib/hdm')),
         'warnings': [
             'Package and service detection does not prove desktop capture or unattended remote access.',
             'Verify GNOME screen, RustDesk authentication and reboot from another machine.',

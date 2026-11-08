@@ -17,4 +17,12 @@ for forbidden in ('password', 'RustDesk.toml', 'private_key', 'auth_token'):
 p2 = subprocess.run(['bash', str(root/'hdm.sh'), '--status-json'],
                     capture_output=True, text=True, check=True)
 assert json.loads(p2.stdout)['hdm_version'] == value['hdm_version']
-print('PASS read-only JSON diagnostics')
+# The real installer creates a root-only HDM_STATE directory. An unprivileged
+# diagnostic must remain readable and mark rollback status unknown, not crash.
+sys.path.insert(0, str(root/'modules/diagnostics'))
+import status_json
+from unittest.mock import patch
+with patch.object(pathlib.Path, 'is_file', side_effect=PermissionError('root-only state')):
+    assert status_json.rollback_marker_state('/var/lib/hdm') is None
+assert status_json.rollback_marker_state('/definitely/nonexistent/hdm-state') is False
+print('PASS read-only JSON diagnostics and root-only rollback-state handling')

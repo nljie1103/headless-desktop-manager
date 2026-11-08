@@ -36,11 +36,12 @@ PY
   return 1
 }
 hdm_readiness_report() {
-  local desktop connector session svc mem_kib user_profile user_file='' preferred
+  local desktop connector session gnome_session svc mem_kib user_profile user_file='' preferred
   HDM_READINESS_MISSING=0
   desktop=$(hdm_env_desktop_kind)
   connector=$(hdm_env_drm_state)
   session=$(hdm_env_active_session)
+  gnome_session=$(hdm_env_gnome_session)
   mem_kib=$(awk '/^MemTotal:/ {print $2;exit}' /proc/meminfo 2>/dev/null || :)
   preferred=GNOME
   if [[ $mem_kib =~ ^[0-9]+$ ]] && ((mem_kib < 4194304)); then preferred=XFCE; fi
@@ -50,6 +51,7 @@ hdm_readiness_report() {
   case "$desktop" in
     GNOME)
       hdm_readiness_pkg gnome-shell 'GNOME Shell'
+      hdm_readiness_pkg gnome-session-bin 'GNOME Session'
       hdm_readiness_pkg gdm3 'GDM3 登录管理器'
       if hdm_gnome_wayland_only; then
         hdm_readiness_pkg pipewire 'PipeWire'
@@ -98,6 +100,13 @@ hdm_readiness_report() {
     none) printf '[未建立] 图形用户会话           未发现活动的 X11/Wayland 用户会话\n';;
     *) printf '[待检查] 图形用户会话           登录管理器或 logind 信息不足\n';;
   esac
+  if [[ $desktop == GNOME ]]; then
+    case "$gnome_session" in
+      x11|wayland) printf '[GNOME 会话] GNOME 用户会话         %s（外部画面仍待验证）\n' "$gnome_session";;
+      none) printf '[未建立] GNOME 用户会话         没有已确认的 GNOME 会话；其他桌面会话不能代替\n';;
+      *) printf '[待检查] GNOME 用户会话         桌面类型或会话数据不足\n';;
+    esac
+  fi
   printf '\n远程控制\n'
   hdm_readiness_pkg rustdesk 'RustDesk 客户端'
   case "$(hdm_service_state rustdesk)" in
@@ -123,7 +132,9 @@ hdm_readiness_report() {
   else
     printf '本机目标桌面的必需软件包检查完成；继续核实服务、会话和远端画面。\n'
   fi
-  if [[ $session != x11 && $session != wayland ]]; then
+  if [[ $desktop == GNOME && $gnome_session != x11 && $gnome_session != wayland ]]; then
+    printf 'GNOME 会话尚未确认：运行 sudo hdm --session-status 查看原因。\n'
+  elif [[ $session != x11 && $session != wayland ]]; then
     printf '图形会话未确认：运行 sudo hdm --session-status 查看原因。\n'
   fi
   printf '上述操作为只读检测，没有改变系统。\n'

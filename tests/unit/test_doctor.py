@@ -39,6 +39,10 @@ checks = doctor.inspect(report)
 assert any(c['code'] == 'gdm_x11' and c['next_action'] == '菜单 3.1.5' for c in checks)
 assert any(c['code'] == 'rustdesk_service' and c['level'] == 'action' for c in checks)
 assert any(c['code'] == 'rollback' and c['level'] == 'warning' for c in checks)
+report['rollback_pending'] = None
+checks = doctor.inspect(report)
+assert any(c['code'] == 'rollback' and c['level'] == 'warning' and
+           'sudo hdm --doctor' in c['next_action'] for c in checks)
 modern = {
     'system': {'id':'ubuntu', 'version_id':'26.04', 'architecture':'aarch64'},
     'packages': {p:{'installed': True, 'version':'50.0'} for p in

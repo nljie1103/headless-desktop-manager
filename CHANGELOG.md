@@ -3,7 +3,9 @@
 - 通过 loginctl 的 Desktop、Type、Class 和 State 验证 GNOME 用户会话，不再将 XFCE/MATE 等现有桌面的 X11/Wayland 会话视为 GNOME 就绪。
 - GDM3 启动与修复流程分别核实服务状态和 GNOME 会话；只有真实 GNOME 会话可确认时才报告图形会话就绪。
 - 图形会话诊断同时显示任意活动桌面协议与 GNOME 专用会话，增加跨桌面混装和登录管理器回归测试。
-- Ubuntu 24.04 x86_64 双机验证：GNOME 核心组件安装成功；GDM3 登录和外部 RustDesk 画面仍按独立验收项处理。
+- 修复管理员安装后普通用户执行 `hdm --doctor`、`--status-json` 因 root 专用回滚目录无权限而异常退出；现在将该状态标为“未知”并提示管理员核实。
+- 部署就绪清单单独检查 GNOME 用户会话，即使 GDM3 服务与 XFCE/X11 会话都在运行，也不宣称 GNOME 已就绪。
+- Ubuntu 24.04 x86_64 双机验证：GNOME 核心组件安装成功，GDM3 服务可启动；HDM 安装 RustDesk 1.5.1 成功且服务 active。外部 RustDesk 画面和 GNOME 真正登录会话仍按独立验收项处理。
 
 ## v0.3.10 — 发布校验与部署检查（2026-11-07）
 
