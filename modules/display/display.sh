@@ -1,16 +1,48 @@
 #!/usr/bin/env bash
+# Show DRM connectors and actual login services; optional tools are secondary.
 hdm_display_status() {
-  hdm_show '虚拟显示器状态'
-  printf 'Xorg Dummy 包：%s\n' "$(hdm_pkg_version xserver-xorg-video-dummy)"
-  printf 'Xvfb 包：%s\n' "$(hdm_pkg_version xvfb)"
-  printf 'VKMS 模块：'; if lsmod 2>/dev/null | grep -q '^vkms '; then printf '已加载\n'; else printf '未加载 / 不可查看\n'; fi
-  printf 'HDM Dummy 配置：'; [[ -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]] && printf '存在\n' || printf '不存在\n'
-  printf 'Xvfb 服务：%s（DISPLAY :%s，%s，%s-bit）\n' "$(hdm_service_state hdm-xvfb)" "$HDM_XVFB_DISPLAY" "$HDM_XVFB_RESOLUTION" "$HDM_XVFB_DEPTH"
-  printf '活动图形会话：'; loginctl list-sessions --no-legend 2>/dev/null | awk '$0 ~ /wayland|x11/ {n++} END{print n+0}' || true
-  if hdm_has xrandr && [[ -n ${DISPLAY:-} ]]; then xrandr --current 2>&1 | head -24 || :; else printf '当前 shell 无可连接的 DISPLAY；不能据此断言图形服务失败。\n'; fi
-  printf 'GDM3：%s\n' "$(hdm_service_state gdm3)"
-  printf '服务/驱动安装状态并不代表 GNOME 会话可用。\n'
+  local f status any=0 count=0 entries
+  hdm_show '显示设备与图形会话状态'
+  printf 'DRM/KMS：%s\n' "$(hdm_env_drm_label "$(hdm_env_drm_state)")"
+  for f in /sys/class/drm/card*-*/status; do
+    [[ -f $f ]] || continue
+    status=$(cat "$f" 2>/dev/null || printf unknown)
+    printf '  %s：%s\n' "$(basename "$(dirname "$f")")" "$status"
+    any=1
+  done
+  ((any)) || printf '  无可读取的 DRM 连接器。\n'
+  printf 'Xorg（X11）：'
+  if hdm_installed xserver-xorg-core; then printf '已安装'
+  else printf '未安装'; fi
+  if pgrep -x Xorg >/dev/null 2>&1; then printf '，正在运行\n'
+  else printf '，未运行\n'; fi
+  printf 'LightDM：%s；GDM3：%s\n' "$(hdm_service_state lightdm)" "$(hdm_service_state gdm3)"
+  printf 'RustDesk：%s（不代表画面能被捕获）\n' "$(hdm_service_state rustdesk)"
+  if declare -F hdm_session_candidates >/dev/null; then
+    if entries=$(hdm_session_candidates); then
+      if [[ -n $entries ]]; then
+        while IFS= read -r _; do ((count+=1)); done <<< "$entries"
+      fi
+      printf '已登录图形用户会话：%s（SSH/TTY 与 Greeter 不计入）\n' "$count"
+    else
+      printf '已登录图形用户会话：待确认（扫描不完整）\n'
+    fi
+  else
+    printf '活动图形用户会话：%s\n' "$(hdm_env_active_session)"
+  fi
+  printf '可选显示工具：Dummy 包 %s；Xvfb 包 %s\n' "$(hdm_pkg_version xserver-xorg-video-dummy)" "$(hdm_pkg_version xvfb)"
+  printf 'HDM Dummy 配置：'
+  [[ -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]] && printf '存在\n' || printf '未配置\n'
+  printf 'Xvfb 服务：%s；VKMS 模块：' "$(hdm_service_state hdm-xvfb)"
+  if lsmod 2>/dev/null | grep -q '^vkms '; then printf '已加载\n'
+  else printf '未加载或无法查看\n'; fi
+  if hdm_has xrandr && [[ -n $(printenv DISPLAY 2>/dev/null) ]]; then
+    xrandr --current 2>&1 | head -20 || :
+  else
+    printf 'SSH shell 没有 DISPLAY 不能证明图形输出失败；需要检查 LightDM、Xorg 和远端画面。\n'
+  fi
 }
+
 hdm_display_res_validate() { [[ ${1:-} =~ ^(1280x720|1600x900|1920x1080|2560x1440)$ ]]; }
 hdm_display_select_res() {
   local choice value

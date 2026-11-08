@@ -83,21 +83,62 @@ for s in sessions:
 PYSESSION
 }
 
+# The LightDM greeter and a logged-in graphical desktop are different things.
 hdm_session_list_graphical() {
-  local entries
-  hdm_show '可管理的图形用户会话'
+  local entries dm
+  hdm_show '图形会话与登录界面'
+  dm=$(hdm_v2_default_dm 2>/dev/null || printf unknown)
+  case "$dm" in
+    lightdm|gdm3) printf '默认登录管理器：%s（%s）\n' "$dm" "$(hdm_service_state "$dm")";;
+    *) printf '默认登录管理器：未识别\n';;
+  esac
+  printf 'Xorg：'
+  if pgrep -x Xorg >/dev/null 2>&1; then printf '正在运行\n'; else printf '未运行\n'; fi
   if ! entries=$(hdm_session_candidates); then
-    hdm_warn '会话信息读取失败或超过安全扫描范围，暂不操作。'
+    hdm_warn '图形会话扫描不完整；不能据此断言没有图形用户。'
     return 2
   fi
   if [[ -z $entries ]]; then
-    printf '当前没有已登录的 X11/Wayland 图形用户会话。SSH/TTY 连接不属于图形会话。\n'
+    printf '已登录图形用户会话：0（SSH/TTY 和登录界面不计入）\n'
+    if [[ $dm == lightdm || $dm == gdm3 ]]; then
+      if [[ $(hdm_service_state "$dm") == active ]]; then
+        printf '登录管理器已运行：请从登录界面输入密码，才能创建新的桌面用户会话。\n'
+      else
+        printf '登录管理器未运行：可以选择“创建新会话入口”来启动它。\n'
+      fi
+    fi
     return 0
   fi
   printf '%-12s %-16s %-16s %-9s %s\n' '会话 ID' '用户' '桌面' '协议' '状态'
   while IFS='|' read -r sid name desktop typ state; do
     printf '%-12s %-16s %-16s %-9s %s\n' "$sid" "$name" "$desktop" "$typ" "$state"
   done <<< "$entries"
+}
+
+hdm_session_show_detail() {
+  local entries chosen sid name desk proto state found=0 typ cls usr
+  hdm_show '查看指定图形用户会话详情'
+  if ! entries=$(hdm_session_candidates); then
+    hdm_warn '会话扫描不完整，暂不提供详情。'; return 2
+  fi
+  [[ -n $entries ]] || { printf '当前没有已登录的图形用户会话。\n'; return 0; }
+  hdm_session_list_graphical || return $?
+  hdm_prompt '输入会话 ID（0 取消）：' chosen || return 2
+  [[ $chosen == 0 || -z $chosen ]] && return 0
+  [[ $chosen =~ ^[A-Za-z0-9_-]{1,48}$ ]] || { hdm_warn '会话 ID 格式无效。'; return 2; }
+  while IFS='|' read -r sid name desk proto state; do
+    if [[ $sid == "$chosen" ]]; then found=1; break; fi
+  done <<< "$entries"
+  ((found)) || { hdm_warn '会话不在已确认的图形用户列表中。'; return 2; }
+  typ=$(loginctl show-session "$chosen" -p Type --value 2>/dev/null || :)
+  cls=$(loginctl show-session "$chosen" -p Class --value 2>/dev/null || :)
+  usr=$(loginctl show-session "$chosen" -p Name --value 2>/dev/null || :)
+  [[ ( $typ == x11 || $typ == wayland ) && $cls == user && $usr == "$name" ]] || {
+    hdm_warn '会话身份或类型已经改变，停止查询。'; return 2
+  }
+  printf 'ID：%s；用户：%s；桌面：%s；协议：%s；状态：%s\n' "$sid" "$name" "$desk" "$proto" "$state"
+  loginctl show-session "$chosen" -p Seat -p Service -p TTY -p Remote -p Display -p Leader -p State || :
+  printf '结束会话只会注销桌面，不会删除账号或文件。\n'
 }
 
 hdm_session_terminate_graphical() {
@@ -151,10 +192,74 @@ hdm_session_terminate_graphical() {
   loginctl terminate-session "$chosen"
 }
 
-# The actual logged-in desktop is created by LightDM/GDM, not by a synthetic
-# "create session" command. Starting the greeter is the proper preparation.
+# Logind only creates a user desktop after authentication through the greeter.
+# Starting LightDM/GDM3 does NOT bypass PAM or enable auto-login.
+hdm_session_has_x11_desktop() {
+  local file
+  for file in /usr/share/xsessions/*.desktop; do
+    [[ -f $file ]] && return 0
+  done
+  return 1
+}
 hdm_session_prepare_login() {
-  hdm_v2_dm_service start
+  local dm
+  hdm_root && hdm_guard_platform || return 1
+  dm=$(hdm_v2_default_dm)
+  case "$dm" in
+    lightdm|gdm3) ;;
+    *) hdm_warn '默认登录管理器未知；请先到菜单 3 → 11 选择 LightDM 或 GDM3。'; return 2;;
+  esac
+  hdm_installed "$dm" || { hdm_warn "$dm 未安装，请先从菜单 3 安装。"; return 2; }
+  if [[ $dm == lightdm ]]; then
+    hdm_installed lightdm-gtk-greeter || {
+      hdm_warn 'LightDM 缺少 GTK Greeter；请先从菜单 3 补齐。'; return 2
+    }
+    hdm_session_has_x11_desktop || { hdm_warn '缺少 X11 桌面会话文件，请先安装 XFCE 或 MATE。'; return 2; }
+    hdm_installed xserver-xorg-core || {
+      hdm_warn '没有安装 Xorg，暂时无法建立 LightDM 的 X11 登录界面。'; return 2
+    }
+  fi
+  if [[ $(hdm_service_state "$dm") == active ]]; then
+    printf '%s 登录界面服务已经运行；请输入密码登录才能创建新的桌面用户会话。\n' "$dm"
+    printf '服务 active 仍不保证 RustDesk 已能捕获画面。\n'
+    return 0
+  fi
+  printf '将启动 %s 的登录界面；需要在图形界面输入密码后才有新的用户会话。\n' "$dm"
+  printf '不会开启免密码自动登录，也不会结束 SSH 会话。\n'
+  hdm_confirm "确认启动 $dm 登录界面（需保留 SSH / 云控制台）？" || return 2
+  hdm_v2_dm_service start || return $?
+  if [[ $(printenv HDM_DRY_RUN 2>/dev/null) == 1 ]]; then
+    printf '[DRY RUN] 不创建真实的已登录图形会话。\n'
+    return 0
+  fi
+  sleep 1
+  if [[ $(hdm_service_state "$dm") != active ]]; then
+    hdm_warn "$dm 启动操作后未保持运行；请查看诊断日志。"
+    hdm_session_greeter_logs
+    return 1
+  fi
+  printf '%s 登录界面服务运行中。请从控制台/RustDesk 登录后再查看会话列表。\n' "$dm"
+  printf '登录管理器运行不等于已登录桌面或远程画面可用。\n'
+}
+
+hdm_session_greeter_logs() {
+  local dm
+  dm=$(hdm_v2_default_dm 2>/dev/null || printf unknown)
+  hdm_show '登录界面启动日志（只读）'
+  case "$dm" in
+    lightdm|gdm3)
+      printf '%s 服务：%s\n' "$dm" "$(hdm_service_state "$dm")"
+      journalctl -b -u "$dm" --no-pager -n 35 2>&1 || :
+      ;;
+    *) printf '未识别默认登录管理器。\n';;
+  esac
+  printf 'Xorg 进程：'
+  pgrep -a -x Xorg 2>/dev/null || printf '未运行\n'
+  if [[ $dm == lightdm && -f /var/log/lightdm/lightdm.log ]]; then
+    printf 'LightDM 日志尾部：\n'
+    tail -n 35 /var/log/lightdm/lightdm.log 2>/dev/null || :
+  fi
+  printf '还需从另一设备验证登录画面与键鼠。\n'
 }
 
 # Choose one installed X11 desktop as the LightDM default. This is a genuine

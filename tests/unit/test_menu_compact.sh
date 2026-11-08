@@ -34,7 +34,7 @@ dm_menu=$(printf '3\nq\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
 [[ $dm_menu == *'卸载 GDM3'* && $dm_menu == *'卸载 LightDM'* ]]
 desktop_menu=$(printf '2\nq\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
 [[ $desktop_menu == *'安装 XFCE（X11 推荐）'* ]]
-[[ $desktop_menu == *'图形会话与协议'* ]]
+[[ $desktop_menu == *'图形会话管理'* ]]
 session_menu=$(printf '2\n9\nq\nq\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
 [[ $session_menu == *'结束指定图形用户会话'* && $session_menu == *'选择 LightDM 默认 X11 桌面'* ]]
 rustdesk_menu=$(printf '4\n0\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")

@@ -271,6 +271,8 @@ hdm_v2_dispatch() {
     dm-autostart-on) hdm_v2_dm_service enable ;;
     dm-autostart-off) hdm_v2_dm_service disable ;;
     session-list) hdm_session_list_graphical ;;
+    session-detail) hdm_session_show_detail ;;
+    session-logs) hdm_session_greeter_logs ;;
     session-terminate) hdm_session_terminate_graphical ;;
     session-prepare) hdm_session_prepare_login ;;
     session-select) hdm_session_select_default ;;

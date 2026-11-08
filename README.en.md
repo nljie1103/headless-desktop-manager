@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.5.2-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.3-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -82,7 +82,7 @@ sudo hdm
 
 Installing HDM **does not automatically install GNOME or change the display manager**. In an interactive terminal it opens the menu; `HDM_NO_AUTO_MENU=1` skips that auto-opening.
 
-The v4.5.2 software now has **six task-based sections**, instead of eight technical stages: 1 Quick setup, 2 Desktop environments, 3 Login managers, 4 RustDesk, 5 Display settings, 6 HDM maintenance. The task menu has 70 entries (60 actions), with redundant diagnostic/help routes removed. The 381 legacy action implementations remain in source for compatibility, but are not all in the user-visible menu. Starting/stopping services and enabling boot startup are separate actions. These changes are in **v4.5.2**. Existing v4.5.1 installations keep their original menu until the HDM manager is upgraded.
+The v4.5.3 software has **six task-based sections**, instead of eight technical stages: 1 Quick setup, 2 Desktop environments, 3 Login managers, 4 RustDesk, 5 Display settings, 6 HDM maintenance. The task menu has 72 entries (62 actions), with redundant diagnostic/help routes removed. The 381 legacy action implementations remain in source for compatibility, but are not all in the user-visible menu. Starting/stopping services and enabling boot startup are separate actions. These menus are current in **v4.5.3**. Existing v4.5.1 installations keep their original menu until the HDM manager is upgraded.
 ---
 
 ## 🔗 Seven-stage dependency diagnostics (separate from the task menu)
@@ -97,7 +97,7 @@ Day-to-day paths on `main`: **2 → 1** install XFCE only, **3 → 3** start the
 
 ### Graphical sessions and actual protocol management
 
-The `2 → 9` submenu lists real X11/Wayland user sessions, safely terminates a selected graphical session with explicit confirmation (SSH/TTY excluded), starts the display manager to prepare a new login, and reports available session types. For installed XFCE/MATE with LightDM, it can set the **default X11 desktop session** without restarting the machine. It cannot change DRM into Wayland or force GNOME 50 into an unavailable Xorg session.
+The `2 → 9` submenu starts a login greeter for a new authenticated session, lists real X11/Wayland user sessions, shows session details, prints login-manager error logs, and safely terminates a selected graphical session with explicit confirmation (SSH/TTY excluded), starts the display manager to prepare a new login, and reports available session types. For installed XFCE/MATE with LightDM, it can set the **default X11 desktop session** without restarting the machine. It cannot change DRM into Wayland or force GNOME 50 into an unavailable Xorg session.
 
 Desktop environment installs are now **separate from display managers**: installing XFCE/GNOME/MATE does not explicitly reinstall LightDM/GDM3/Xorg; the guided full-stack installer still fills missing prerequisites. A host with many SSH sessions no longer reports graphical-session overflow just because the first 24 logind rows were occupied by SSH.
 

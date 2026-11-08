@@ -49,4 +49,5 @@ bash "$ROOT/tests/unit/test_menu_routing.sh"
 bash "$ROOT/tests/unit/test_menu_safety.sh"
 bash "$ROOT/tests/unit/test_session_state.sh"
 bash "$ROOT/tests/unit/test_graphical_sessions.sh"
+bash "$ROOT/tests/unit/test_session_lifecycle.sh"
 echo 'PASS: syntax, menus, runtime settings/cache index, publisher checks, release parser, archive verifier, spec and commit policy'

@@ -1,7 +1,7 @@
 # menu_id|dispatch_target
 1.1|new:quick-install
 1.2|new:quick-plan
-1.3|new:dm-start
+1.3|new:session-prepare
 1.4|new:readiness
 2.1|new:desktop-install-xfce
 2.2|new:desktop-install-gnome
@@ -12,10 +12,12 @@
 2.7|new:desktop-remove-mate
 2.8|4.1.1
 2.9.1|new:session-list
-2.9.2|new:session-terminate
-2.9.3|new:session-prepare
-2.9.4|new:protocol-status
+2.9.2|new:session-prepare
+2.9.3|new:session-detail
+2.9.4|new:session-terminate
 2.9.5|new:session-select
+2.9.6|new:protocol-status
+2.9.7|new:session-logs
 3.1|new:dm-install-lightdm
 3.2|new:dm-install-gdm3
 3.3|new:dm-start
