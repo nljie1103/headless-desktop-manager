@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.5.6-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.7-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -110,9 +110,9 @@ sudo tail -n 80 /var/log/lightdm/lightdm.log 2>/dev/null
 
 普通用户只应看到“**安装、卸载、更新、启动、停止、重启、开机自启**”这类能执行的动作；“X11 / Wayland 说明”“重复的状态查询”“高级协议诊断”不应作为独立日常任务。状态和兼容性检查应由安装/启动时**自动运行**并在失败时给出原因。
 
-**v4.5.6 的菜单与七节点线轴完全同序**：1 显示输出、2 登录管理器、3 图形协议、4 桌面环境、5 图形会话、6 RustDesk、7 设备 ID；8 是 HDM 管理（含快速部署）。图形协议和图形会话都成为独立入口，密码输入提示恢复普通文字。
+**v4.5.7 的菜单与七节点线轴完全同序**：1 显示输出、2 登录管理器、3 图形协议、4 桌面环境、5 图形会话、6 RustDesk、7 设备 ID；8 是 HDM 管理（含快速部署）。图形协议和图形会话都成为独立入口，密码输入提示恢复普通文字。
 
-> **版本提醒：** 此处描述的是 v4.5.6 的最新菜单；旧版 v4.5.1 的八模块菜单不会自动改变。升级 HDM 管理器不等于自动安装桌面或启动 LightDM。HDM 尚不能保证任意云机型的登录前无人值守远控成功。
+> **版本提醒：** 此处描述的是 v4.5.7 的最新菜单；旧版 v4.5.1 的八模块菜单不会自动改变。升级 HDM 管理器不等于自动安装桌面或启动 LightDM。HDM 尚不能保证任意云机型的登录前无人值守远控成功。
 
 ---
 
@@ -218,7 +218,7 @@ sudo hdm --chain
 
 ## 🧭 终端菜单：依照七节点线轴排序
 
-v4.5.6 首页线轴保留不变，八项功能严格依照对应关系排列：
+v4.5.7 首页线轴保留不变，八项功能严格依照对应关系排列：
 
 1. **显示输出**：DRM 输出、分辨率、Dummy/Xvfb/VKMS 等可选工具
 2. **登录管理器**：LightDM/GDM3 独立安装卸载、启停、自启、默认选择、日志
@@ -228,6 +228,8 @@ v4.5.6 首页线轴保留不变，八项功能严格依照对应关系排列：
 6. **RustDesk**：安装、更新、卸载、启停、自启、密码
 7. **设备 ID**：查看设备 ID、配置及检查 ID/中继服务器
 8. **HDM 管理**：快速部署、计划与就绪检查、更新、卸载、诊断、日志
+
+**v4.5.7 修复**：`3 → 2` 选择 XFCE/MATE X11 会话时，现有 HDM LightDM 配置的备份可正常授权；仍然只允许备份受信任的 HDM 自有文件，不会因为更新而自动切换、重启或注销。
 
 **常用路径**：2 → 3 启动 LightDM；3 → 1 查看图形协议；3 → 2 选择 XFCE/MATE 的 X11 登录会话；5 → 2 启动登录入口；6 → 9 设置 RustDesk 密码；7 → 1 查看设备 ID；8 → 1 快速部署；8 → 4 更新 HDM。
 

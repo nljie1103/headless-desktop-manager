@@ -2,7 +2,7 @@
 # Transaction snapshots: only HDM-owned or explicitly allowed system files.
 hdm_backup_allow() {
   case "$1" in
-    /etc/X11/xorg.conf.d/20-hdm-dummy.conf|/etc/gdm3/custom.conf|/etc/modules-load.d/hdm-vkms.conf|/etc/systemd/system/hdm-xvfb.service|/etc/hdm/config.conf|/etc/lightdm/lightdm.conf.d/90-hdm.conf|/etc/gdm3/daemon.conf) return 0;;
+    /etc/X11/xorg.conf.d/20-hdm-dummy.conf|/etc/gdm3/custom.conf|/etc/modules-load.d/hdm-vkms.conf|/etc/systemd/system/hdm-xvfb.service|/etc/hdm/config.conf|/etc/lightdm/lightdm.conf.d/90-hdm.conf|/etc/lightdm/lightdm.conf.d/99-zz-hdm-session.conf|/etc/gdm3/daemon.conf) return 0;;
     /root/.config/rustdesk/RustDesk2.toml|/root/.config/rustdesk/RustDesk.toml) return 0;;
     /home/*/.config/rustdesk/RustDesk2.toml)
       # Allow only a real account's own config path, never an arbitrary home file.
