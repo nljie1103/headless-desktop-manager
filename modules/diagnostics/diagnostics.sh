@@ -156,9 +156,11 @@ hdm_diag_prune_logs() {
   hdm_root || return 1
   local dir="$HDM_LOG_DIR" file
   local -a expired=()
-  if [[ $dir != /var/log/hdm && !( ${HDM_TEST_MODE:-0} == 1 && $dir == /tmp/* ) ]]; then
-    hdm_warn '日志清理只能在 HDM 专用日志目录执行。'
-    return 2
+  if [[ $dir != /var/log/hdm ]]; then
+    if [[ ${HDM_TEST_MODE:-0} != 1 || $dir != /tmp/* ]]; then
+      hdm_warn '日志清理只能在 HDM 专用日志目录执行。'
+      return 2
+    fi
   fi
   [[ -d $dir && ! -L $dir ]] || { printf 'HDM 日志目录不存在或无效，无需清理。\n'; return 0; }
   while IFS= read -r -d '' file; do expired+=("$file"); done < <(
