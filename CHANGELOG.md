@@ -1,7 +1,7 @@
 ## v4.2.0 — 实时七节点桌面链路与菜单顶部状态图（2026-11-08）
 
 - 主菜单新增从显示输出、GDM3/LightDM、X11/Wayland、活动桌面、图形会话、RustDesk 到设备 ID 的七阶段数轴。宽屏横排，中屏两段，窄屏纵排；各节点根据本地证据标识通过/异常/待核实。
-- 每个节点展示系统识别的具体组件、版本或经 xrandr 确认的分辨率及路径；配置路径过长时截断显示，`hdm --chain` 可展开完整解释，`hdm --chain-json` 提供只读数据。
+- 每个节点展示系统识别的具体组件、版本或经 xrandr 确认的分辨率及路径；连接的 X11 虚拟输出（例如云环境 DUMMY0）也可作为显示节点的本地正向证据，而不只依赖 DRM 连接。配置路径过长时截断显示，`hdm --chain` 可展开完整解释，`hdm --chain-json` 提供只读数据。
 - RustDesk ID 使用受限超时与字符校验读取，不读取明文密码或其他客户端敏感配置；可用 `sudo env HDM_HIDE_RUSTDESK_ID=1 hdm` 隐藏 ID。
 - 状态图优先识别活跃的 XFCE/GNOME/MATE 图形用户会话，避免将已安装桌面误认为已启动；Wayland 下检测 PipeWire/Portal 依赖，不将服务 active 视为远端画面已可用。
 - 中文和英文 README 中的快速安装命令统一为 `curl ... && sudo bash hdm-install.sh` 单行，新增桌面结构、颜色与锁屏/登录前限制说明及测试。

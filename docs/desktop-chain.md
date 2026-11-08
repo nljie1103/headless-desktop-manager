@@ -12,7 +12,7 @@ HDM 主菜单顶部会实时展示七个状态节点：
 
 | 节点 | 典型可选实现 | 满足的本地检查 | 检测路径 / 可用操作 |
 |---|---|---|---|
-| **1. 显示输出** | DRM 物理输出、虚拟显示 Xorg Dummy、VKMS；Xvfb 是独立 X11 虚拟帧缓冲 | DRM 已连接才显示通过；Dummy 文件存在只显示待核实，必须再验证实际画面 | `/sys/class/drm`、`/etc/X11/xorg.conf.d/20-hdm-dummy.conf`；菜单 1–2 |
+| **1. 显示输出** | DRM 物理输出、虚拟显示 Xorg Dummy、VKMS；Xvfb 是独立 X11 虚拟帧缓冲 | DRM 已连接，或当前匹配的 X11 DISPLAY 上 Xrandr 确认有已连接并启用的实际输出时标为通过；仅有 Dummy 配置文件时显示待核实 | `/sys/class/drm`、`/etc/X11/xorg.conf.d/20-hdm-dummy.conf`；菜单 1–2 |
 | **2. 登录管理器** | GDM3、LightDM；亦可使用手动 X11 会话 | 已安装且 systemd 服务 active；不存在或异常则提示核实 | `/etc/X11/default-display-manager`；菜单 4.4 |
 | **3. 图形协议** | X11（常由 Xorg 提供）、Wayland | logind 确认活动用户会话的协议，X11 还检查 X Socket | `/tmp/.X11-unix/X0`、`/run/user/*/wayland-*`；菜单 4.5 |
 | **4. 桌面环境** | XFCE、GNOME、MATE、KDE | 实际活动桌面与已安装的软件包对应；仅安装不标成已运行 | `/usr/share/xsessions`、`/usr/share/wayland-sessions`；菜单 3–4 |

@@ -35,6 +35,21 @@ assert nodes[3].value == "XFCE"  # active XFCE overrides installed GNOME
 assert nodes[4].detail == "1920x1080"
 assert nodes[6].value == "123456"
 assert "外部" not in nodes[6].detail
+# A real connected Xrandr virtual display should turn the first node green,
+# even if /sys/class/drm is hidden by a cloud/container environment.
+with patch.object(chain, "session_display", return_value=""):
+    virtual = chain.build(base, {**signals, "drm":"unknown", "xrandr_output":"DUMMY0",
+                                 "xrandr_display":":0"})
+assert virtual[0].state == "ok" and "DUMMY0" in virtual[0].value
+assert virtual[0].detail == "1920x1080"
+assert ":0" in virtual[4].value
+with patch.dict("os.environ", {"DISPLAY":":0"}):
+    sample = ("Screen 0: minimum 64 x 64, current 1280 x 800\n"
+              "DUMMY0 connected primary 1280x800+0+0 0mm x 0mm\n")
+    with patch.object(chain, "run", return_value=sample):
+        assert chain.xrandr_current() == ("1280x800", "DUMMY0")
+    with patch.object(chain, "run", return_value="Screen 0: current 1280 x 800\n"):
+        assert chain.xrandr_current() == ("", "")  # no provable output
 for width in (24, 36, 53, 67, 80, 106, 107, 120, 145, 190):
     rendered = chain.render(nodes, width, enabled=False)
     assert not re.search(r"\x1b\[", rendered)

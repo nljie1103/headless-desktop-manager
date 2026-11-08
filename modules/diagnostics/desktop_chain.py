@@ -126,17 +126,21 @@ def drm_status(root: str = "/sys/class/drm") -> str:
     return "unknown"
 
 
-def resolution_xrandr() -> str:
-    # Only probe the caller's already available authenticated X session.
-    # Never guess a resolution from the user's configured preference or modes list.
-    if not os.getenv("DISPLAY"):
-        return ""
+def xrandr_current() -> tuple[str, str]:
+    # Only probe the caller's already authenticated DISPLAY.
+    # "connected + active mode" is stronger evidence than a Dummy config file.
+    if not re.fullmatch(r":\d{1,3}(?:\.\d{1,2})?", os.getenv("DISPLAY", "")):
+        return "", ""
     output = run("xrandr", "--current", timeout=2.0)
-    matches = re.findall(r"(?m)^\s*(\d{3,5})x(\d{3,5})\s+.*?\*", output)
-    if matches:
-        return "x".join(matches[0])
-    current = re.search(r"\bcurrent\s+(\d{3,5})\s+x\s+(\d{3,5})", output)
-    return "x".join(current.groups()) if current else ""
+    connected = re.findall(
+        r"(?m)^([A-Za-z0-9_.-]{1,32})\s+connected(\s+primary)?\s+"
+        r"(\d{3,5})x(\d{3,5})\+\d+\+\d+", output)
+    if connected:
+        connected.sort(key=lambda item: bool(item[1]), reverse=True)
+        name, _, width, height = connected[0]
+        return f"{width}x{height}", name
+    # A screen-size header alone does not establish that an output is connected.
+    return "", ""
 
 
 def session_display(session: dict | None) -> str:
@@ -168,12 +172,23 @@ def build(report: dict, signals: dict) -> list[Node]:
     has_socket = bool(display.get("x11_socket_paths"))
     has_dummy = bool(display.get("hdm_dummy_config_present"))
     res = signals.get("resolution", "")
+    x_output = signals.get("xrandr_output", "")
+    x_display = signals.get("xrandr_display", "")
+    real_x11_output = (session_type == "x11" and bool(x_output and res)
+                       and re.fullmatch(r":\d{1,3}(?:\.\d{1,2})?", x_display or "") is not None
+                       and "X" + x_display[1:].split(".", 1)[0]
+                           in display.get("x11_socket_paths", []))
     sid = str((session or {}).get("id") or "")
     service = report.get("rustdesk", {}).get("service")
     installed = bool(package(report, "rustdesk").get("installed"))
     got_id = signals.get("rustdesk_id", "")
 
-    if drm == "connected":
+    if real_x11_output:
+        output = Node("显示输出", "ok", x_output + " 已连接", res,
+                      "xrandr --current",
+                      "当前 X11 DISPLAY 上已检测到连接并启用的显示输出；"
+                      "可能是平台提供的虚拟屏，不代表 HDM 自行安装了 Dummy。")
+    elif drm == "connected":
         output = Node("显示输出", "ok", "DRM 已连接", "输出可检测",
                       "/sys/class/drm", "内核报告显示输出已连接，尚需验证实际图像。")
     elif has_dummy:
@@ -238,6 +253,8 @@ def build(report: dict, signals: dict) -> list[Node]:
 
     if session:
         sp = session_display(session) or signals.get("session_display", "")
+        if not sp and real_x11_output:
+            sp = x_display
         s_value = (sid + " · " if sid else "") + (sp or proto)
         s_state = "ok" if proto else "unknown"
         s_detail = res or "分辨率待核实"
@@ -278,10 +295,13 @@ def build(report: dict, signals: dict) -> list[Node]:
 def collect() -> list[Node]:
     report = status_json.collect()
     chosen = default_display_manager()
+    resolution, output = xrandr_current()
     return build(report, {
         "manager": chosen,
         "drm": drm_status(),
-        "resolution": resolution_xrandr(),
+        "resolution": resolution,
+        "xrandr_output": output,
+        "xrandr_display": os.getenv("DISPLAY", ""),
         "rustdesk_id": rustdesk_id() if package(report, "rustdesk").get("installed") else "",
     })
 

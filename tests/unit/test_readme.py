@@ -29,6 +29,12 @@ assert "HDM v%s" in menu and "hdm_menu_rule" in menu
 platforms = [line for line in matrix.splitlines() if line.startswith("ubuntu\t")]
 assert len(platforms) == 10, len(platforms)
 assert len([line for line in platforms if "xfce-x11" in line]) == 3
+quick_command = ("curl -fsSLo hdm-install.sh "
+                 "https://raw.githubusercontent.com/nljie1103/headless-desktop-manager/main/install.sh "
+                 "&& sudo bash hdm-install.sh")
+assert quick_command in cn.splitlines(), "Chinese README must use a one-line && bootstrap"
+assert quick_command in en.splitlines(), "English README must use a one-line && bootstrap"
+assert "hdm --chain" in cn and "docs/desktop-chain.md" in cn
 assert cn.count("```") % 2 == 0, "Markdown code fences must be paired"
 assert en.count("```") % 2 == 0, "English code fences must be paired"
 # All relative README links should lead to existing repository resources.
