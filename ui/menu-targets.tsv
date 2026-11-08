@@ -50,6 +50,8 @@
 6.8|new:rustdesk-remove
 6.9|new:rustdesk-password
 6.10|new:rustdesk-status
+6.11|new:rustdesk-permissions
+6.12|new:rustdesk-permission-diagnose
 7.1|7.8.1
 7.2|new:rustdesk-server
 7.3|new:id-server-status

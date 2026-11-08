@@ -74,6 +74,8 @@ HDM_ROOT=$ROOT
 [[ $(hdm_menu_action_target 6.5) == 'new:rustdesk-autostart-on' ]]
 [[ $(hdm_menu_action_target 6.6) == 'new:rustdesk-autostart-off' ]]
 [[ $(hdm_menu_action_target 6.9) == 'new:rustdesk-password' ]]
+[[ $(hdm_menu_action_target 6.11) == 'new:rustdesk-permissions' ]]
+[[ $(hdm_menu_action_target 6.12) == 'new:rustdesk-permission-diagnose' ]]
 [[ $(hdm_menu_action_target 7.1) == '7.8.1' ]]
 [[ $(hdm_menu_action_target 7.2) == 'new:rustdesk-server' ]]
 [[ $(hdm_menu_action_target 7.3) == 'new:id-server-status' ]]

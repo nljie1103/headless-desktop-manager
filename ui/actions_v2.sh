@@ -271,6 +271,8 @@ hdm_v2_dispatch() {
     rustdesk-server) hdm_rustdesk_server_wizard ;;
     rustdesk-password) hdm_rustdesk_password ;;
     rustdesk-status) hdm_rustdesk_status ;;
+    rustdesk-permissions) hdm_rustdesk_permissions_menu ;;
+    rustdesk-permission-diagnose) hdm_rustdesk_permission_report ;;
     dm-install-lightdm) hdm_v2_display_manager_install_lightdm ;;
     dm-uninstall-preview-gdm) hdm_action_remove_preview gdm3 ;;
     dm-remove-gdm3) hdm_v2_remove_real gdm3 ;;

@@ -48,6 +48,7 @@ session_menu=$(printf '5\nq\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
 rustdesk_menu=$(printf '6\n0\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
 [[ $rustdesk_menu == *'安装 RustDesk'* && $rustdesk_menu == *'启动 RustDesk'* ]]
 [[ $rustdesk_menu == *'设置 RustDesk 密码'* && $rustdesk_menu == *'禁用开机自启'* ]]
+[[ $rustdesk_menu == *'访问权限管理'* && $rustdesk_menu == *'权限灰色 / 授权诊断'* ]]
 script_menu=$(printf '8\n0\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
 [[ $script_menu == *'更新 HDM（最新正式版）'* ]]
 protocol_menu=$(printf '3\nq\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")

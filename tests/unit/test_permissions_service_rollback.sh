@@ -11,6 +11,7 @@ source "$ROOT/modules/rustdesk/rustdesk.sh"
 hdm_root() { :; }
 hdm_has() { [[ $1 == rustdesk ]] || command -v "$1" >/dev/null 2>&1; }
 hdm_service_state() { echo active; }
+hdm_confirm() { return 0; }
 hdm_rustdesk_login_profile() { printf '%s\t%s\t%s\n' "$TMP/user/RustDesk2.toml" "$(id -u)" "$(id -g)"; }
 HDM_LAST_SNAPSHOT=''
 hdm_snapshot_create() {
@@ -42,6 +43,10 @@ cp "$TMP/root/RustDesk2.toml" "$TMP/user/RustDesk2.toml"
 hdm_rustdesk_permissions_apply custom N > "$TMP/normal.log"
 python3 "$ROOT/scripts/rustdesk_permissions.py" verify "$TMP/root/RustDesk2.toml" --mode custom --remote N > /dev/null
 python3 "$ROOT/scripts/rustdesk_permissions.py" verify "$TMP/user/RustDesk2.toml" --mode custom --remote N > /dev/null
+hdm_rustdesk_permissions_apply toggle N enable-keyboard N > "$TMP/keyboard.log"
+python3 "$ROOT/scripts/rustdesk_permissions.py" verify "$TMP/root/RustDesk2.toml" --mode toggle --flag enable-keyboard --value N >/dev/null
+hdm_rustdesk_permissions_apply toggle N enable-clipboard Y > "$TMP/clipboard.log"
+python3 "$ROOT/scripts/rustdesk_permissions.py" verify "$TMP/user/RustDesk2.toml" --mode toggle --flag enable-keyboard --value N >/dev/null
 hdm_rustdesk_permissions_apply custom Y > "$TMP/enable.log"
 python3 "$ROOT/scripts/rustdesk_permissions.py" verify "$TMP/user/RustDesk2.toml" --mode custom --remote Y > /dev/null
 cp "$TMP/root/RustDesk2.toml" "$TMP/known-root"
@@ -52,4 +57,10 @@ if hdm_rustdesk_permissions_apply view N > "$TMP/failure.log" 2>&1; then
 fi
 cmp -s "$TMP/known-root" "$TMP/root/RustDesk2.toml"
 cmp -s "$TMP/known-user" "$TMP/user/RustDesk2.toml"
-echo 'PASS RustDesk permission transaction, dual profile, rollback on failed service start'
+hdm_confirm() { return 1; }
+rc=0
+hdm_rustdesk_permissions_apply full N > "$TMP/declined.log" 2>&1 || rc=$?
+[[ $rc == 2 ]]
+cmp -s "$TMP/known-root" "$TMP/root/RustDesk2.toml"
+cmp -s "$TMP/known-user" "$TMP/user/RustDesk2.toml"
+echo 'PASS RustDesk granular permissions, consent gate, dual profile, rollback on failed restart'

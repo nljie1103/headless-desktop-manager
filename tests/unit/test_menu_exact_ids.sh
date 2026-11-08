@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "$0")/../.." && pwd)
 TMP=$(mktemp -d /tmp/hdm-menu-exact.XXXXXX)
 trap 'rm -rf -- "$TMP"' EXIT
-export HDM_ROOT=$ROOT HDM_VERSION=4.5.8
+export HDM_ROOT=$ROOT HDM_VERSION=4.5.9
 export HDM_UPDATE_BASE="$TMP/not-installed"
 export HDM_LOG_DIR="$TMP/no-log-dir"
 source "$ROOT/ui/menu.sh"

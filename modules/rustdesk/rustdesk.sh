@@ -533,6 +533,13 @@ hdm_rustdesk_permission_report() {
     fi
   fi
   printf 'GUI 的 Security / Network 通常需要 Unlock 并通过管理员/Polkit 授权。\n'
+  if hdm_installed xfce-polkit || hdm_installed policykit-1-gnome || hdm_installed lxqt-policykit; then
+    printf '[已安装] Polkit 图形认证代理软件包；仍需确认它在 XFCE 会话中运行。\n'
+  else
+    printf '[待核实] XFCE 可能缺少 Polkit 图形授权代理，导致 Unlock 按钮无法授权。\n'
+    printf 'Ubuntu 26.04 XFCE 可选择安装 xfce-polkit，重新进入 XFCE 后再试。\n'
+  fi
+  printf 'RustDesk 高优先级覆盖/策略也可能使 GUI 设置灰色；本地保存不代表 GUI 一定解锁。\n'
   printf 'HDM 可用菜单 7 → 2 配置自建服务器 保存自建服务器，再做磁盘读回校验；不能据此证明服务已加载。\n'
   printf '不建议 sudo rustdesk 图形界面、chmod 777、关闭认证或手动复制密码到配置文件。\n'
   if hdm_gnome_wayland_only; then
@@ -545,12 +552,21 @@ hdm_rustdesk_permission_report() {
 # RustDesk documented permissions are stored in [options]. Different accounts
 # and server-side Override/Strategy policies may have distinct effective values.
 hdm_rustdesk_permissions_apply() {
-  local mode=$1 remote=${2:-N} state root_file profile user_file='' uid='' gid='' snapshot='' rc=0 file root_uid=0 root_gid=0
+  local mode=$1 remote=${2:-N} flag=${3:-} value=${4:-} state root_file profile user_file='' uid='' gid='' snapshot='' rc=0 file root_uid=0 root_gid=0
+  local -a extra=()
   local -a files=()
   hdm_root || return 1
   hdm_has rustdesk || { hdm_error '请先安装 RustDesk'; return 1; }
-  case "$mode" in custom|full|view|auth) ;; *) return 1;; esac
+  case "$mode" in custom|full|view|auth|toggle) ;; *) return 1;; esac
   [[ $remote == Y || $remote == N ]] || return 1
+  if [[ $mode == toggle ]]; then
+    case "$flag" in
+      enable-keyboard|enable-clipboard|enable-file-transfer|enable-audio|enable-tunnel|enable-remote-restart|enable-record-session|allow-remote-config-modification) ;;
+      *) hdm_error '不支持的 RustDesk 权限项'; return 2;;
+    esac
+    [[ $value == Y || $value == N ]] || return 2
+    extra=(--flag "$flag" --value "$value")
+  fi
   root_file=$(hdm_rustdesk_root_config)
   if [[ -n ${HDM_RUSTDESK_CONFIG_ROOT:-} && $EUID -ne 0 ]]; then
     root_uid=$EUID
@@ -571,6 +587,13 @@ for name in sys.argv[1:]:
         raise SystemExit('Refusing unsafe RustDesk configuration path')
 PY_PATHCHECK
   state=$(hdm_service_state rustdesk)
+  if [[ $state == active ]]; then
+    printf '修改权限将短暂重启 RustDesk，可能中断当前远程连接，请保留 SSH/云控制台。\n'
+    hdm_confirm '确认应用权限并重启 RustDesk？' || {
+      hdm_warn '已取消，权限未修改。'
+      return 2
+    }
+  fi
   if [[ $state == active ]] && ! systemctl stop rustdesk >/dev/null 2>&1; then
     hdm_error '无法停止 RustDesk，配置保持不变'; return 1
   fi
@@ -579,16 +602,16 @@ PY_PATHCHECK
     return 1
   fi
   snapshot=$HDM_LAST_SNAPSHOT
-  python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" apply "$root_file" --mode "$mode" --remote "$remote" --uid "$root_uid" --gid "$root_gid" >/dev/null || rc=1
+  python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" apply "$root_file" --mode "$mode" --remote "$remote" "${extra[@]}" --uid "$root_uid" --gid "$root_gid" >/dev/null || rc=1
   if ((rc == 0)) && [[ -n $user_file ]]; then
-    python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" apply "$user_file" --mode "$mode" --remote "$remote" --uid "$uid" --gid "$gid" >/dev/null || rc=1
+    python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" apply "$user_file" --mode "$mode" --remote "$remote" "${extra[@]}" --uid "$uid" --gid "$gid" >/dev/null || rc=1
   fi
   if ((rc == 0)) && [[ $state == active ]]; then
     systemctl start rustdesk >/dev/null 2>&1 || rc=1
   fi
   if ((rc == 0)); then
     for file in "${files[@]}"; do
-      python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" verify "$file" --mode "$mode" --remote "$remote" >/dev/null || { rc=1; break; }
+      python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" verify "$file" --mode "$mode" --remote "$remote" "${extra[@]}" >/dev/null || { rc=1; break; }
     done
   fi
   if ((rc != 0)); then
@@ -611,17 +634,68 @@ hdm_rustdesk_permissions_show() {
     python3 "$HDM_ROOT/scripts/rustdesk_permissions.py" inspect "$file" || :
   fi
 }
+hdm_rustdesk_install_xfce_polkit() {
+  hdm_root && hdm_guard_platform || return 1
+  if hdm_installed xfce-polkit || hdm_installed policykit-1-gnome; then
+    printf '检测到 Polkit 图形授权代理软件包。请在 XFCE 登录后再检查 Unlock。\n'
+    return 0
+  fi
+  if ! hdm_has apt-get; then
+    hdm_warn '当前没有 apt-get，请使用系统包管理器检查 xfce-polkit。'
+    return 2
+  fi
+  printf '将安装 XFCE 的图形授权代理 xfce-polkit（不重启 LightDM/桌面或 RustDesk）。\n'
+  hdm_pkg_install xfce-polkit || return $?
+  printf '安装后需在 XFCE 图形会话中运行授权代理；建议正常注销并重新登录，勿强制重启远控。\n'
+}
+
+hdm_rustdesk_permissions_toggle_menu() {
+  local choice value flag
+  printf '\n单项权限（只改所选开关，其余设置保持不变）\n'
+  printf '  1 键盘和鼠标\n  2 剪贴板\n  3 文件传输\n'
+  printf '  4 音频\n  5 TCP 隧道\n  6 远程重启\n'
+  printf '  7 会话录制\n  8 允许远程修改配置\n  0 返回\n'
+  hdm_prompt '请选择：' choice || return 1
+  case "$choice" in
+    0) return 0;;
+    1) flag=enable-keyboard;;
+    2) flag=enable-clipboard;;
+    3) flag=enable-file-transfer;;
+    4) flag=enable-audio;;
+    5) flag=enable-tunnel;;
+    6) flag=enable-remote-restart;;
+    7) flag=enable-record-session;;
+    8) flag=allow-remote-config-modification;;
+    *) hdm_error '无效选项'; return 2;;
+  esac
+  printf '  1 允许\n  2 禁止\n  0 返回\n'
+  hdm_prompt '请选择：' value || return 1
+  case "$value" in
+    0) return 0;;
+    1) value=Y;;
+    2) value=N;;
+    *) hdm_error '无效选项'; return 2;;
+  esac
+  hdm_rustdesk_permissions_apply toggle N "$flag" "$value"
+}
 hdm_rustdesk_permissions_menu() {
-  local choice value
-  printf '\nRustDesk 访问权限\n  1 自定义（常用权限开启，远程修改配置关闭）\n  2 完全访问\n  3 仅共享屏幕\n  4 允许远程修改配置\n  5 禁止远程修改配置\n  6 查看当前设置\n'
+  local choice
+  printf '\nRustDesk 访问权限\n'
+  printf '  1 自定义（常用权限开启，远程修改配置关闭）\n'
+  printf '  2 完全访问\n  3 仅共享屏幕\n'
+  printf '  4 允许远程修改配置\n  5 禁止远程修改配置\n'
+  printf '  6 查看当前权限\n  7 单项权限开关\n  8 权限灰色 / 授权诊断\n  9 安装 XFCE 授权代理（按需）\n'
   hdm_prompt '请选择：' choice || return 1
   case "$choice" in
     1) hdm_rustdesk_permissions_apply custom N;;
     2) hdm_rustdesk_permissions_apply full N;;
     3) hdm_rustdesk_permissions_apply view N;;
-    4) printf '启用后已授权的远程用户可以修改本机 RustDesk 配置。\n'; hdm_rustdesk_permissions_apply custom Y;;
-    5) hdm_rustdesk_permissions_apply custom N;;
+    4) hdm_rustdesk_permissions_apply toggle N allow-remote-config-modification Y;;
+    5) hdm_rustdesk_permissions_apply toggle N allow-remote-config-modification N;;
     6) hdm_rustdesk_permissions_show;;
-    *) hdm_error '无效选项'; return 1;;
+    7) hdm_rustdesk_permissions_toggle_menu;;
+    8) hdm_rustdesk_permission_report;;
+    9) hdm_rustdesk_install_xfce_polkit;;
+    *) hdm_error '无效选项'; return 2;;
   esac
 }

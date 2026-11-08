@@ -17,6 +17,7 @@ import tomllib
 FLAGS = ('enable-keyboard', 'enable-clipboard', 'enable-file-transfer',
          'enable-audio', 'enable-tunnel', 'enable-remote-restart',
          'enable-record-session')
+EDITABLE_FLAGS = (*FLAGS, 'allow-remote-config-modification')
 VALID_KEYS = {'access-mode', 'allow-remote-config-modification',
               'approve-mode', 'verification-method', *FLAGS}
 
@@ -28,6 +29,16 @@ def profile_settings(mode, remote='N'):
     if mode == 'custom':
         settings.update({flag: 'Y' for flag in FLAGS})
     return settings
+
+
+def toggle_settings(flag: str, value: str):
+    if flag not in EDITABLE_FLAGS or value not in ('Y', 'N'):
+        raise ValueError('unsupported permission toggle')
+    # Preserving all other flags avoids silently restoring privileges that
+    # a user previously denied in custom mode.
+    if flag == 'allow-remote-config-modification':
+        return {flag: value}
+    return {'access-mode': 'custom', flag: value}
 
 
 def patch_options(original, settings):
@@ -137,15 +148,22 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=('inspect', 'apply', 'verify'))
     parser.add_argument('path')
-    parser.add_argument('--mode', choices=('custom', 'full', 'view', 'auth'), default='custom')
+    parser.add_argument('--mode', choices=('custom', 'full', 'view', 'auth', 'toggle'), default='custom')
     parser.add_argument('--remote', choices=('Y', 'N'), default='N')
+    parser.add_argument('--flag', choices=EDITABLE_FLAGS)
+    parser.add_argument('--value', choices=('Y', 'N'))
     parser.add_argument('--uid', type=int, default=-1)
     parser.add_argument('--gid', type=int, default=-1)
     args = parser.parse_args()
     if args.action == 'inspect':
         return inspect(args.path)
-    settings = ({'approve-mode': 'password', 'verification-method': 'use-permanent-password'}
-                if args.mode == 'auth' else profile_settings(args.mode, args.remote))
+    try:
+        settings = (toggle_settings(args.flag, args.value) if args.mode == 'toggle'
+                    else {'approve-mode': 'password', 'verification-method': 'use-permanent-password'}
+                    if args.mode == 'auth' else profile_settings(args.mode, args.remote))
+    except ValueError as error:
+        print('RustDesk 权限配置失败：' + str(error), file=sys.stderr)
+        return 1
     try:
         if args.action == 'apply':
             update(args.path, settings, args.uid, args.gid)
