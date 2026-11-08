@@ -1,6 +1,0 @@
-# distro<TAB>code<TAB>URL<TAB>type
-ubuntu	noble	https://archive.ubuntu.com/ubuntu	official-archive
-ubuntu	noble-security	https://security.ubuntu.com/ubuntu	official-security
-ubuntu-ports	noble	https://ports.ubuntu.com/ubuntu-ports	official-ports
-rustdesk	stable	https://github.com/rustdesk/rustdesk/releases	official-upstream
-hdm	mirrors	https://github.com/nljie1103/headless-desktop-manager/releases	verified-assets-only

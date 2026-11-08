@@ -3,7 +3,7 @@
 hdm_action_not_ready() {
   local id=$1
   printf '[尚无自动处理逻辑] 旧动作 %s：%s\n' "$id" "$(hdm_legacy_menu_label "$id")"
-  printf '此操作需要额外兼容性验证或安全前置条件。没有修改系统；参见 docs/AI_DEVELOPMENT_SPEC.md。\n'
+  printf '此操作需要额外兼容性验证或安全前置条件。没有修改系统；参见 docs/menu-guide.md 和 docs/testing-and-limitations.md。\n'
   return 2
 }
 hdm_action_show_services() { systemctl status gdm3 rustdesk hdm-xvfb --no-pager --lines 6 2>&1 || :; }

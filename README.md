@@ -6,7 +6,7 @@
 
 安装、维护 XFCE / GNOME / MATE，管理登录界面、图形协议、显示输出与远程控制。
 
-[![Version](https://img.shields.io/badge/Version-v4.5.9-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v5.0.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Platform](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 

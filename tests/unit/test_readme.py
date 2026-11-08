@@ -38,11 +38,10 @@ assert "hdm --chain" in cn and "docs/desktop-chain.md" in cn
 assert cn.count("```") % 2 == 0, "Markdown code fences must be paired"
 assert en.count("```") % 2 == 0, "English code fences must be paired"
 # All relative README links should lead to existing repository resources.
-for filename, data in (("README.md", cn), ("README.en.md", en), ("README.zh-CN.md",
-    (root / "README.zh-CN.md").read_text(encoding="utf-8"))):
+for filename, data in (("README.md", cn), ("README.en.md", en)):
     for target in re.findall(r"!?\[[^\]]*\]\(([^)\s]+)(?:\s+[^)]*)?\)", data):
         if target.startswith(("https://", "http://", "mailto:", "#")):
             continue
         base = target.split("#", 1)[0]
         assert (root / base).exists(), (filename, target)
-print("PASS JRS-style bilingual README, 10-path evidence matrix and local documentation links")
+print("PASS current bilingual README, compatibility matrix and valid links")

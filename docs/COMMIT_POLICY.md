@@ -35,7 +35,7 @@ vMAJOR.MINOR.PATCH 具体且真实的变更内容
 - `release/COMMIT_SUMMARY.txt` 是对外可见的 Git 提交标题内容：仅描述本版项目功能、体验、缺陷修复或文档变化，不包含 Windows 上传、Git 推送、打标签、CI 工作流等内部发布操作。
 - `release/RELEASE_TITLE.txt` 是 GitHub Release 的**唯一标题**，格式为 `vX.Y.Z · 简明功能主题`；`VERSION` 与发布 Tag 必须一致。
 - `release/RELEASE_NOTES.md` 是 GitHub Release **正文**：仅列具体可核验的改动及真实限制；禁止再次写版本标题、版本号或内部发布步骤。
-- 维护者需要的 Windows 发布方法仍保存在 `docs/windows-publish.md`，它不属于公开版本的功能亮点。
+- Windows 维护工具保留在 `tools/`，不再为已淘汰的上传 ZIP 保留额外教程。
 - `scripts/validate-public-release.py` 在测试和正式 Release 构建前检查以上规范。
 - 已发布的 Git commit 标题不能不改写历史就直接修改；对于历史 Release 可安全更改其展示标题和正文，保留原标签/提交不变。
 

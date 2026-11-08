@@ -30,13 +30,11 @@ def main():
     assert len(summary) >= 12 and '\n' not in summary and not summary.startswith(('v', 'V')), 'invalid commit summary'
     assert not INTERNAL.search(summary), 'commit summary exposes internal publishing operations'
     check_release(version, 'release/RELEASE_TITLE.txt', 'release/RELEASE_NOTES.md')
-    check_release('0.3.4','release/history/v0.3.4/RELEASE_TITLE.txt','release/history/v0.3.4/RELEASE_NOTES.md')
     workflow = (ROOT / '.github/workflows/release.yml').read_text(encoding='utf-8')
     assert 'test "v$(cat VERSION)" = "${GITHUB_REF_NAME}"' in workflow
     assert '--notes-file release/RELEASE_NOTES.md' in workflow
     assert '--title "$title"' in workflow
-    assert 'gh release edit v0.3.4' in workflow
-    print('PASS: version, tag rule, public title and separate notes, commit summary, legacy metadata')
+    print('PASS: version, tag rule, public title and separate notes, commit summary, obsolete release cleanup')
 
 if __name__ == '__main__':
     try: main()

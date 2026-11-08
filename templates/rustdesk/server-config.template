@@ -1,6 +1,0 @@
-# Demonstration only; do not source. Real values must be validated and imported through RustDesk CLI.
-rendezvous_server = 'ID_SERVER_HOST'
-[options]
-custom-rendezvous-server = 'ID_SERVER_HOST'
-relay-server = 'RELAY_SERVER_HOST'
-key = 'SERVER_PUBLIC_KEY'

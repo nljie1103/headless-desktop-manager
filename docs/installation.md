@@ -21,4 +21,4 @@ sudo hdm --check-update
 sudo hdm --quick-status
 ```
 
-详细项目功能见 [菜单指南](menu-guide.md)；组件运行状态与兼容性见 [实施状态](implementation-status.md)。
+详细项目功能见 [菜单指南](menu-guide.md)；组件运行状态与兼容性见 [测试边界](testing-and-limitations.md)。

@@ -6,7 +6,7 @@
 
 Configure XFCE, GNOME or MATE, display outputs, graphical login sessions and remote access.
 
-[![Version](https://img.shields.io/badge/Version-v4.5.9-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v5.0.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)

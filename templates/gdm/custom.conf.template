@@ -1,3 +1,0 @@
-# HDM only manages WaylandEnable=false under [daemon] after snapshot.
-[daemon]
-WaylandEnable=false

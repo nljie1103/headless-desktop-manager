@@ -1,8 +1,9 @@
-# Contributing
+# 参与 HDM 开发
 
-1. 阅读 `docs/AI_DEVELOPMENT_SPEC.md` 与 `docs/testing-and-limitations.md`。
-2. 保持 GNOME 优先目标及全部 10 个主菜单；菜单新编号修改后运行 `python3 scripts/generate-menus.py`。
-3. 提交前运行 `bash tests/run.sh`、`bash hdm.sh --self-test`。
-4. 包、模块或可用性变更要追加 CHANGELOG 并更新明确的测试状态。
-5. 不要提交密码、私钥、token 或没有合法再分发授权的第三方二进制包。
-6. **所有 commit 必须以 `vX.Y.Z` 开头并明确描述实际改动**；详见 `docs/COMMIT_POLICY.md`。提交前运行 `python3 scripts/check-commit-messages.py --message "v0.1.1 修复 Windows 上传脚本乱码"` 检查格式。避免 `Update files` 或其他空泛消息。
+请先阅读 [开发指南](docs/development.md)、[架构](docs/architecture.md) 和 [提交规范](docs/COMMIT_POLICY.md)。
+
+- 首页菜单 **1–7 与线轴七节点一一对应**；8 为管理器操作。独立安装、更新、卸载组件的能力不可因精简菜单而丢失。
+- 菜单请通过 `scripts/build-menus-v2.py` 维护，不要手工编辑生成的 TSV；旧动作兼容层保留到调用者全部迁移。
+- 仅添加有真实实现或明确作用的文件；不要提交空白占位目录、无校验的第三方包、密码、私钥或 Token。
+- 涉及远程桌面的破坏性变更需确认、备份、失败恢复和实机验证说明；不要把服务运行当作远端画面验收。
+- 提交前运行 `bash tests/run.sh` 与 `git diff --check`；每版本使用一条 `vX.Y.Z 具体中文更改` 提交。

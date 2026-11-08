@@ -1,7 +1,20 @@
-# 开发者指南
+# HDM 开发指南
 
-运行 `bash tests/run.sh` 和 `bash hdm.sh --self-test`。菜单源规范在 `docs/AI_DEVELOPMENT_SPEC.md` §2，修改规范后运行 `python3 scripts/generate-menus.py`、`python3 scripts/verify-menus.py`。
+先阅读 [架构](architecture.md)、[菜单](menu-guide.md)、[验证限制](testing-and-limitations.md)。
 
-所有潜在破坏性操作必须：系统/架构检测、真实现状检查、展示变更、确认、备份、执行、验证、日志、恢复。运行时不得 `eval` 任意字符串，也不能把外部 TOML/manifest 当脚本 source。保持所有功能默认不自动关闭 SSH、不取消锁屏、不禁用包签名。
+1. 菜单结构只修改 `scripts/build-menus-v2.py`，然后生成 `ui/menus.tsv` 和 `ui/menu-targets.tsv`。`ui/actions.sh` 与 `ui/legacy-menus.tsv` 是仍有引用的兼容层，不是可以随意删除的冗余文件。
+2. 修改系统状态前须检查发行版与实际组件。停止服务、注销用户、删除软件包等高风险动作必须保留明确确认、快照和失败恢复。
+3. 提交前运行：
 
-真实 GNOME、RustDesk 和 Windows 发布验收需在对应机器上执行，CI 语法检查不能代替。
+   ```bash
+   python3 scripts/build-menus-v2.py --check
+   python3 scripts/verify-menus.py
+   python3 scripts/audit-menu-actions.py
+   bash tests/run.sh
+   git diff --check
+   ```
+
+4. 更新 `VERSION`、`CHANGELOG.md`、`release/` 元数据，并遵守 [提交规范](COMMIT_POLICY.md)；当前版本发布按一条中文版本提交处理。
+5. 单元测试不代表真实 RustDesk 登录前、锁屏或重启验收。不要添加未实现的空目录、虚构的镜像备用包、复制 README 或过期开发规格书。
+
+Windows 发布工具保留在 `tools/`；不得为简化维护而强制覆盖其他分支或清空历史 Release。
