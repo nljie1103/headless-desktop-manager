@@ -102,9 +102,16 @@ hdm_v2_dispatch() {
   case "$1" in
     dm-install-lightdm) hdm_v2_display_manager_install_lightdm ;;
     dm-uninstall-preview-gdm) hdm_action_remove_preview gdm3 ;;
+    dm-remove-gdm3) hdm_v2_remove_real gdm3 ;;
+    dm-remove-lightdm) hdm_v2_remove_real lightdm ;;
+    dm-select-lightdm) hdm_v2_choose_dm lightdm ;;
+    dm-select-gdm3) hdm_v2_choose_dm gdm3 ;;
+    desktop-remove-gnome) hdm_v2_remove_real gnome ;;
+    desktop-remove-xfce) hdm_v2_remove_real xfce ;;
+    desktop-remove-mate) hdm_v2_remove_real mate ;;
     dm-uninstall-preview-lightdm) hdm_action_remove_preview lightdm ;;
     dm-uninstall-guide)
-      hdm_warn '卸载登录管理器可能直接造成远程失联。请先查看 APT 只读预览、保留独立 SSH 与云控制台，再手动操作；HDM 不自动卸载当前登录管理器。' ;;
+      hdm_warn '真实卸载入口已提供，但会检查替代登录管理器是否已启动、当前活动桌面及 APT 删除依赖。先切换并实测 LightDM/XFCE，再卸载 GDM3；必须保留 SSH 与云控制台。' ;;
     dm-versions) hdm_v2_display_manager_info ;;
     dm-upgrade-gdm) hdm_v2_display_manager_upgrade gdm3 ;;
     dm-upgrade-lightdm) hdm_v2_display_manager_upgrade lightdm ;;
