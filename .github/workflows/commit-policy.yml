@@ -18,10 +18,11 @@ jobs:
           BEFORE: ${{ github.event.before }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            python3 scripts/check-commit-messages.py --range "$BASE_SHA..HEAD"
+            python3 scripts/check-commit-messages.py --range "$BASE_SHA..$PR_HEAD_SHA"
           elif [[ "$BEFORE" =~ ^0+$ ]] || [[ -z "$BEFORE" ]]; then
             python3 scripts/check-commit-messages.py --range HEAD
           else
