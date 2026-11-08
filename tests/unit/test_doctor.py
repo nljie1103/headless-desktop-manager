@@ -58,6 +58,25 @@ assert not any(c['code'] in ('gdm_x11', 'dummy_package', 'dummy_config') for c i
 assert any(c['code']=='gnome_session' and c['level']=='ok' for c in checks_modern)
 assert any(c['code']=='remote_validation' and c['level']=='manual' for c in checks_modern)
 assert not doctor.gnome_wayland_only(report['system'], report['packages'])
+# A modern Ubuntu host with XFCE/X11 must not be diagnosed as missing GNOME.
+xfce = {
+    'system': {'id':'ubuntu','version_id':'26.04','architecture':'aarch64'},
+    'packages': {p:{'installed':True,'version':'1.0'} for p in
+                 ('xfce4-session','xfce4','lightdm','xserver-xorg-core','rustdesk')},
+    'display': {'lightdm_service':'active','gdm3_service':'inactive','x11_socket_paths':['X0']},
+    'sessions': [{'type':'x11','desktop':'xfce','state':'active','class':'user'}],
+    'gnome': {},'rustdesk':{'service':'active'},'rollback_pending':False,
+}
+assert doctor.x11_desktop(xfce) == 'XFCE'
+xfce_checks = doctor.inspect(xfce)
+assert any(c['code']=='x11_user_session' and c['level']=='ok' for c in xfce_checks)
+assert any(c['code']=='lightdm' and c['level']=='ok' for c in xfce_checks)
+assert not any(c['code'] in ('gnome_package','gdm_service','gnome_session','display_stack') for c in xfce_checks)
+assert xfce_checks[-1]['code']=='remote_validation' and xfce_checks[-1]['level']=='manual'
+# Installed XFCE alone does not trump an actively logged-in GNOME Wayland user.
+gnome_active = dict(xfce)
+gnome_active['sessions'] = [{'type':'wayland','desktop':'gnome','state':'active','class':'user'}]
+assert doctor.x11_desktop(gnome_active) is None
 result = subprocess.run(['python3', str(root/'modules/diagnostics/doctor.py'), '--json'],
                         text=True, capture_output=True, check=True)
 actual = json.loads(result.stdout)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only diagnostics for the recommended Ubuntu GNOME + Dummy + RustDesk path.
+"""Read-only diagnostics for detected GNOME, XFCE or MATE + RustDesk stacks.
 
 No private RustDesk config, secrets, user names, device IDs or raw logs are printed.
 This cannot verify external image capture: that result is always manual/not-tested.
@@ -33,6 +33,31 @@ def gnome_wayland_only(system: dict, packages: dict) -> bool:
     return bool(shell_major and int(shell_major[1]) >= 49)
 
 
+def x11_desktop(report: dict) -> str | None:
+    """Select an actual X11 desktop before suggesting GNOME repair steps."""
+    active_other_desktop = False
+    for session in report.get('sessions', []):
+        if session.get('class') != 'user' or session.get('state') not in ('active', 'online'):
+            continue
+        name = str(session.get('desktop') or '').lower()
+        if session.get('type') == 'x11':
+            if name.startswith('xfce'):
+                return 'XFCE'
+            if name.startswith('mate'):
+                return 'MATE'
+        if session.get('type') in ('x11', 'wayland') and name:
+            active_other_desktop = True
+    # Package presence must not override a different *active* graphical desktop.
+    if active_other_desktop:
+        return None
+    packages = report.get('packages', {})
+    if packages.get('xfce4-session', {}).get('installed'):
+        return 'XFCE'
+    if packages.get('mate-session-manager', {}).get('installed'):
+        return 'MATE'
+    return None
+
+
 def inspect(report: dict) -> list[dict]:
     """Only provide install guidance that can plausibly work on the current desktop stack."""
     checks = []
@@ -46,60 +71,91 @@ def inspect(report: dict) -> list[dict]:
     platform_ok = (system.get('id') == 'ubuntu' and system.get('version_id') == '24.04'
                    and system.get('architecture') == 'x86_64')
     checks.append(finding('platform', 'ok' if platform_ok else 'warning', '系统兼容性',
-        '系统支持传统 GNOME X11 方案，具体输出需按设备确认。' if platform_ok else
+        '系统支持传统 X11 图形方案，具体输出需按设备确认。' if platform_ok else
         '当前平台可使用系统包管理器部署；图形兼容性需要根据实际设备验证。'))
 
-    if not modern:
-        dummy = packages.get('xserver-xorg-video-dummy', {}).get('installed')
-        checks.append(finding('dummy_package', 'ok' if dummy else 'action', 'Xorg Dummy 驱动',
-            '软件包已安装（不是驱动实际启动的证明）。' if dummy else '未检测到驱动软件包。',
-            '菜单 1.1.1' if not dummy else ''))
-        conf = display.get('hdm_dummy_config_present')
-        checks.append(finding('dummy_config', 'ok' if conf else 'action', '虚拟屏幕配置',
-            'HDM Xorg 配置存在；不代表 Xorg 已使用。' if conf else '尚未检测到 HDM Dummy Xorg 配置。',
-            '菜单 1.1.1' if not conf else ''))
-    else:
-        checks.append(finding('display_stack', 'warning', 'Wayland 虚拟显示',
-            'GNOME 已不提供 Xorg 会话；Xorg Dummy 不会自动提供 GNOME Wayland 画面。'
-            '需要单独验证 VKMS/DRM 及 GNOME 实际会话。', '菜单 1.3 / 10.2'))
-        for pkg in ('pipewire', 'xdg-desktop-portal', 'xdg-desktop-portal-gnome'):
-            ok = bool(packages.get(pkg, {}).get('installed'))
-            checks.append(finding('wayland_' + pkg.replace('-', '_'), 'ok' if ok else 'action', pkg,
-                '软件包已安装，不等于已获得屏幕共享授权。' if ok else 'Wayland 相关组件尚未安装。',
-                '菜单 9.1' if not ok else ''))
-
-    full_gnome = packages.get('ubuntu-desktop', {}).get('installed')
-    gnome_shell = packages.get('gnome-shell', {}).get('installed')
-    checks.append(finding('gnome_package', 'ok' if full_gnome and gnome_shell else 'action', '完整 GNOME',
-        '完整 GNOME 软件包存在。' if full_gnome and gnome_shell else '完整 GNOME 缺失或不完整。',
-        '菜单 3.1.1' if not (full_gnome and gnome_shell) else ''))
-
-    gdm = display.get('gdm3_service')
-    checks.append(finding('gdm_service', 'ok' if gdm == 'active' else 'action', 'GDM3 服务',
-        f'服务状态：{gdm or "unknown"}。' + ('' if gdm == 'active' else '请检查相关日志。'),
-        'sudo hdm --session-start；必要时 sudo hdm --session-repair' if gdm != 'active' else ''))
-
-    if modern:
-        # On GNOME 49+, advising WaylandEnable=false would break login.
-        checks.append(finding('gnome_session',
-            'ok' if gnome.get('active_gnome_wayland_user_session_detected') else 'warning',
-            'GNOME Wayland 用户会话',
-            '检测到 Wayland 用户会话（不代表 RustDesk 已获得捕获授权）。' if
-            gnome.get('active_gnome_wayland_user_session_detected') else
-            '没有确认正在运行的 GNOME Wayland 用户会话。', '菜单 4.5.1 → 4.5.5'))
-    else:
-        gdm_x11 = display.get('gdm_x11_config_present')
-        checks.append(finding('gdm_x11', 'ok' if gdm_x11 else 'action', 'GDM3 X11 设置',
-            '已配置 WaylandEnable=false。' if gdm_x11 else '未检测到 X11 强制设置。',
-            '菜单 3.1.5' if not gdm_x11 else ''))
+    chosen = x11_desktop(report)
+    if chosen:
+        pkg = 'xfce4-session' if chosen == 'XFCE' else 'mate-session-manager'
+        found = bool(packages.get(pkg, {}).get('installed'))
+        checks.append(finding('x11_desktop_package', 'ok' if found else 'action', f'{chosen} X11 桌面',
+            '桌面软件包存在，仍需检查图形会话。' if found else '没有检测到桌面会话软件包。',
+            '菜单 3.2' if chosen == 'XFCE' and not found else ('菜单 3.3' if not found else '')))
+        lightdm = display.get('lightdm_service')
+        lightdm_package = bool(packages.get('lightdm', {}).get('installed'))
+        checks.append(finding('lightdm', 'ok' if lightdm_package else 'warning', 'LightDM 登录管理器',
+            f'软件包 {"已安装" if lightdm_package else "未安装"}，服务 {lightdm or "unknown"}。'
+            '安装不等于已选为默认登录管理器。', '菜单 4.4 检查默认登录管理器'))
+        xorg = bool(packages.get('xserver-xorg-core', {}).get('installed'))
+        checks.append(finding('xorg_package', 'ok' if xorg else 'action', 'Xorg 图形服务',
+            'Xorg 软件包已安装（不等于虚拟显示可用）。' if xorg else '缺少 Xorg 服务软件包。',
+            '菜单 3.2 / 3.3' if not xorg else ''))
         sockets = display.get('x11_socket_paths', [])
         checks.append(finding('x11_sockets', 'ok' if sockets else 'warning', 'X11 显示套接字',
             '检测到：' + ', '.join(sockets[:4]) if sockets else '没有 X11 显示套接字。',
             '菜单 10.2.2' if not sockets else ''))
-        x11_session = gnome.get('active_gnome_x11_user_session_detected')
-        checks.append(finding('gnome_session', 'ok' if x11_session else 'warning', 'GNOME X11 用户会话',
-            '检测到活跃 GNOME X11 会话。' if x11_session else '未确认活跃 GNOME X11 会话。',
-            '菜单 10.3.3' if not x11_session else ''))
+        active = any(s.get('type') == 'x11' and s.get('class') == 'user'
+                     and s.get('state') in ('active', 'online')
+                     and str(s.get('desktop') or '').lower().startswith(chosen.lower())
+                     for s in report.get('sessions', []))
+        checks.append(finding('x11_user_session', 'ok' if active else 'warning', f'{chosen} 用户会话',
+            '检测到 X11 用户会话，仍需另一台设备验证 RustDesk 画面。' if active else
+            '没有可确认的活动 X11 用户会话；可能仅已安装桌面软件。', '菜单 4.5 / 10.3' if not active else ''))
+        if not sockets:
+            checks.append(finding('x11_display', 'warning', '虚拟显示输出',
+                '系统缺少可确认的 X11 显示。可检查 Xorg Dummy，但不能靠安装包推断画面可用。', '菜单 1 / 10.2'))
+    else:
+        if not modern:
+            dummy = packages.get('xserver-xorg-video-dummy', {}).get('installed')
+            checks.append(finding('dummy_package', 'ok' if dummy else 'action', 'Xorg Dummy 驱动',
+                '软件包已安装（不是驱动实际启动的证明）。' if dummy else '未检测到驱动软件包。',
+                '菜单 1.1.1' if not dummy else ''))
+            conf = display.get('hdm_dummy_config_present')
+            checks.append(finding('dummy_config', 'ok' if conf else 'action', '虚拟屏幕配置',
+                'HDM Xorg 配置存在；不代表 Xorg 已使用。' if conf else '尚未检测到 HDM Dummy Xorg 配置。',
+                '菜单 1.1.1' if not conf else ''))
+        else:
+            checks.append(finding('display_stack', 'warning', 'Wayland 虚拟显示',
+                'GNOME 已不提供 Xorg 会话；Xorg Dummy 不会自动提供 GNOME Wayland 画面。'
+                '需要单独验证 VKMS/DRM 及 GNOME 实际会话。', '菜单 1.3 / 10.2'))
+            for pkg in ('pipewire', 'xdg-desktop-portal', 'xdg-desktop-portal-gnome'):
+                ok = bool(packages.get(pkg, {}).get('installed'))
+                checks.append(finding('wayland_' + pkg.replace('-', '_'), 'ok' if ok else 'action', pkg,
+                    '软件包已安装，不等于已获得屏幕共享授权。' if ok else 'Wayland 相关组件尚未安装。',
+                    '菜单 9.1' if not ok else ''))
+
+        full_gnome = packages.get('ubuntu-desktop', {}).get('installed')
+        gnome_shell = packages.get('gnome-shell', {}).get('installed')
+        checks.append(finding('gnome_package', 'ok' if full_gnome and gnome_shell else 'action', '完整 GNOME',
+            '完整 GNOME 软件包存在。' if full_gnome and gnome_shell else '完整 GNOME 缺失或不完整。',
+            '菜单 3.1.1' if not (full_gnome and gnome_shell) else ''))
+
+        gdm = display.get('gdm3_service')
+        checks.append(finding('gdm_service', 'ok' if gdm == 'active' else 'action', 'GDM3 服务',
+            f'服务状态：{gdm or "unknown"}。' + ('' if gdm == 'active' else '请检查相关日志。'),
+            'sudo hdm --session-start；必要时 sudo hdm --session-repair' if gdm != 'active' else ''))
+
+        if modern:
+            # On GNOME 49+, advising WaylandEnable=false would break login.
+            checks.append(finding('gnome_session',
+                'ok' if gnome.get('active_gnome_wayland_user_session_detected') else 'warning',
+                'GNOME Wayland 用户会话',
+                '检测到 Wayland 用户会话（不代表 RustDesk 已获得捕获授权）。' if
+                gnome.get('active_gnome_wayland_user_session_detected') else
+                '没有确认正在运行的 GNOME Wayland 用户会话。', '菜单 4.5.1 → 4.5.5'))
+        else:
+            gdm_x11 = display.get('gdm_x11_config_present')
+            checks.append(finding('gdm_x11', 'ok' if gdm_x11 else 'action', 'GDM3 X11 设置',
+                '已配置 WaylandEnable=false。' if gdm_x11 else '未检测到 X11 强制设置。',
+                '菜单 3.1.5' if not gdm_x11 else ''))
+            sockets = display.get('x11_socket_paths', [])
+            checks.append(finding('x11_sockets', 'ok' if sockets else 'warning', 'X11 显示套接字',
+                '检测到：' + ', '.join(sockets[:4]) if sockets else '没有 X11 显示套接字。',
+                '菜单 10.2.2' if not sockets else ''))
+            x11_session = gnome.get('active_gnome_x11_user_session_detected')
+            checks.append(finding('gnome_session', 'ok' if x11_session else 'warning', 'GNOME X11 用户会话',
+                '检测到活跃 GNOME X11 会话。' if x11_session else '未确认活跃 GNOME X11 会话。',
+                '菜单 10.3.3' if not x11_session else ''))
 
     client = packages.get('rustdesk', {}).get('installed')
     checks.append(finding('rustdesk_package', 'ok' if client else 'action', 'RustDesk 客户端',
@@ -122,7 +178,7 @@ def inspect(report: dict) -> list[dict]:
         checks.append(finding('rollback', 'ok', '安全回滚状态', '没有待确认回滚标记。'))
 
     checks.append(finding('remote_validation', 'manual', '外部连接与冷启动',
-        ('GNOME Wayland ARM64 标准版 RustDesk 不保证登录界面无人值守。' if modern else '') +
+        ('GNOME Wayland ARM64 标准版 RustDesk 不保证登录界面无人值守。' if modern and not chosen else '') +
         '本机诊断无法确认画面、键鼠、认证以及重启后的访问能力。',
         '从另一台电脑实际连接，并执行重启回归测试'))
     return checks
@@ -135,7 +191,7 @@ def build() -> dict:
         'schema': 1,
         'hdm_version': report['hdm_version'],
         'generated_at': status_json.utc_now(),
-        'scope': ('gnome-wayland-rustdesk' if gnome_wayland_only(report['system'], report['packages']) else 'gnome-x11-dummy-rustdesk'),
+        'scope': ('x11-desktop-rustdesk' if x11_desktop(report) else ('gnome-wayland-rustdesk' if gnome_wayland_only(report['system'], report['packages']) else 'gnome-x11-dummy-rustdesk')),
         'summary': {
             'ok': sum(x['level'] == 'ok' for x in findings),
             'action': sum(x['level'] == 'action' for x in findings),
@@ -150,7 +206,7 @@ def build() -> dict:
 
 def human(result: dict) -> str:
     symbols = {'ok':'✓', 'action':'×', 'warning':'!', 'manual':'?', 'unsupported':'-'}
-    lines = [f"HDM v{result['hdm_version']} · 无显示器 GNOME / RustDesk 诊断（只读）", '=' * 66]
+    lines = [f"HDM v{result['hdm_version']} · 无显示器桌面 / RustDesk 诊断（只读）", '=' * 66]
     for item in result['findings']:
         lines.append(f"[{symbols.get(item['level'], '?')}] {item['title']}：{item['detail']}")
         if item['next_action']:

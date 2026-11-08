@@ -114,7 +114,9 @@ def collect():
     except OSError:
         x11configured = False
     pkgs = {k: installed(k) for k in ('ubuntu-desktop','ubuntu-desktop-minimal','gnome-shell','gdm3',
-                                    'xserver-xorg-video-dummy','xvfb','rustdesk','pipewire','xdg-desktop-portal','xdg-desktop-portal-gnome')}
+                                    'xserver-xorg-video-dummy','xserver-xorg-core','xvfb','rustdesk','lightdm',
+                                    'lightdm-gtk-greeter','xfce4','xfce4-session','mate-session-manager',
+                                    'pipewire','xdg-desktop-portal','xdg-desktop-portal-gnome')}
     ss = sessions()
     # GDM greeter and user desktop are distinct; do not claim a working GNOME session from gdm3 alone.
     gnome_x11 = any(s['type'] == 'x11' and (s['desktop'].lower() in ('gnome','ubuntu','ubuntu-xorg') or 'gnome' in s['desktop'].lower()) and s['state'] == 'active' and s['class'] == 'user' for s in ss)
@@ -128,6 +130,7 @@ def collect():
             'hdm_dummy_config_present': vdisplay,
             'gdm_x11_config_present': x11configured,
             'gdm3_service': service('gdm3'),
+            'lightdm_service': service('lightdm'),
             'xvfb_service': service('hdm-xvfb'),
             'x11_socket_present': bool(x11_sockets()),
             'x11_socket_paths': x11_sockets(),
@@ -141,7 +144,7 @@ def collect():
         'rollback_pending': rollback_marker_state(os.environ.get('HDM_STATE', '/var/lib/hdm')),
         'warnings': [
             'Package and service detection does not prove desktop capture or unattended remote access.',
-            'Verify GNOME screen, RustDesk authentication and reboot from another machine.',
+            'Verify the actual desktop screen, RustDesk authentication and reboot from another machine.',
         ],
     }
     return report

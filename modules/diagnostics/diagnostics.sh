@@ -3,7 +3,7 @@ hdm_diag_full() {
   hdm_show '全系统诊断（只读）'
   printf '系统：%s / %s\n' "$(hdm_os)" "$(hdm_arch)"
   if hdm_supported; then printf '[目标基线] Ubuntu 24.04 x86_64（仍需实机验证）\n'; else printf '[当前系统] 请根据实际软件源与显示协议配置组件\n'; fi
-  for pkg in xserver-xorg-video-dummy gnome-shell gdm3 rustdesk; do
+  for pkg in xserver-xorg-video-dummy xserver-xorg-core gnome-shell gdm3 xfce4-session mate-session-manager lightdm rustdesk; do
     if hdm_installed "$pkg"; then printf '[已安装] %s %s\n' "$pkg" "$(hdm_pkg_version "$pkg")"; else printf '[缺失] %s\n' "$pkg"; fi
   done
   if [[ -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]]; then printf '[已配置] HDM Xorg Dummy 配置存在\n'; else printf '[未配置] HDM Dummy 模式\n'; fi
@@ -13,11 +13,12 @@ hdm_diag_full() {
       if hdm_installed "$pkg"; then printf '[已安装] %s\n' "$pkg"; else printf '[缺失] %s\n' "$pkg"; fi
     done
   elif hdm_gdm_x11_enabled /etc/gdm3/custom.conf; then printf '[已配置] GDM3 X11\n'; else printf '[待验证] GDM3 X11 设置\n'; fi
-  for svc in gdm3 rustdesk; do
+  for svc in gdm3 lightdm rustdesk; do
     case "$(hdm_service_state "$svc")" in active) printf '[服务运行] %s\n' "$svc";; *) printf '[服务异常/未启用] %s\n' "$svc";; esac
   done
   if [[ -f $HDM_STATE/pending-rollback ]]; then printf '[警告] 存在等待用户确认的自动回滚。请测试后 sudo hdm --confirm-display\n'; fi
-  printf '[未验证] 真实 GNOME 图形会话/远程画面/鼠标键盘控制/重启恢复：需外部实际连接验证。\n'
+  printf '当前活动图形协议：%s；GNOME 专用会话：%s\n' "$(hdm_env_active_session)" "$(hdm_env_gnome_session)"
+  printf '[未验证] 当前桌面的远程画面、鼠标键盘、锁屏与重启恢复：需外部实际连接验证。\n'
 }
 hdm_diag_system() {
   hdm_show '系统环境'
@@ -54,10 +55,10 @@ hdm_diag_repair_hint() {
   hdm_diag_full
   printf '\n建议修复路径：\n'
   if hdm_gnome_wayland_only; then
-    printf 'Wayland-only：检查 GNOME / PipeWire / Portal → 菜单 3.1.1 和 10.3；\n'
+    printf 'GNOME Wayland-only：如需传统 X11，推荐菜单 3.2 的 XFCE + LightDM；GNOME 可继续使用。\n'
     printf 'VKMS 虚拟显示 → 菜单 1.3；RustDesk 服务异常 → 菜单 10.4.8；\n'
   else
-    printf 'Dummy 未安装 → 菜单 1.1.1；GNOME 未安装 → 菜单 3.1.1；\n'
+    printf 'Dummy 未安装 → 菜单 1.1.1；桌面选择 → 菜单 3（GNOME/XFCE/MATE）；\n'
     printf 'GDM3 未配置 X11 → 菜单 3.1.5；RustDesk 服务异常 → 菜单 10.4.8；\n'
   fi
   printf '关键配置异常 → 菜单 10.9 恢复快照；请保留 SSH/云控制台。\n'
@@ -147,6 +148,30 @@ hdm_diag_export_full() {
   }
   printf '\n[完成] 已汇总历史安装步骤、APT、GDM3、RustDesk、系统状态与启动错误：\n%s\n' "$bundle"
   printf '仅汇总系统仍保留的日志。部分内容会自动脱敏；分享给 AI 前仍请检查敏感信息。\n'
+}
+# Retain persistent HDM and system logs. Only old, regular operation logs
+# under HDM's own log directory may be deleted after explicit confirmation.
+# Never touch journalctl, apt/dpkg logs, steps.log, or hdm.log.
+hdm_diag_prune_logs() {
+  hdm_root || return 1
+  local dir="$HDM_LOG_DIR" file
+  local -a expired=()
+  if [[ $dir != /var/log/hdm && !( ${HDM_TEST_MODE:-0} == 1 && $dir == /tmp/* ) ]]; then
+    hdm_warn '日志清理只能在 HDM 专用日志目录执行。'
+    return 2
+  fi
+  [[ -d $dir && ! -L $dir ]] || { printf 'HDM 日志目录不存在或无效，无需清理。\n'; return 0; }
+  while IFS= read -r -d '' file; do expired+=("$file"); done < <(
+    find "$dir" -maxdepth 1 -type f -name 'operation-*.log' -mmin +43200 -print0 2>/dev/null
+  )
+  if ((${#expired[@]} == 0)); then printf '没有超过 30 天的 HDM 操作日志需要清理。\n'; return 0; fi
+  printf '准备清理 %s 个超过 30 天的 HDM 操作日志；保留主日志、步骤记录及系统 journal。\n' "${#expired[@]}"
+  hdm_danger '仅删除以上 HDM 历史操作日志？' || return 2
+  for file in "${expired[@]}"; do
+    [[ -f $file && ! -L $file ]] || continue
+    rm -f -- "$file" || return 1
+  done
+  hdm_info '过期 HDM 操作日志已清理；系统日志与正在使用的记录保持不变。'
 }
 hdm_diag_operation_list() {
   hdm_show '历史安装操作日志'

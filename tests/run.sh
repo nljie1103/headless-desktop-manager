@@ -6,6 +6,7 @@ trap 'rm -rf -- "$TMP"' EXIT
 export HDM_ETC="$TMP/etc" HDM_STATE="$TMP/state" HDM_CACHE="$TMP/cache" HDM_LOG_DIR="$TMP/log"
 find "$ROOT" -name '*.sh' -print0 | xargs -0 -n1 bash -n
 python3 "$ROOT/scripts/verify-menus.py"
+python3 "$ROOT/scripts/audit-menu-actions.py"
 bash "$ROOT/hdm.sh" --self-test
 bash "$ROOT/hdm.sh" --version | grep -Fq "$(cat "$ROOT/VERSION")"
 [[ $(bash "$ROOT/hdm.sh" --menu-tree | wc -l) -ge 470 ]]
@@ -39,5 +40,6 @@ python3 "$ROOT/tests/unit/test_doctor.py"
 python3 "$ROOT/tests/unit/test_export_diagnostics.py"
 bash "$ROOT/tests/unit/test_readiness.sh"
 bash "$ROOT/tests/unit/test_menu_routing.sh"
+bash "$ROOT/tests/unit/test_menu_safety.sh"
 bash "$ROOT/tests/unit/test_session_state.sh"
 echo 'PASS: syntax, menus, runtime settings/cache index, publisher checks, release parser, archive verifier, spec and commit policy'

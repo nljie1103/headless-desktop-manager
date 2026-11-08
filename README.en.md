@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.1.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.1.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -142,7 +142,7 @@ bash tests/run.sh
 
 GitHub Actions additionally runs Bash syntax checks and ShellCheck. These tests **do not** validate remote screen capture, keyboard/mouse control, lock/unlock, pre-login access, or unattended reconnection after reboot.
 
-See [full Chinese documentation](README.md), [test matrix](docs/testing-and-limitations.md), [menu guide](docs/menu-guide.md), [changelog](CHANGELOG.md), [security policy](SECURITY.md) and [issues](https://github.com/nljie1103/headless-desktop-manager/issues).
+See [full Chinese documentation](README.md), [production menu audit](docs/production-readiness.md), [test matrix](docs/testing-and-limitations.md), [menu guide](docs/menu-guide.md), [changelog](CHANGELOG.md), [security policy](SECURITY.md) and [issues](https://github.com/nljie1103/headless-desktop-manager/issues).
 
 MIT licensed: [LICENSE](LICENSE).
 

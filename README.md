@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.1.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.1.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -104,7 +104,7 @@ sudo hdm
 
 ```text
   ─────────────────────────────────────────────────────────────
-  HDM v4.1.0  ·  ubuntu 24.04 / x86_64
+  HDM v4.1.1  ·  ubuntu 24.04 / x86_64
   桌面包 GNOME  ·  会话 x11  ·  RustDesk 1.5.1
   ─────────────────────────────────────────────────────────────
 
@@ -194,7 +194,7 @@ bash tests/run.sh
 - Ubuntu 26.04 ARM64：已有真实安装与故障记录，**GNOME Wayland 登录前 / 无人值守尚未通过验收**。
 - 仍需外部 RustDesk 客户端实测：屏幕画面、键鼠、锁屏、注销、重启后的 GDM 登录界面及跨主机访问。
 
-详见 [测试矩阵](docs/testing-and-limitations.md)、[实施状态](docs/implementation-status.md)、[故障排查](docs/troubleshooting.md)。
+详见 [生产菜单审计与上线验收清单](docs/production-readiness.md)、[测试矩阵](docs/testing-and-limitations.md)、[实施状态](docs/implementation-status.md)、[故障排查](docs/troubleshooting.md)。
 
 ---
 

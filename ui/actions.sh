@@ -46,6 +46,68 @@ hdm_action_remove_backup() {
   rm -rf -- "$HDM_STATE/backups/$id"
 }
 hdm_action_disk_network() { hdm_diag_system; hdm_diag_network; }
+
+# Preview package-manager removal without making any system changes. Never
+# feed free-form menu text to APT: accepted package names are fixed.
+hdm_action_remove_preview() {
+  local pkg=$1 simulation
+  case "$pkg" in rustdesk|ubuntu-desktop|ubuntu-desktop-minimal|xfce4|mate-desktop-environment) ;; *) return 2;; esac
+  if ! hdm_installed "$pkg"; then
+    printf '[未安装] %s，无需执行卸载。\n' "$pkg"
+    return 0
+  fi
+  if [[ $(hdm_type) != apt ]] || ! hdm_has apt-get; then
+    hdm_warn '卸载模拟目前仅支持 APT 主机，未改动系统。'
+    return 2
+  fi
+  printf 'APT 卸载模拟：%s（只读，不执行删除）\n' "$pkg"
+  if ! simulation=$(LC_ALL=C apt-get -s remove "$pkg" 2>&1); then
+    printf '%s\n' "$simulation" | tail -n 15
+    return 2
+  fi
+  local count
+  count=$(printf '%s\n' "$simulation" | grep -c '^Remv ' || :)
+  printf 'APT 计划删除 %s 个软件包（下列最多列出 25 项）：\n' "$count"
+  printf '%s\n' "$simulation" | grep '^Remv ' | head -n 25 || :
+  printf '预览不会删除配置、注销用户、停止服务或执行 apt autoremove。\n'
+  printf '远程环境切换前必须保留 SSH/云控制台和系统快照。\n'
+}
+hdm_action_desktop_remove_preview() {
+  hdm_show '已安装桌面的卸载模拟'
+  local pkg found=0
+  for pkg in ubuntu-desktop ubuntu-desktop-minimal xfce4 mate-desktop-environment; do
+    if hdm_installed "$pkg"; then
+      found=1
+      hdm_action_remove_preview "$pkg" || return $?
+    fi
+  done
+  ((found)) || printf '未检测到所列桌面元软件包。独立安装的桌面组件需单独核查。\n'
+}
+hdm_action_other_desktop_plan() {
+  local id=$1 plan=''
+  case "$id" in
+    9.2.2) plan='GNOME + Xvfb + RustDesk';;
+    9.2.3) plan='GNOME + VKMS + RustDesk';;
+    9.2.4) plan='XFCE + Xorg Dummy + LightDM + RustDesk';;
+    9.2.5) plan='XFCE + Xvfb + RustDesk';;
+    9.2.6) plan='MATE + Xorg Dummy + LightDM + RustDesk';;
+    9.2.7) plan='自定义桌面 / 显示 / RustDesk 组合';;
+    *) return 2;;
+  esac
+  hdm_show "$plan"
+  printf '当前入口只展示选定方案，未对系统执行安装或切换。\n'
+  printf '显示组件：菜单 1；桌面：菜单 3；RustDesk：菜单 5；安装后诊断：菜单 10。\n'
+  printf '如需自动安装，请使用菜单 9.1 的实际主机推荐方案。\n'
+  printf 'GNOME 与 Xvfb/VKMS、不同 X11 登录管理器的远端画面仍需目标主机验证。\n'
+}
+hdm_action_display_remove_preview() {
+  hdm_show 'HDM 管理的显示配置'
+  local file
+  for file in /etc/X11/xorg.conf.d/20-hdm-dummy.conf /etc/systemd/system/hdm-xvfb.service; do
+    if [[ -f $file ]]; then printf '[存在] %s\n' "$file"; else printf '[不存在] %s\n' "$file"; fi
+  done
+  printf '仅可在确认并建立恢复快照后移除 HDM 管理的配置，当前仅预览。\n'
+}
 hdm_dispatch() {
   local id=$1
   case "$id" in
@@ -96,7 +158,7 @@ hdm_dispatch() {
   2.7.1) hdm_display_status; hdm_warn '如 Dummy 配置缺失，请返回 1.1.1 安装或配置。';;
   2.8.1|2.8.3) hdm_display_remove_config;;
   2.8.2) hdm_warn '保守处理：仅允许删除 HDM 自己创建的配置。不要自动卸载其他桌面可能使用的 Xorg 依赖。';;
-  2.8.4) printf '%s\n' '/etc/X11/xorg.conf.d/20-hdm-dummy.conf（HDM 自建）' '/etc/systemd/system/hdm-xvfb.service（HDM 自建）';;
+  2.8.4) hdm_action_display_remove_preview;;
   2.9.1) hdm_snapshots;;
   2.9.3) hdm_display_status;;
   # 3. Install desktops
@@ -147,14 +209,14 @@ hdm_dispatch() {
   
   4.6.2|4.6.6) hdm_diag_log desktop; hdm_warn 'RustDesk 抓屏仍需从另一台设备确认。';;
   4.6.4) hdm_warn '默认保留屏幕锁定和用户认证。此版本不自动降低安全设置。';;
-  4.8.1) hdm_warn '卸载桌面可能连带移除大量依赖，默认不自动执行。请先使用 apt -s remove 自行审核。';;
-  4.8.2) hdm_warn '避免远程失联，暂不提供无人值守桌面卸载。';;
-  4.8.3) hdm_warn '仅可通过菜单 2.8.3 删除 HDM 自建的虚拟显示配置。';;
+  4.8.1) hdm_action_desktop_remove_preview;;
+  4.8.2) hdm_warn '桌面卸载需要审核菜单 4.8.1 的 APT 模拟结果。为防止远程失联，HDM 不自动删除桌面，请在保留独立 SSH/控制台后人工操作。';;
+  4.8.3) hdm_display_remove_config;;
   4.9.1) hdm_snapshots;;
   4.9.3) hdm_desktop_status;;
   # 5. RustDesk install
   5.1.1|5.7.1|5.7.2|5.7.3|5.8.1) hdm_diag_full; hdm_sources_status;;
-  5.1.2|5.8.2|5.8.3) printf '官方优先：%s\n备用库：%s\n' "$RUSTDESK_UPSTREAM_RELEASES_URL" "$HDM_RELEASES_URL"; hdm_warn '备用资产未发布时不会假定可下载。';;
+  5.1.2|5.8.2|5.8.3) printf '官方优先：%s\n备用库：%s\n' "$RUSTDESK_UPSTREAM_RELEASES_URL" "$HDM_RELEASES_URL"; hdm_warn '这里只展示安装来源；安装需进入菜单 5.1.3。';;
   5.1.3|5.2.2) hdm_rustdesk_install_online latest;;
   5.1.4) hdm_rustdesk_status; printf '后续请菜单 7 配置服务器/密码。\n';;
   5.2.1|5.3.1|5.6.3) hdm_release_query rustdesk list || hdm_warn '查询官方版本列表失败';;
@@ -179,7 +241,8 @@ hdm_dispatch() {
   6.8.3) du -sh "$HDM_CACHE/downloads" 2>/dev/null || :;;
   6.8.4) hdm_warn '更新后验证：RustDesk 服务、ID、用户实际远程连接。';;
   6.8.5) hdm_setting HDM_RUSTDESK_CHANNEL stable;;
-  6.10.1|6.10.2) hdm_warn '卸载默认保留 RustDesk 配置；不自动清理用户数据。';;
+  6.10.1) hdm_action_remove_preview rustdesk;;
+  6.10.2) hdm_warn '本功能默认保留现有 RustDesk 客户端配置；如需清理，请手动核实配置目录并先备份。';;
   6.10.3) hdm_rustdesk_uninstall;;
   # 7. RustDesk ID/Relay config
   7.12) hdm_rustdesk_permission_report;;
@@ -223,7 +286,7 @@ hdm_dispatch() {
   8.5.2) hdm_update_rollback;;
   8.6.1|8.6.7|8.9.1|8.9.2) hdm_update_integrity;;
   8.6.2|8.6.3|8.6.4|8.6.5|8.6.6) hdm_warn '模块必须与主程序同版本；无法单独替换。请使用 8.2 原子更新完整 HDM。';;
-  8.8.1) printf '稳定版：菜单 8 → 2 → 2；main 通道：8 → 2 → 5。\n';;
+  8.8.1) printf '稳定版（Release）：菜单 8 → 2 → 2；开发版（main）：菜单 8 → 2 → 5。\n本菜单仅查看更新路径，实际安装前需预览和确认。\n';;
   8.8.2) hdm_warn '当前手动检查更新；未启用后台定时升级。';;
   8.8.3) du -sh "$HDM_CACHE/downloads" 2>/dev/null || :; find /opt/hdm/releases -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null || :;;
   8.10.1) hdm_danger '恢复 HDM 的下载策略和分辨率默认值，不修改系统桌面？' && { hdm_setting HDM_DEFAULT_RESOLUTION 1920x1080; hdm_setting HDM_SOURCE_POLICY official-mirror-github; };;
@@ -233,15 +296,14 @@ hdm_dispatch() {
   9.1.3|9.3.4) hdm_display_select_res;;
   9.1.4|9.3.6) hdm_warn '可在完整安装后通过菜单 7 配置自建 ID/Relay；避免在 RustDesk 未安装时导入。';;
   9.1.6|9.2.1|9.4.3|9.7.2) hdm_quick_install;;
-  9.2.2|9.2.3|9.2.4|9.2.5|9.2.6|9.2.7) hdm_quick_plan; hdm_warn '可在菜单 1、3、5 分别安装其他显示/桌面/RustDesk 组合；是否能远控需要真实验证。';;
+  9.2.2|9.2.3|9.2.4|9.2.5|9.2.6|9.2.7) hdm_action_other_desktop_plan "$id";;
   9.3.1) hdm_display_status;;
   9.3.2) hdm_desktop_compare; hdm_resource_recommendation;;
   9.3.3) hdm_rustdesk_status;;
   9.3.5) hdm_sources_policy;;
   9.3.7) hdm_quick_plan;;
-  9.3.8) hdm_quick_plan; hdm_warn '按当前协议选择推荐路径；其他组合请在菜单 1、3、5 分别确认安装。';;
-  9.7.3) hdm_warn '安全中止：不会自动删除已安装的系统软件包。配置可在 10.9 恢复。';;
-  # 10. Diagnostics and mirrors
+  9.3.8) hdm_warn '自定义组合尚未保存为可自动执行的计划。菜单 9.1.6 可执行本机推荐组合；如选择其他方案，请分别使用菜单 1、3、5 安装。';;
+   # 10. Diagnostics and mirrors
   10.1.1|10.1.2|10.1.4) hdm_diag_full;;
   10.2.1|10.2.2|10.2.3|10.2.4|10.2.6) hdm_diag_display;;
   10.3.1) hdm_session_dependencies;;
@@ -276,7 +338,8 @@ hdm_dispatch() {
   10.6.3.B|10.6.3.C) hdm_setting HDM_SOURCE_POLICY official-mirror; hdm_warn '备用官方源仅在网络故障时尝试，本版本不永久覆盖系统 sources.list。';;
   10.6.3.D) hdm_list_mirror; hdm_warn '必须存在真实资产与可信 SHA256 才可下载安装。';;
   10.6.3.E) hdm_setting HDM_SOURCE_POLICY official-mirror-github;;
-  10.6.4.A|10.6.4.B|10.6.4.C|10.6.4.F|10.6.4.G) hdm_list_mirror; hdm_warn 'Manifest 为空表示尚未同步任何真实备用包。';;
+  10.6.4.A|10.6.4.B|10.6.4.C|10.6.4.G) hdm_list_mirror; hdm_warn 'Manifest 为空表示尚未同步任何真实备用包。';;
+  10.6.4.F) hdm_list_mirror; hdm_warn '此处只显示缓存信息；需要清理请进入 10.6.7 并确认。';;
   10.6.4.D|10.6.4.E) hdm_mirror_rustdesk;;
   10.6.5.A) hdm_setting HDM_SOURCE_POLICY system-only;;
   10.6.5.B) hdm_setting HDM_SOURCE_POLICY official-mirror;;
@@ -293,7 +356,7 @@ hdm_dispatch() {
   10.8.5) hdm_diag_log sources;;
   10.8.6) hdm_diag_log update;;
   10.8.9) hdm_diag_operation_list;;
-  10.8.8) hdm_warn '日志默认保留供诊断，V0.1 不自动清理系统 journal。';;
+  10.8.8) hdm_diag_prune_logs;;
   10.9.1) hdm_snapshot_create /etc/X11/xorg.conf.d/20-hdm-dummy.conf /etc/gdm3/custom.conf /etc/hdm/config.conf;;
   10.9.2) hdm_snapshots;;
   10.9.8) hdm_action_remove_backup;;
