@@ -30,36 +30,33 @@ hdm_menu_terminal_cols() {
   printf '%s' "$cols"
 }
 hdm_menu_rule() {
-  local cols count line
+  local path=${1:-root} cols count line
   cols=$(hdm_menu_terminal_cols)
   count=$((cols - 4))
-  ((count > 74)) && count=74
+  if [[ $path == root ]]; then
+    ((count > 140)) && count=140
+  else
+    ((count > 74)) && count=74
+  fi
   ((count < 18)) && count=18
   printf -v line '%*s' "$count" ''
   printf '  %s\n' "${line// /─}"
 }
 hdm_menu_header() {
-  local path=$1 desktop output session rustdesk cols
-  hdm_menu_rule
+  local path=$1
+  hdm_menu_rule "$path"
   printf '  HDM v%s  ·  %s / %s\n' "$HDM_VERSION" "$(hdm_os)" "$(hdm_arch)"
   if [[ $path == root ]]; then
-    desktop=$(hdm_env_desktop_kind)
-    output=$(hdm_env_drm_state)
-    session=$(hdm_env_active_session)
-    rustdesk=$(hdm_pkg_version rustdesk)
-    [[ $session == unknown || $session == none ]] && session='无'
-    [[ $rustdesk == 未安装 ]] && rustdesk='未安装'
-    cols=$(hdm_menu_terminal_cols)
-    if ((cols >= 72)); then
-      printf '  桌面包 %-6s  DRM %-6s  会话 %-7s  RustDesk %s\n' \
-        "$desktop" "$(hdm_env_drm_short "$output")" "$session" "$rustdesk"
-    else
-      printf '  桌面包 %s  ·  会话 %s  ·  RustDesk %s\n' "$desktop" "$session" "$rustdesk"
+    # Seven read-only stages; colors show local checks, not remote validation.
+    # On reduced terminal widths the chain wraps or becomes vertical.
+    if ! python3 -B "$HDM_ROOT/modules/diagnostics/desktop_chain.py" \
+      --width "$(hdm_menu_terminal_cols)"; then
+      hdm_warn '桌面链路检测失败，可从菜单 10 查看诊断信息。'
     fi
   else
     printf '  %s\n' "$(hdm_menu_label "$path")"
   fi
-  hdm_menu_rule
+  hdm_menu_rule "$path"
 }
 hdm_menu_main() {
   local -a left=(1 2 3 4 5) right=(6 7 8 9 10)
@@ -95,7 +92,7 @@ hdm_menu() {
     hdm_menu_header "$path"
     printf '\n'
     if [[ $path == root ]]; then hdm_menu_main; else hdm_menu_children "$path"; fi
-    hdm_menu_rule
+    hdm_menu_rule "$path"
     if [[ $path == root ]]; then printf '  0 / q 退出\n'; else printf '  0 返回    q 退出\n'; fi
     if ! hdm_prompt '  请选择 > ' selection; then return 0; fi
     case "$selection" in q|Q) return 99;; 0) return 0;; esac

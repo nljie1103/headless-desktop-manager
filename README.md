@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.1.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.2.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -84,8 +84,7 @@ Ubuntu 25.10 起，Ubuntu GNOME 桌面仅提供 Wayland 会话；Ubuntu 26.04 �
 Ubuntu 开发分支的最简安装（`main` 是可变代码，运行前应审阅脚本）：
 
 ```bash
-curl -fsSLo hdm-install.sh https://raw.githubusercontent.com/nljie1103/headless-desktop-manager/main/install.sh
-sudo bash hdm-install.sh
+curl -fsSLo hdm-install.sh https://raw.githubusercontent.com/nljie1103/headless-desktop-manager/main/install.sh && sudo bash hdm-install.sh
 ```
 
 安装器仅部署 **HDM 管理器**；进入菜单后才由你选择 GNOME、RustDesk 或显示组件。交互终端默认自动打开菜单；再次启动：
@@ -98,14 +97,38 @@ sudo hdm
 
 ---
 
+## 🔗 桌面链路数轴
+
+HDM 首页现在直接展示 **显示输出 → 登录管理器 → 图形协议 → 桌面环境 → 图形用户会话 → RustDesk → 设备 ID** 七个节点。它们是完整桌面**排障依赖图**，并非严格的系统启动时序。
+
+- **绿色圆点**：本地已检测到符合要求的服务、会话或软件；**红色圆点**：明确缺失或异常；**黄色菱形**：状态未确认。绿色不代表远端画面已验证。
+- 每个节点下面显示已识别的组件、版本号或实际分辨率、路径；设备 ID 从 RustDesk 本机查询。查询不到时明确标记，而非填写假 ID。
+- 宽终端显示完整横向数轴；普通终端自动分为上下两段；窄终端自动使用纵向步骤。菜单编号仍在流程图下方。
+- **LightDM/GDM3 是图形登录管理器，不是虚拟显示器。** Xorg 是 X11 的常见显示服务器，Wayland 是另一种显示协议。分辨率取决于实际显示输出，会话仅提供可运行桌面的上下文。
+
+可查看完整路径、节点判断依据：
+
+```bash
+sudo hdm --chain
+```
+
+在共享屏幕或录制演示时可隐藏设备 ID：`sudo env HDM_HIDE_RUSTDESK_ID=1 hdm`。详见 [桌面链路结构、状态判定与显示示意](docs/desktop-chain.md)。
+
 ## 🧭 终端菜单
 
 主菜单沿用稳定的 10 个入口，采用类似服务器管理面板的紧凑布局：宽终端双列、窄终端单列；子菜单按短编号逐级进入。
 
 ```text
   ─────────────────────────────────────────────────────────────
-  HDM v4.1.1  ·  ubuntu 24.04 / x86_64
-  桌面包 GNOME  ·  会话 x11  ·  RustDesk 1.5.1
+  HDM v4.2.0  ·  ubuntu 24.04 / x86_64
+  ──────◆──────────●──────────●──────────●──────
+       显示输出     登录管理器    图形协议     桌面环境
+       ? 待核实     ✓ GDM3       ✓ X11        ✓ XFCE
+  ↓ 继续：会话 → RustDesk → 设备 ID
+  ──────●──────────●──────────●──────
+       图形会话      RustDesk     设备 ID
+       ✓ :0         ✓ v1.5.1     ✓ 已获取
+  ◆ 待核实 · ● 本地通过 · ○ 异常（实际终端使用颜色）
   ─────────────────────────────────────────────────────────────
 
   1. 安装虚拟显示器                6. 更新 RustDesk
@@ -129,9 +152,10 @@ sudo hdm
 | 命令 | 用途 |
 |:---|:---|
 | `sudo hdm` | 打开中文菜单 |
+| `hdm --chain` | 查看七节点完整状态与路径 |
 | `hdm --preflight` | 只读探测系统、桌面、显示输出 |
 | `hdm --readiness` | 检查软件包、服务、会话及待配置项 |
-| `hdm --doctor` | 检查 GNOME、GDM3、RustDesk 和显示问题 |
+| `hdm --doctor` | 检查活动桌面、登录管理器、RustDesk 和显示问题 |
 | `hdm --session-status` | 区分现有 X11/Wayland 会话与真正的 GNOME 用户会话 |
 | `sudo hdm --session-start` | 尝试启动 GDM3，再次核验 GNOME 用户会话 |
 | `sudo hdm --quick-status` | 查看一键部署进度 |

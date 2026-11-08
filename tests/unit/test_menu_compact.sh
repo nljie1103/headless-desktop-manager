@@ -7,7 +7,7 @@ export HDM_ETC="$TMP/etc" HDM_STATE="$TMP/state" HDM_CACHE="$TMP/cache" HDM_LOG_
 output=$(printf '0\n' | COLUMNS=100 bash "$ROOT/hdm.sh")
 [[ $output == *'1. 安装虚拟显示器'* && $output == *'6. 更新 RustDesk'* ]]
 [[ $output == *'10. 系统诊断与日志'* && $output != *'快速入口'* && $output != *'实验'* ]]
-[[ $output != *'建议：'* && $output == *'桌面包'* ]]
+[[ $output != *'建议：'* && $output == *'登录管理器'* && $output == *'设备 ID'* ]]
 output=$(printf '0\n' | COLUMNS=54 bash "$ROOT/hdm.sh")
 [[ $output == *'1.  安装虚拟显示器'* && $output == *'10. 系统诊断与日志'* ]]
 python3 - "$ROOT" <<'PYTEST'

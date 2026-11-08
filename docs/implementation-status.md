@@ -23,3 +23,7 @@
 ## v4.1.0 桌面推荐策略
 
 Ubuntu 26 GNOME Wayland-only 主机默认建议 XFCE + X11 + LightDM；已有 GNOME 保留并可选择继续使用。推荐计划可以在无 DRM 连接时包含 Xorg Dummy，但所有影响显示服务的配置须经用户确认，且本项目尚无 Ubuntu 26 ARM64 登录前 RustDesk 成功验收记录。
+
+## v4.2.0 桌面链路可视化
+
+主菜单增加七节点本地状态检测图；显示/协议/桌面/会话/服务/ID 的状态分离，路径与版本可通过 `sudo hdm --chain` 查看。节点为绿色仅代表本地对应检查满足，真实 RustDesk 图像、认证和重启远控仍需外部设备验收。参见 [桌面链路指南](desktop-chain.md)。

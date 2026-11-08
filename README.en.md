@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.1.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.2.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -76,8 +76,7 @@ Sources: [Ubuntu release notes](https://documentation.ubuntu.com/release-notes/2
 Prefer a [pinned GitHub Release](https://github.com/nljie1103/headless-desktop-manager/releases) with archive integrity verification. To install from the mutable `main` branch, inspect the script before running:
 
 ```bash
-curl -fsSLo hdm-install.sh https://raw.githubusercontent.com/nljie1103/headless-desktop-manager/main/install.sh
-sudo bash hdm-install.sh
+curl -fsSLo hdm-install.sh https://raw.githubusercontent.com/nljie1103/headless-desktop-manager/main/install.sh && sudo bash hdm-install.sh
 sudo hdm
 ```
 
@@ -87,12 +86,21 @@ The CLI keeps 10 stable main entries with a compact two-column layout (one colum
 
 ---
 
+## 🔗 Seven-stage desktop dependency graph
+
+The main menu now shows **display output → login manager (GDM3/LightDM) → graphics protocol (X11/Wayland) → desktop environment → user session and verified resolution → RustDesk service → device ID**.
+
+Green means the **local** check succeeded, red means a confirmed missing/broken component, and amber means more verification is needed. Green does not prove that an external RustDesk connection works. Wide terminals show a horizontal progress axis; narrow terminals wrap or switch to a vertical flow. Versions, configuration paths and the locally queried RustDesk ID appear below each node where available.
+
+Use `sudo hdm --chain` for full paths and explanations, or `sudo env HDM_HIDE_RUSTDESK_ID=1 hdm` to hide the device ID in screen-sharing demos. [Desktop chain design and limitations](docs/desktop-chain.md).
+
 ## ⌨️ Diagnostics and day-to-day commands
 
 ```bash
+hdm --chain                 # Full seven-node desktop status and paths
 hdm --preflight             # Desktop and display capability (read-only)
 hdm --readiness             # Installed packages, services and sessions
-hdm --doctor                # GNOME/GDM/RustDesk diagnostics
+hdm --doctor                # Active desktop/login manager/RustDesk diagnostics
 hdm --session-status        # Generic session versus actual GNOME session
 sudo hdm --session-start    # Try GDM3 startup and verify GNOME session
 sudo hdm --quick-status     # Resumable install status

@@ -1,0 +1,394 @@
+#!/usr/bin/env python3
+"""Read-only desktop dependency chain for the HDM terminal header.
+
+Status is local evidence, not proof of RustDesk external screen capture.
+No credentials or configuration file bodies are read or printed.
+"""
+from __future__ import annotations
+
+import argparse
+from dataclasses import asdict, dataclass
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import unicodedata
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import status_json
+
+STATUS_MARKS = {"ok": "●", "bad": "○", "unknown": "◆"}
+STATUS_SIGNS = {"ok": "✓", "bad": "×", "unknown": "?"}
+ANSI = {"ok": "\x1b[32m", "bad": "\x1b[31m", "unknown": "\x1b[33m"}
+RESET = "\x1b[0m"
+
+
+@dataclass
+class Node:
+    name: str
+    state: str
+    value: str
+    detail: str
+    path: str
+    explanation: str
+
+
+def run(*args: str, timeout: float = 2.0) -> str:
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, check=False, timeout=timeout)
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (OSError, subprocess.TimeoutExpired, UnicodeError):
+        pass
+    return ""
+
+
+def package(report: dict, key: str) -> dict:
+    return report.get("packages", {}).get(key, {})
+
+
+def version(report: dict, key: str) -> str:
+    value = package(report, key).get("version")
+    return str(value).split("-", 1)[0].split(":", 1)[-1] if value else "—"
+
+
+def active_session(report: dict) -> dict | None:
+    for session in report.get("sessions", []):
+        if (session.get("class") == "user" and session.get("state") == "active"
+                and session.get("type") in ("x11", "wayland")):
+            return session
+    for session in report.get("sessions", []):
+        if (session.get("class") == "user" and session.get("state") == "online"
+                and session.get("type") in ("x11", "wayland")):
+            return session
+    return None
+
+
+def desktop_name(session: dict | None) -> str:
+    name = str((session or {}).get("desktop") or "").lower()
+    if name.startswith("xfce"):
+        return "XFCE"
+    if name.startswith("mate"):
+        return "MATE"
+    if name.startswith(("gnome", "ubuntu")):
+        return "GNOME"
+    if name.startswith(("plasma", "kde")):
+        return "KDE"
+    return ""
+
+
+def desktop_package(name: str) -> str:
+    return {"XFCE": "xfce4-session", "MATE": "mate-session-manager",
+            "GNOME": "gnome-shell", "KDE": "plasma-desktop"}.get(name, "")
+
+
+def preferred_desktop(report: dict) -> str:
+    for name in ("GNOME", "XFCE", "MATE", "KDE"):
+        if package(report, desktop_package(name)).get("installed"):
+            return name
+    return ""
+
+
+def default_display_manager(path: str = "/etc/X11/default-display-manager") -> str:
+    try:
+        text = Path(path).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    if text.endswith("/lightdm"):
+        return "lightdm"
+    if text.endswith("/gdm3") or text.endswith("/gdm"):
+        return "gdm3"
+    return ""
+
+
+def drm_status(root: str = "/sys/class/drm") -> str:
+    try:
+        paths = list(Path(root).glob("*/status"))
+    except OSError:
+        return "unknown"
+    seen = False
+    uncertainty = False
+    for path in paths:
+        try:
+            state = path.read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        seen = True
+        if state == "connected":
+            return "connected"
+        if state not in ("disconnected",):
+            uncertainty = True
+    if seen and not uncertainty:
+        return "disconnected"
+    return "unknown"
+
+
+def resolution_xrandr() -> str:
+    # Only probe the caller's already available authenticated X session.
+    # Never guess a resolution from the user's configured preference or modes list.
+    if not os.getenv("DISPLAY"):
+        return ""
+    output = run("xrandr", "--current", timeout=2.0)
+    matches = re.findall(r"(?m)^\s*(\d{3,5})x(\d{3,5})\s+.*?\*", output)
+    if matches:
+        return "x".join(matches[0])
+    current = re.search(r"\bcurrent\s+(\d{3,5})\s+x\s+(\d{3,5})", output)
+    return "x".join(current.groups()) if current else ""
+
+
+def session_display(session: dict | None) -> str:
+    if not session:
+        return ""
+    sid = str(session.get("id", ""))
+    if not re.fullmatch(r"[\w-]{1,48}", sid):
+        return ""
+    result = run("loginctl", "show-session", sid, "-p", "Display", "--value", timeout=1.5)
+    return result if re.fullmatch(r":\d{1,3}(?:\.\d{1,2})?", result) else ""
+
+
+def rustdesk_id() -> str:
+    if os.getenv("HDM_HIDE_RUSTDESK_ID") == "1":
+        return ""
+    value = run("rustdesk", "--get-id", timeout=2.5)
+    # Never allow CLI stderr, shell control characters or unexpected content into the header.
+    return value if re.fullmatch(r"[A-Za-z0-9_-]{4,32}", value) else ""
+
+
+def build(report: dict, signals: dict) -> list[Node]:
+    session = active_session(report)
+    desktop = desktop_name(session)
+    selected = desktop or preferred_desktop(report)
+    session_type = (session or {}).get("type", "")
+    actual_dm = signals.get("manager", "")
+    display = report.get("display", {})
+    drm = signals.get("drm", "unknown")
+    has_socket = bool(display.get("x11_socket_paths"))
+    has_dummy = bool(display.get("hdm_dummy_config_present"))
+    res = signals.get("resolution", "")
+    sid = str((session or {}).get("id") or "")
+    service = report.get("rustdesk", {}).get("service")
+    installed = bool(package(report, "rustdesk").get("installed"))
+    got_id = signals.get("rustdesk_id", "")
+
+    if drm == "connected":
+        output = Node("显示输出", "ok", "DRM 已连接", "输出可检测",
+                      "/sys/class/drm", "内核报告显示输出已连接，尚需验证实际图像。")
+    elif has_dummy:
+        output = Node("显示输出", "unknown", "Dummy 已配置", "出图待确认",
+                      "/etc/X11/xorg.conf.d/20-hdm-dummy.conf",
+                      "配置存在不等于 Xorg 已使用此虚拟输出。")
+    elif session:
+        output = Node("显示输出", "unknown", "已见图形会话", "DRM 未确认",
+                      "/sys/class/drm",
+                      "有图形会话，但不能据此证明 DRM 或虚拟屏幕正常。")
+    else:
+        output = Node("显示输出", "bad" if drm == "disconnected" else "unknown",
+                      "DRM 未连接" if drm == "disconnected" else "DRM 未知",
+                      "需检查虚拟屏", "/sys/class/drm",
+                      "没有可确认的图形输出，请查看菜单 1、2 的虚拟显示方案。")
+
+    dm_service = display.get("gdm3_service") if actual_dm == "gdm3" else display.get("lightdm_service")
+    dm_installed = bool(package(report, actual_dm).get("installed")) if actual_dm else False
+    # If configured default is inactive but an alternative DM is active, show the active one.
+    if dm_service != "active":
+        for alternative in ("gdm3", "lightdm"):
+            if display.get(alternative + "_service") == "active":
+                actual_dm = alternative
+                dm_service = "active"
+                dm_installed = bool(package(report, alternative).get("installed"))
+                break
+    dm_name = {"gdm3": "GDM3", "lightdm": "LightDM"}.get(actual_dm, "")
+    if dm_service == "active":
+        dm_state = "ok" if dm_installed else "unknown"
+    else:
+        dm_state = "unknown" if session else "bad"
+    dm_node = Node("登录管理器", dm_state,
+                   (dm_name or "未识别") + (" · 运行" if dm_service == "active" else " · 未运行"),
+                   "v" + version(report, actual_dm) if dm_installed else "版本未知",
+                   "/etc/X11/default-display-manager",
+                   "GDM3/LightDM 是登录管理器，不是虚拟显示器。")
+
+    proto = "X11" if session_type == "x11" else ("Wayland" if session_type == "wayland" else "")
+    if proto:
+        p_state = "ok" if proto == "Wayland" or has_socket else "unknown"
+        p_value = proto
+        p_detail = ("Xorg " + version(report, "xserver-xorg-core")) if proto == "X11" else "Wayland 会话"
+        p_path = ("/tmp/.X11-unix/" + display.get("x11_socket_paths", ["X?"])[0]) if proto == "X11" and has_socket else (
+            "/run/user/" + str(session.get("uid")) if proto == "Wayland" and session.get("uid") else "/run/user/…")
+        p_explain = "已检测到用户图形协议；Xorg 是 X11 的常见服务器实现。"
+    elif has_socket:
+        p_state, p_value, p_detail, p_path = "unknown", "X11 待登录", "发现 X socket", "/tmp/.X11-unix"
+        p_explain = "发现 X11 Socket，但尚无确认的活跃图形用户会话。"
+    else:
+        p_state, p_value, p_detail, p_path = "bad", "未建立", "协议待检测", "Xorg / Wayland"
+        p_explain = "未检测到活跃 X11/Wayland 图形协议，不能推断桌面可被控制。"
+    protocol = Node("图形协议", p_state, p_value, p_detail, p_path, p_explain)
+
+    depkg = desktop_package(selected)
+    desk_exists = bool(package(report, depkg).get("installed")) if depkg else False
+    d_state = "ok" if desktop and desk_exists else ("unknown" if selected else "bad")
+    d_path = {"XFCE": "/usr/share/xsessions", "MATE": "/usr/share/xsessions",
+              "GNOME": "/usr/share/wayland-sessions", "KDE": "/usr/share/xsessions"}.get(selected, "—")
+    desk = Node("桌面环境", d_state, selected or "未检测到",
+                ("v" + version(report, depkg)) if desk_exists else ("已装但未登录" if selected else "未安装"),
+                d_path, "软件包存在并不代表已启动；优先识别真实活跃的用户桌面。")
+
+    if session:
+        sp = session_display(session) or signals.get("session_display", "")
+        s_value = (sid + " · " if sid else "") + (sp or proto)
+        s_state = "ok" if proto else "unknown"
+        s_detail = res or "分辨率待核实"
+        s_path = "logind session " + sid if sid else "loginctl"
+        s_explain = "logind 有活动用户会话；分辨率属于显示输出设置，非登录管理器。"
+    else:
+        s_state, s_value, s_detail, s_path = "bad", "用户未登录", "没有可用会话", "loginctl"
+        s_explain = "缺少已确认的活动图形用户会话。GDM/LightDM 服务运行不代表用户已登录。"
+    user_session = Node("图形会话", s_state, s_value, s_detail, s_path, s_explain)
+
+    if installed:
+        r_state = "ok" if service == "active" else "bad"
+        r_value = "运行中" if service == "active" else "服务未启动"
+        r_detail = "v" + version(report, "rustdesk")
+        if r_state == "ok" and proto == "Wayland":
+            requires = ["pipewire", "xdg-desktop-portal"]
+            if desktop == "GNOME":
+                requires.append("xdg-desktop-portal-gnome")
+            missing = [name for name in requires if not package(report, name).get("installed")]
+            if missing:
+                r_state = "unknown"
+                r_value = "依赖待补"
+                r_detail = "缺 " + ", ".join(missing)
+    else:
+        r_state, r_value, r_detail = "bad", "未安装", "需要 RustDesk"
+    rustdesk = Node("RustDesk", r_state, r_value, r_detail, "/usr/bin/rustdesk",
+                    "安装及后台服务运行不代表屏幕捕获和远控认证已验证。")
+
+    if got_id:
+        id_state, id_value, id_detail = "ok" if r_state == "ok" else "unknown", got_id, "ID 已读出"
+    else:
+        id_state, id_value, id_detail = ("bad" if not installed else "unknown"), "未获取", "注册状态未知"
+    identifier = Node("设备 ID", id_state, id_value, id_detail, "rustdesk --get-id",
+                      "能读到 ID 不等于 ID 服务器已注册、远端可以连通或控制。")
+    return [output, dm_node, protocol, desk, user_session, rustdesk, identifier]
+
+
+def collect() -> list[Node]:
+    report = status_json.collect()
+    chosen = default_display_manager()
+    return build(report, {
+        "manager": chosen,
+        "drm": drm_status(),
+        "resolution": resolution_xrandr(),
+        "rustdesk_id": rustdesk_id() if package(report, "rustdesk").get("installed") else "",
+    })
+
+
+def text_width(value: str) -> int:
+    return sum(0 if unicodedata.combining(ch) else
+               (2 if unicodedata.east_asian_width(ch) in ("F", "W") else 1)
+               for ch in value)
+
+
+def clipped(value: str, limit: int) -> str:
+    value = str(value).replace("\n", " ")
+    if text_width(value) <= limit:
+        return value
+    if limit <= 1:
+        return "…"
+    result = ""
+    for ch in value:
+        if text_width(result + ch) > limit - 1:
+            break
+        result += ch
+    return result + "…"
+
+
+def center(value: str, limit: int) -> str:
+    value = clipped(value, limit)
+    pad = max(0, limit - text_width(value))
+    return " " * (pad // 2) + value + " " * (pad - pad // 2)
+
+
+def color(value: str, state: str, enabled: bool) -> str:
+    return ANSI.get(state, "") + value + RESET if enabled else value
+
+
+def axis(nodes: list[Node], cell: int, enabled: bool) -> str:
+    chunks = []
+    for node in nodes:
+        m = cell // 2
+        dot = STATUS_MARKS[node.state]
+        dot = color(dot, node.state, enabled)
+        chunks.append("─" * m + dot + "─" * (cell - m - 1))
+    return "  " + "".join(chunks)
+
+
+def grid(nodes: list[Node], cell: int, enabled: bool) -> str:
+    rows = [axis(nodes, cell, enabled)]
+    for attr in ("name", "value", "detail", "path"):
+        parts = []
+        for node in nodes:
+            value = getattr(node, attr)
+            if attr == "value":
+                value = STATUS_SIGNS[node.state] + " " + value
+            text = center(value, cell)
+            parts.append(color(text, node.state, enabled) if attr == "value" else text)
+        rows.append("  " + "".join(parts))
+    return "\n".join(rows)
+
+
+def render(nodes: list[Node], cols: int = 80, enabled: bool = False, details: bool = False) -> str:
+    cols = max(24, cols)
+    lines = []
+    if cols >= 107:
+        cell = min(20, (cols - 2) // 7)
+        lines.append(grid(nodes, cell, enabled))
+    elif cols >= 67:
+        cell = min(20, (cols - 2) // 4)
+        lines.append(grid(nodes[:4], cell, enabled))
+        lines.append("  ↓ 继续：会话 → RustDesk → 设备 ID")
+        lines.append(grid(nodes[4:], cell, enabled))
+    else:
+        for idx, node in enumerate(nodes, 1):
+            mark = color(STATUS_MARKS[node.state], node.state, enabled)
+            value = clipped(node.value, max(3, cols - 18))
+            label = center(node.name, 10)
+            lines.append(f"  {mark} {idx}. {label} {value}")
+            if idx != len(nodes):
+                lines.append("  │")
+    if cols < 55:
+        lines.append("  ●正常 ○异常 ◆待查")
+        lines.append("  远端控制另行实测")
+    else:
+        lines.append("  " + ("绿=本地通过 · 红=缺失/异常 · 黄=待核实" if enabled else
+                              "●=本地通过  ○=缺失/异常  ◆=待核实"))
+        lines.append("  本机检测不代表 RustDesk 远端画面已验证。")
+    if details:
+        lines.append("")
+        for idx, node in enumerate(nodes, 1):
+            lines.append(f"  {idx}. [{STATUS_SIGNS[node.state]}] {node.name}：{node.value} · {node.detail}")
+            lines.append(f"     路径/检查：{node.path}")
+            lines.append(f"     说明：{node.explanation}")
+        lines.append("  提示：使用 sudo hdm 查看管理员权限能访问的全部配置状态。")
+    return "\n".join(lines)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--width", type=int, default=shutil.get_terminal_size(fallback=(80, 24)).columns)
+    parser.add_argument("--details", action="store_true")
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args()
+    nodes = collect()
+    if args.json:
+        print(json.dumps([asdict(x) for x in nodes], ensure_ascii=False, indent=2))
+    else:
+        enabled = sys.stdout.isatty() and os.getenv("NO_COLOR") is None and os.getenv("TERM") != "dumb"
+        print(render(nodes, args.width, enabled, args.details))
+
+
+if __name__ == "__main__":
+    main()

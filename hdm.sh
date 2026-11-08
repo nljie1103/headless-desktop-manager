@@ -12,7 +12,7 @@ for module in \
 done
 # Diagnostic and informational operations must be read-only, even when run as root.
 case "${1:-}" in
-  --help|-h|--version|--menu-tree|--self-test|--diagnose|--doctor|--doctor-json|--status-json|--quick-status|--preflight|--rustdesk-permissions|--check-update|--session-status|--readiness)
+  --help|-h|--version|--menu-tree|--self-test|--diagnose|--doctor|--doctor-json|--status-json|--quick-status|--preflight|--rustdesk-permissions|--check-update|--session-status|--readiness|--chain|--chain-json)
     hdm_init readonly ;;
   *) hdm_init ;;
 esac
@@ -31,6 +31,8 @@ Headless Desktop Manager (HDM)
   sudo hdm --export-diagnostics Export full HDM/APT/journal diagnostic bundle
   hdm --preflight                Detect installed desktop and usable display outputs
   hdm --readiness                Show installed, missing and unconfigured components
+  hdm --chain                    Seven-stage local desktop dependency diagram
+  hdm --chain-json               Seven-stage machine-readable status (includes device ID)
   hdm --rustdesk-permissions     Read-only privileged settings / service diagnosis
   hdm --doctor-json              Sanitized diagnosis JSON
   sudo hdm --quick-status        Read-only resumable install progress
@@ -52,6 +54,8 @@ HELP
   --export-diagnostics) hdm_diag_export_full; exit $?;;
   --preflight) hdm_env_report; exit $?;;
   --readiness) hdm_readiness_report; exit $?;;
+  --chain) python3 -B "$HDM_ROOT/modules/diagnostics/desktop_chain.py" --details --width "$(hdm_menu_terminal_cols)"; exit $?;;
+  --chain-json) python3 -B "$HDM_ROOT/modules/diagnostics/desktop_chain.py" --json; exit $?;;
   --rustdesk-permissions) hdm_rustdesk_permission_report; exit $?;;
   --doctor) hdm_diag_doctor; exit $?;;
   --doctor-json) hdm_diag_doctor_json; exit $?;;
