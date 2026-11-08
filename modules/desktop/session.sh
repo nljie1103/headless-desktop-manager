@@ -20,8 +20,11 @@ hdm_session_report() {
     *) printf '活动用户会话   无法确认（loginctl 数据不足）\n';;
   esac
   printf 'RustDesk 服务  %s（不代表可捕获画面）\n' "$rustdesk"
-  if [[ "$gdm" != active ]]; then
-    printf '\n[阻断] GDM3 未运行；GNOME 软件包已安装不等于桌面已启动。\n'
+  if ! hdm_installed gdm3; then
+    printf '\n[缺失] 未安装 GDM3；当前桌面环境为 %s，不能按已安装 GNOME 进行会话修复。\n' "$desktop"
+    printf '下一步：如需 GNOME，先通过菜单 3 安装 GNOME/GDM3，再检查图形会话。\n'
+  elif [[ "$gdm" != active ]]; then
+    printf '\n[阻断] GDM3 已安装但未运行；软件包存在不等于图形登录服务已启动。\n'
     printf '下一步：菜单 4 → 管理图形会话 → 启动/检查 GDM3；或 sudo hdm --session-start\n'
   elif [[ "$session" != x11 && "$session" != wayland ]]; then
     printf '\n[未就绪] GDM3 已运行，但尚无活跃图形用户会话。登录界面不等于桌面。\n'
