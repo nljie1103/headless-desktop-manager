@@ -67,6 +67,15 @@ def active_session(report: dict) -> dict | None:
     return None
 
 
+def graphical_sessions(report: dict) -> list[dict]:
+    # An online session can coexist with an active one (another seat or VT).
+    # Never pick one arbitrarily when several graphical users are logged in.
+    return [session for session in report.get("sessions", [])
+            if session.get("class") == "user"
+            and session.get("state") in ("active", "online")
+            and session.get("type") in ("x11", "wayland")]
+
+
 def desktop_name(session: dict | None) -> str:
     name = str((session or {}).get("desktop") or "").lower()
     if name.startswith("xfce"):
@@ -162,7 +171,10 @@ def rustdesk_id() -> str:
 
 
 def build(report: dict, signals: dict) -> list[Node]:
-    session = active_session(report)
+    graphical = graphical_sessions(report)
+    multiple = len(graphical) > 1
+    truncated = bool(report.get("sessions_truncated"))
+    session = active_session(report) if not multiple and not truncated else None
     desktop = desktop_name(session)
     selected = desktop or preferred_desktop(report)
     session_type = (session or {}).get("type", "")
@@ -174,7 +186,12 @@ def build(report: dict, signals: dict) -> list[Node]:
     res = signals.get("resolution", "")
     x_output = signals.get("xrandr_output", "")
     x_display = signals.get("xrandr_display", "")
-    real_x11_output = (session_type == "x11" and bool(x_output and res)
+    # xrandr reads the caller's DISPLAY, which may belong to a *different*
+    # graphical session. Associate its resolution only with the unique session
+    # if loginctl independently confirms the same DISPLAY.
+    unique_display = session_display(session) if session_type == "x11" else ""
+    real_x11_output = (not multiple and session_type == "x11"
+                       and bool(x_output and res and unique_display == x_display)
                        and re.fullmatch(r":\d{1,3}(?:\.\d{1,2})?", x_display or "") is not None
                        and "X" + x_display[1:].split(".", 1)[0]
                            in display.get("x11_socket_paths", []))
@@ -195,7 +212,7 @@ def build(report: dict, signals: dict) -> list[Node]:
         output = Node("显示输出", "unknown", "Dummy 已配置", "出图待确认",
                       "/etc/X11/xorg.conf.d/20-hdm-dummy.conf",
                       "配置存在不等于 Xorg 已使用此虚拟输出。")
-    elif session:
+    elif graphical:
         output = Node("显示输出", "unknown", "已见图形会话", "DRM 未确认",
                       "/sys/class/drm",
                       "有图形会话，但不能据此证明 DRM 或虚拟屏幕正常。")
@@ -205,70 +222,138 @@ def build(report: dict, signals: dict) -> list[Node]:
                       "需检查虚拟屏", "/sys/class/drm",
                       "没有可确认的图形输出，请查看菜单 1、2 的虚拟显示方案。")
 
-    dm_service = display.get("gdm3_service") if actual_dm == "gdm3" else display.get("lightdm_service")
-    dm_installed = bool(package(report, actual_dm).get("installed")) if actual_dm else False
-    # If configured default is inactive but an alternative DM is active, show the active one.
-    if dm_service != "active":
-        for alternative in ("gdm3", "lightdm"):
-            if display.get(alternative + "_service") == "active":
-                actual_dm = alternative
-                dm_service = "active"
-                dm_installed = bool(package(report, alternative).get("installed"))
-                break
-    dm_name = {"gdm3": "GDM3", "lightdm": "LightDM"}.get(actual_dm, "")
-    if dm_service == "active":
-        dm_state = "ok" if dm_installed else "unknown"
+    # Installed packages, configured default and actual services are separate
+    # facts. Two active managers are ambiguous; an installed but inactive second
+    # manager is not a second running desktop/login session.
+    installed_dms = [name for name in ("gdm3", "lightdm")
+                     if package(report, name).get("installed")]
+    running_dms = [name for name in ("gdm3", "lightdm")
+                   if display.get(name + "_service") == "active"]
+    dm_names = {"gdm3": "GDM3", "lightdm": "LightDM"}
+    if len(running_dms) > 1:
+        dm_node = Node("登录管理器", "unknown", "GDM3 + LightDM",
+                       "双服务运行 · 默认" + dm_names.get(actual_dm, "未识别"),
+                       "/etc/X11/default-display-manager",
+                       "两个登录管理器服务都报告运行中；可能争用同一 seat，"
+                       "不能仅从运行状态判断哪个创建了当前会话。")
+    elif len(installed_dms) > 1 and not running_dms and actual_dm not in installed_dms:
+        dm_node = Node("登录管理器", "bad", "GDM3 + LightDM",
+                       "均已安装 · 服务未运行 · 默认未识别",
+                       "/etc/X11/default-display-manager",
+                       "两个管理器软件包均已安装，但无服务运行；安装并不意味着创建了会话。")
     else:
-        dm_state = "unknown" if session else "bad"
-    dm_node = Node("登录管理器", dm_state,
-                   (dm_name or "未识别") + (" · 运行" if dm_service == "active" else " · 未运行"),
-                   "v" + version(report, actual_dm) if dm_installed else "版本未知",
-                   "/etc/X11/default-display-manager",
-                   "GDM3/LightDM 是登录管理器，不是虚拟显示器。")
+        detected = running_dms[0] if running_dms else (
+            actual_dm if actual_dm in installed_dms else
+            (installed_dms[0] if installed_dms else ""))
+        mismatch = bool(running_dms and actual_dm in dm_names
+                        and detected != actual_dm)
+        dm_installed = detected in installed_dms
+        dm_running = bool(running_dms)
+        dm_state = ("unknown" if mismatch or (dm_running and not dm_installed)
+                    else ("ok" if dm_running else ("unknown" if graphical else "bad")))
+        dm_detail = "v" + version(report, detected) if dm_installed else "版本未知"
+        if mismatch:
+            dm_detail += " · 默认" + dm_names[actual_dm]
+        else:
+            other = next((dm_names[name] for name in installed_dms if name != detected), "")
+            if other:
+                dm_detail += " · 另装" + other
+        dm_node = Node("登录管理器", dm_state,
+                       dm_names.get(detected, "未识别") +
+                       (" · 运行" if dm_running else " · 未运行"),
+                       dm_detail, "/etc/X11/default-display-manager",
+                       ("默认配置与实际运行服务不一致，请核对 systemctl 和默认登录管理器。"
+                        if mismatch else "安装了两个管理器不代表两个服务同时运行；"
+                        "运行中的登录管理器也不证明用户桌面已建立。"))
 
     proto = "X11" if session_type == "x11" else ("Wayland" if session_type == "wayland" else "")
-    if proto:
+    if truncated:
+        protocol = Node("图形协议", "unknown", "会话列表未完整", "图形协议待核实",
+                        "loginctl list-sessions",
+                        "系统会话数量超过只读检测上限，不能只取前面几个并断言协议。")
+    elif multiple:
+        types = ["X11" if entry["type"] == "x11" else "Wayland" for entry in graphical]
+        unique_types = list(dict.fromkeys(types))
+        p_value = "+".join(unique_types) if len(unique_types) > 1 else f"{unique_types[0]}×{len(types)}"
+        protocol = Node("图形协议", "unknown", p_value, "多会话 · 待选择",
+                        "loginctl list-sessions",
+                        "多个图形用户会话可能使用不同图形协议；不能任选一个标绿。")
+    elif proto:
         p_state = "ok" if proto == "Wayland" or has_socket else "unknown"
         p_value = proto
         p_detail = ("Xorg " + version(report, "xserver-xorg-core")) if proto == "X11" else "Wayland 会话"
         p_path = ("/tmp/.X11-unix/" + display.get("x11_socket_paths", ["X?"])[0]) if proto == "X11" and has_socket else (
             "/run/user/" + str(session.get("uid")) if proto == "Wayland" and session.get("uid") else "/run/user/…")
-        p_explain = "已检测到用户图形协议；Xorg 是 X11 的常见服务器实现。"
+        p_explain = "已检测到唯一用户图形会话的协议；Xorg 是 X11 的常见服务器实现。"
     elif has_socket:
         p_state, p_value, p_detail, p_path = "unknown", "X11 待登录", "发现 X socket", "/tmp/.X11-unix"
         p_explain = "发现 X11 Socket，但尚无确认的活跃图形用户会话。"
     else:
         p_state, p_value, p_detail, p_path = "bad", "未建立", "协议待检测", "Xorg / Wayland"
         p_explain = "未检测到活跃 X11/Wayland 图形协议，不能推断桌面可被控制。"
-    protocol = Node("图形协议", p_state, p_value, p_detail, p_path, p_explain)
+    if not multiple and not truncated:
+        protocol = Node("图形协议", p_state, p_value, p_detail, p_path, p_explain)
 
-    depkg = desktop_package(selected)
-    desk_exists = bool(package(report, depkg).get("installed")) if depkg else False
-    d_state = "ok" if desktop and desk_exists else ("unknown" if selected else "bad")
-    d_path = {"XFCE": "/usr/share/xsessions", "MATE": "/usr/share/xsessions",
-              "GNOME": "/usr/share/wayland-sessions", "KDE": "/usr/share/xsessions"}.get(selected, "—")
-    desk = Node("桌面环境", d_state, selected or "未检测到",
-                ("v" + version(report, depkg)) if desk_exists else ("已装但未登录" if selected else "未安装"),
-                d_path, "软件包存在并不代表已启动；优先识别真实活跃的用户桌面。")
+    if truncated:
+        desk = Node("桌面环境", "unknown", "会话列表未完整", "桌面待核实",
+                    "loginctl list-sessions", "会话扫描被截断，无法确认全部活动桌面。")
+    elif multiple:
+        desktops = [desktop_name(entry) or "未知桌面" for entry in graphical]
+        unique_desktops = list(dict.fromkeys(desktops))
+        label = ("+".join(unique_desktops) if len(unique_desktops) > 1
+                 else f"{unique_desktops[0]}×{len(desktops)}")
+        desk = Node("桌面环境", "unknown", label, "多用户会话",
+                    "loginctl list-sessions",
+                    "检测到多个已登录的图形桌面，不能仅凭软件包或会话顺序判断 RustDesk 目标。")
+    else:
+        depkg = desktop_package(selected)
+        desk_exists = bool(package(report, depkg).get("installed")) if depkg else False
+        d_state = "ok" if desktop and desk_exists else ("unknown" if selected else "bad")
+        d_path = {"XFCE": "/usr/share/xsessions", "MATE": "/usr/share/xsessions",
+                  "GNOME": "/usr/share/wayland-sessions", "KDE": "/usr/share/xsessions"}.get(selected, "—")
+        desk = Node("桌面环境", d_state, selected or "未检测到",
+                    ("v" + version(report, depkg)) if desk_exists else ("已装但未登录" if selected else "未安装"),
+                    d_path, "软件包存在并不代表已启动；优先识别真实活跃的用户桌面。")
 
-    if session:
-        sp = session_display(session) or signals.get("session_display", "")
+    if truncated:
+        user_session = Node("图形会话", "unknown", "会话数量超限", "需人工确认",
+                            "loginctl list-sessions",
+                            "会话数量超过安全检查上限，不能声称没有其他图形会话。")
+    elif multiple:
+        parts = []
+        for entry in graphical[:4]:
+            sid_text = str(entry.get("id") or "?")[:24]
+            label = desktop_name(entry) or "?"
+            proto_text = "X11" if entry["type"] == "x11" else "Wayland"
+            parts.append(f"{sid_text}:{label}/{proto_text}({entry['state']})")
+        if len(graphical) > 4:
+            parts.append(f"另有{len(graphical)-4}个")
+        user_session = Node("图形会话", "unknown", f"多会话 {len(graphical)}",
+                            " · ".join(parts), "loginctl list-sessions",
+                            "存在多个在线/活跃图形用户会话；需指定 session ID、座席和 DISPLAY"
+                            " 才能确认当前分辨率及 RustDesk 正在接管的会话。")
+    elif session:
+        sp = unique_display or signals.get("session_display", "")
         if not sp and real_x11_output:
             sp = x_display
         s_value = (sid + " · " if sid else "") + (sp or proto)
         s_state = "ok" if proto else "unknown"
-        s_detail = res or "分辨率待核实"
+        s_detail = res if real_x11_output else "分辨率待核实"
         s_path = "logind session " + sid if sid else "loginctl"
         s_explain = "logind 有活动用户会话；分辨率属于显示输出设置，非登录管理器。"
     else:
         s_state, s_value, s_detail, s_path = "bad", "用户未登录", "没有可用会话", "loginctl"
         s_explain = "缺少已确认的活动图形用户会话。GDM/LightDM 服务运行不代表用户已登录。"
-    user_session = Node("图形会话", s_state, s_value, s_detail, s_path, s_explain)
+    if not multiple and not truncated:
+        user_session = Node("图形会话", s_state, s_value, s_detail, s_path, s_explain)
 
     if installed:
         r_state = "ok" if service == "active" else "bad"
         r_value = "运行中" if service == "active" else "服务未启动"
         r_detail = "v" + version(report, "rustdesk")
+        if r_state == "ok" and (multiple or truncated):
+            r_state = "unknown"
+            r_value = "会话目标待确认"
         if r_state == "ok" and proto == "Wayland":
             requires = ["pipewire", "xdg-desktop-portal"]
             if desktop == "GNOME":
@@ -281,7 +366,8 @@ def build(report: dict, signals: dict) -> list[Node]:
     else:
         r_state, r_value, r_detail = "bad", "未安装", "需要 RustDesk"
     rustdesk = Node("RustDesk", r_state, r_value, r_detail, "/usr/bin/rustdesk",
-                    "安装及后台服务运行不代表屏幕捕获和远控认证已验证。")
+                    "安装及后台服务运行不代表屏幕捕获和远控认证已验证；"
+                    "多个会话时需要另行验证实际捕获的座席和会话。")
 
     if got_id:
         id_state, id_value, id_detail = "ok" if r_state == "ok" else "unknown", got_id, "ID 已读出"

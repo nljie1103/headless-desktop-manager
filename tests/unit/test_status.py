@@ -25,4 +25,16 @@ from unittest.mock import patch
 with patch.object(pathlib.Path, 'is_file', side_effect=PermissionError('root-only state')):
     assert status_json.rollback_marker_state('/var/lib/hdm') is None
 assert status_json.rollback_marker_state('/definitely/nonexistent/hdm-state') is False
+# The list-sessions scan is bounded; an incomplete list must be explicitly
+# surfaced so that the chain never presents one session as the only session.
+def mock_logind(*args, **kwargs):
+    if args[:2] == ('loginctl', 'list-sessions'):
+        return 0, '\n'.join(f"c{i} {i} user seat0" for i in range(30))
+    if args[:2] == ('loginctl', 'show-session'):
+        return 0, "Type=x11\nDesktop=xfce\nState=active\nClass=user"
+    return 127, ''
+with patch.object(status_json, 'run', side_effect=mock_logind):
+    found, truncated = status_json.sessions()
+assert len(found) == 24 and truncated is True
+assert found[0]['id'] == 'c0' and found[-1]['id'] == 'c23'
 print('PASS read-only JSON diagnostics and root-only rollback-state handling')

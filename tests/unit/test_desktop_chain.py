@@ -32,12 +32,12 @@ assert [n.name for n in nodes] == [
 assert all(n.state == "ok" for n in nodes), nodes
 assert nodes[1].value.startswith("GDM3")
 assert nodes[3].value == "XFCE"  # active XFCE overrides installed GNOME
-assert nodes[4].detail == "1920x1080"
+assert nodes[4].detail == "分辨率待核实"  # xrandr DISPLAY not yet linked to session
 assert nodes[6].value == "123456"
 assert "外部" not in nodes[6].detail
 # A real connected Xrandr virtual display should turn the first node green,
 # even if /sys/class/drm is hidden by a cloud/container environment.
-with patch.object(chain, "session_display", return_value=""):
+with patch.object(chain, "session_display", return_value=":0"):
     virtual = chain.build(base, {**signals, "drm":"unknown", "xrandr_output":"DUMMY0",
                                  "xrandr_display":":0"})
 assert virtual[0].state == "ok" and "DUMMY0" in virtual[0].value
@@ -87,6 +87,77 @@ ready_wayland = {**wayland, "packages": {**wayland["packages"], **{
 assert chain.build(ready_wayland, {"manager": "gdm3", "drm": "unknown",
                                   "resolution": "", "rustdesk_id": ""})[5].state == "ok"
 
+# Two login managers installed does NOT mean both are simultaneously
+# running; the axis should show the actual active service and the other package.
+installed_both = {**base, "packages": {**base["packages"],
+    "lightdm": {"installed": True, "version": "1.26"}}}
+with patch.object(chain, "session_display", return_value=":0"):
+    one_manager = chain.build(installed_both, signals)
+assert one_manager[1].state == "ok" and "GDM3" in one_manager[1].value
+assert "另装LightDM" in one_manager[1].detail
+# Both packages installed with neither service active still shows both names.
+no_running = {**installed_both, "display": {**base["display"],
+    "gdm3_service": "inactive", "lightdm_service": "inactive"}}
+none_running = chain.build(no_running, {**signals, "manager": ""})
+assert none_running[1].state == "bad"
+assert "GDM3 + LightDM" in none_running[1].value
+assert "服务未运行" in none_running[1].detail
+
+# Both services active cannot be green -- even with one configured default.
+dual_manager = {**installed_both,
+    "display": {**base["display"], "lightdm_service": "active"}}
+both = chain.build(dual_manager, signals)
+assert both[1].state == "unknown" and "GDM3 + LightDM" in both[1].value
+assert "双服务运行" in both[1].detail
+assert "默认GDM3" in both[1].detail
+# Default selected GDM3 but actual service LightDM only: expose mismatch.
+wrong_default = {**installed_both, "display": {**base["display"],
+    "gdm3_service": "inactive", "lightdm_service": "active"}}
+mismatched = chain.build(wrong_default, signals)
+assert mismatched[1].state == "unknown" and mismatched[1].value.startswith("LightDM")
+assert "默认GDM3" in mismatched[1].detail
+# Two *graphical user* sessions must not select the first desktop, DISPLAY,
+# protocol or Xrandr resolution as definitive. One is active, one online.
+dual_sessions = {**installed_both, "sessions": [
+    {"id":"c2", "class":"user", "state":"active", "type":"x11", "desktop":"xfce"},
+    {"id":"c3", "class":"user", "state":"online", "type":"wayland", "desktop":"gnome"}]}
+with patch.object(chain, "session_display", return_value=":0"):
+    multi = chain.build(dual_sessions, {**signals, "xrandr_output": "DUMMY0", "xrandr_display": ":0"})
+assert len(multi) == 7
+assert multi[2].state == "unknown" and "X11" in multi[2].value and "Wayland" in multi[2].value
+assert multi[3].state == "unknown" and "XFCE" in multi[3].value and "GNOME" in multi[3].value
+assert multi[4].state == "unknown" and multi[4].value == "多会话 2"
+assert "c2:XFCE/X11" in multi[4].detail and "c3:GNOME/Wayland" in multi[4].detail
+assert "1920x1080" not in multi[4].detail
+assert multi[5].state == "unknown" and multi[6].state == "unknown"
+assert multi[0].value == "DRM 已连接"  # no arbitrary session xrandr association
+# Reversed listing must still show both protocols and desktops.
+rev = chain.build({**dual_sessions, "sessions": list(reversed(dual_sessions["sessions"]))}, signals)
+assert rev[2].state == "unknown" and "X11" in rev[2].value and "Wayland" in rev[2].value
+assert rev[3].state == "unknown" and "GNOME" in rev[3].value and "XFCE" in rev[3].value
+# Two sessions using the same protocol and desktop still count as two.
+same = chain.build({**dual_sessions, "sessions": [dual_sessions["sessions"][0],
+    {**dual_sessions["sessions"][0], "id":"c4", "state":"online"}]}, signals)
+assert same[2].value == "X11×2" and same[3].value == "XFCE×2"
+assert same[4].state == "unknown" and same[5].state == "unknown"
+# A single session with a different DISPLAY from the caller's xrandr cannot
+# inherit the caller's resolution or claimed connected DUMMY0.
+with patch.object(chain, "session_display", return_value=":1"):
+    mismatch_display = chain.build(installed_both, {**signals,
+        "xrandr_output":"DUMMY0", "xrandr_display":":0"})
+assert mismatch_display[4].detail == "分辨率待核实"
+assert mismatch_display[0].value == "DRM 已连接"
+# Large session lists are capped for performance but never presented as one
+# certain graphical session just because only one appears in the scan.
+cutoff = chain.build({**base, "sessions_truncated": True}, signals)
+assert all(cutoff[idx].state == "unknown" for idx in (2,3,4,5))
+assert "超限" in cutoff[4].value
+# Non-graphical SSH/TTY and greeter sessions cannot masquerade as user desktops.
+not_users = chain.build({**base, "sessions": [
+    {"id":"c1", "class":"greeter", "state":"active", "type":"wayland", "desktop":"gnome"},
+    {"id":"c2", "class":"user", "state":"active", "type":"tty", "desktop":""}]}, signals)
+assert not_users[4].state == "bad"
+
 # The JSON entry point must not emit ANSI, errors, credentials, or interactive prompts.
 p = subprocess.run(["bash", str(root / "hdm.sh"), "--chain-json"],
                    capture_output=True, text=True, check=True, timeout=20)
@@ -95,4 +166,4 @@ assert len(actual) == 7
 assert all(set(n) == set(vars(nodes[0])) for n in actual)
 assert not ("password" in p.stdout.lower() or "auth_token" in p.stdout)
 assert not p.stderr
-print("PASS 7-node chain status, graph widths, X11/Wayland, active desktop, paths and JSON")
+print("PASS 7-node chain, dual managers and concurrent user sessions, DISPLAY match, truncated scans and JSON")

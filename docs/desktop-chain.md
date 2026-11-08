@@ -60,3 +60,19 @@ hdm --chain-json
 ## v4.3.0 阶段与菜单对应关系
 
 状态图的第 1–7 个节点分别对应主菜单 1–7：显示输出、登录管理器、图形协议、桌面环境、图形用户会话、RustDesk、设备 ID。新增第 **8 菜单「HDM 脚本管理」**，负责更新及安全卸载 HDM、更新日志、安装日志、完整诊断导出、智能部署和备份。此第 8 项不属于图形/远控链路，属于管理工具本身。
+
+## v4.5.1：双登录管理器与多个图形会话
+
+**同时安装 GDM3 和 LightDM 并不等于两个登录管理器同时运行。** HDM 区分以下三种状态：
+
+| 本机事实 | 登录管理器节点 | 意义 |
+|---|---|---|
+| GDM3 + LightDM 均安装；仅 LightDM 服务运行，默认也是 LightDM | `LightDM · 运行`（绿），详细信息含 `另装GDM3` | 已安装两套，但当前只有 LightDM 报告运行 |
+| GDM3 和 LightDM 服务都报告运行 | `GDM3 + LightDM`（黄），`双服务运行` | 可能存在 seat 争用，不能直接断定哪个负责当前图形会话 |
+| 默认 GDM3，实际只有 LightDM 服务在运行 | `LightDM · 运行`（黄），`默认GDM3` | 系统默认配置与运行状态不一致，需要排查 |
+
+若存在 XFCE/X11 session c2 和 GNOME/Wayland session c3 两个 `class=user`、`state=active/online` 的图形用户会话，线轴的图形协议节点显示 `X11+Wayland`，桌面节点 `XFCE+GNOME`，会话节点 `多会话 2`，详细信息列出 `c2:XFCE/X11(active)` 和 `c3:GNOME/Wayland(online)`；所有涉及选择具体会话的节点均标黄。两个都为 XFCE/X11 仍然标注 `X11×2 / XFCE×2`，不会折叠成一条绿色会话。登录管理器的 greeter 和 SSH/TTY 不算登录的桌面用户会话。
+
+**RustDesk 当前控制哪个座席 / DISPLAY 无法只靠 `systemctl` 和 `loginctl` 判定。** 因此服务正常和设备 ID 可读不代表特定会话已可捕获；多会话时线轴中 RustDesk 和设备 ID 同样显示待核实。Xrandr 只确认其自身有权限访问的 DISPLAY；只有与唯一 loginctl 图形会话的 Display 完全相同且 X Socket 匹配时才关联分辨率，其他情况不猜测。如果会话列表超过检测上限则标注扫描未完成，避免把截断的部分当成全部。
+
+查看完整节点：`sudo hdm --chain`；程序结构化输出：`sudo hdm --chain-json`。以上都是只读检查；不会因为检测到两个管理器而自动停止或卸载任何服务。

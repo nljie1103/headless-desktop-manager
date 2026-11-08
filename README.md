@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.5.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -120,6 +120,8 @@ HDM 首页现在直接展示 **显示输出 → 登录管理器 → 图形协议
 - **绿色圆点**：本地已检测到符合要求的服务、会话或软件；**红色圆点**：明确缺失或异常；**黄色菱形**：状态未确认。绿色不代表远端画面已验证。
 - 每个节点下面显示已识别的组件、版本号或实际分辨率、路径；设备 ID 从 RustDesk 本机查询。查询不到时明确标记，而非填写假 ID。
 - 宽终端显示完整横向数轴；普通终端自动分为上下两段；窄终端自动使用纵向步骤。菜单编号仍在流程图下方。
+- **双登录管理器 / 多会话识别（v4.5.1）**：若 GDM3 和 LightDM 都已安装，仅一个在运行时线轴显示实际运行者，并注明另一管理器已安装；若两者同时运行或默认配置与运行者冲突，则显示黄色待核实。多个用户图形会话则分别显示协议（例如 `X11+Wayland`）、桌面（`XFCE+GNOME`）以及会话编号，RustDesk 目标标黄待核实，不会随便选一个会话标绿。
+- **分辨率归属**：只有 Xrandr 的 DISPLAY 与唯一活动图形用户会话的 Display 一致且匹配 X Socket，才确认该会话的实际分辨率；多个会话时必须人工核实实际远控画面。
 - **LightDM/GDM3 是图形登录管理器，不是虚拟显示器。** Xorg 是 X11 的常见显示服务器，Wayland 是另一种显示协议。分辨率取决于实际显示输出，会话仅提供可运行桌面的上下文。
 
 可查看完整路径、节点判断依据：

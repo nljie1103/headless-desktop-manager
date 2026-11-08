@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.5.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -187,3 +187,7 @@ Earlier releases v4.4.0/v4.4.1 erroneously compared the IDs `8.1` and `8.10` as 
 All eight primary stages are preserved, but common tasks are single-level commands: **2 → 3** removes GDM3, **4 → 4** removes GNOME, **4 → 1** installs XFCE + Xorg + LightDM, **6 → 1/2/3** manages RustDesk, **8 → 1** upgrades HDM. Detailed historical features remain grouped under Advanced Tools. Uninstall displays the APT dependency plan and then asks for just one choice: **1 Keep package configuration (remove)**, **2 Delete package-managed system configuration (purge)**, **0/q Cancel**. Both removal modes simulate their actual dependency plans and reject removal of unrelated protected system, SSH, RustDesk, or Xorg components. Purging does not delete user home directories or run autoremove. Lowercase **q** or **0** goes back one submenu, **Q** exits immediately, and **q** exits from the main menu only.
 
 When `sudo hdm` is missing after upgrading from an older updater, correct the release-directory access permissions via SSH: `sudo chmod -R a+rX "$(sudo readlink -f /opt/hdm/current)" && sudo chmod 755 /opt/hdm/current/hdm.sh && sudo hdm`. That only changes HDM source permissions, not GNOME or RustDesk.
+
+### v4.5.1: Multiple display managers and graphical user sessions
+
+The seven-node chain distinguishes installed display managers, the configured default, and running GDM3/LightDM services. A second **installed** but inactive manager is listed as installed; if **both services** are active, or the configured default differs from the running one, the manager node becomes amber. When multiple graphical user sessions exist, protocol and desktop nodes show combinations such as `X11+Wayland` and `XFCE+GNOME`. The session node reports the count and session IDs rather than arbitrarily selecting the first user. RustDesk capture target is marked unverified: an active service and device ID cannot prove which session it controls. Xrandr resolution is attributed to a user session only when the DISPLAY matches the sole loginctl graphical session and X socket. Logind scans that reach their limit are explicitly inconclusive rather than incorrectly green.

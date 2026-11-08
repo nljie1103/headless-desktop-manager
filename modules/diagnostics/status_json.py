@@ -48,9 +48,13 @@ def os_release():
 def sessions():
     code, raw = run('loginctl', 'list-sessions', '--no-legend', timeout=6)
     if code != 0:
-        return []
+        return [], False
     result = []
-    for line in raw.splitlines()[:15]:
+    all_sessions = raw.splitlines()
+    # Keep this health query responsive; expose truncation rather than
+    # silently claiming that the first N entries are the only sessions.
+    truncated = len(all_sessions) > 24
+    for line in all_sessions[:24]:
         fields = line.split()
         if not fields:
             continue
@@ -63,7 +67,7 @@ def sessions():
         data = dict(p.split('=', 1) for p in details.splitlines() if '=' in p)
         result.append({'id': sid, 'type': data.get('Type', ''), 'desktop': data.get('Desktop', ''),
                        'state': data.get('State', ''), 'class': data.get('Class', '')})
-    return result
+    return result, truncated
 
 
 def utc_now():
@@ -117,7 +121,7 @@ def collect():
                                     'xserver-xorg-video-dummy','xserver-xorg-core','xvfb','rustdesk','lightdm',
                                     'lightdm-gtk-greeter','xfce4','xfce4-session','mate-session-manager',
                                     'pipewire','xdg-desktop-portal','xdg-desktop-portal-gnome')}
-    ss = sessions()
+    ss, sessions_truncated = sessions()
     # GDM greeter and user desktop are distinct; do not claim a working GNOME session from gdm3 alone.
     gnome_x11 = any(s['type'] == 'x11' and (s['desktop'].lower() in ('gnome','ubuntu','ubuntu-xorg') or 'gnome' in s['desktop'].lower()) and s['state'] == 'active' and s['class'] == 'user' for s in ss)
     gnome_wayland = any(s['type'] == 'wayland' and (s['desktop'].lower() in ('gnome','ubuntu') or 'gnome' in s['desktop'].lower()) and s['state'] == 'active' and s['class'] == 'user' for s in ss)
@@ -136,6 +140,7 @@ def collect():
             'x11_socket_paths': x11_sockets(),
         },
         'sessions': ss,
+        'sessions_truncated': sessions_truncated,
         'gnome': {'active_gnome_x11_user_session_detected': gnome_x11,
                   'active_gnome_wayland_user_session_detected': gnome_wayland,
                   'remote_picture_captured': 'not_tested'},
