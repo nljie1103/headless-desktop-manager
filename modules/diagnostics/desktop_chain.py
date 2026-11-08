@@ -187,6 +187,18 @@ def build(report: dict, signals: dict) -> list[Node]:
     display = report.get("display", {})
     drm = signals.get("drm", "unknown")
     has_socket = bool(display.get("x11_socket_paths"))
+    # Green may signify the local login entry point, not a logged-in user.
+    # Reject a stale X socket when no Xorg process is running.
+    x11_login_ready = (
+        not multiple and not truncated and not graphical
+        and signals.get("manager") == "lightdm"
+        and display.get("lightdm_service") == "active"
+        and display.get("xorg_running") is True
+        and has_socket
+        and package(report, "lightdm").get("installed")
+        and package(report, "lightdm-gtk-greeter").get("installed")
+        and bool(package(report, desktop_package(selected)).get("installed"))
+    )
     has_dummy = bool(display.get("hdm_dummy_config_present"))
     res = signals.get("resolution", "")
     x_output = signals.get("xrandr_output", "")
@@ -290,9 +302,14 @@ def build(report: dict, signals: dict) -> list[Node]:
         p_path = ("/tmp/.X11-unix/" + display.get("x11_socket_paths", ["X?"])[0]) if proto == "X11" and has_socket else (
             "/run/user/" + str(session.get("uid")) if proto == "Wayland" and session.get("uid") else "/run/user/…")
         p_explain = "已检测到唯一用户图形会话的协议；Xorg 是 X11 的常见服务器实现。"
+    elif x11_login_ready:
+        p_state, p_value, p_detail, p_path = (
+            "ok", "X11 登录入口就绪", "Xorg 运行 · 待登录", "/tmp/.X11-unix")
+        p_explain = ("已确认 LightDM、Xorg 进程、X11 Socket、Greeter 和桌面软件。"
+                     "这表示本地登录入口已启动，不证明用户已经登录或 RustDesk 已验证。")
     elif has_socket:
-        p_state, p_value, p_detail, p_path = "unknown", "X11 待登录", "发现 X socket", "/tmp/.X11-unix"
-        p_explain = "发现 X11 Socket，但尚无确认的活跃图形用户会话。"
+        p_state, p_value, p_detail, p_path = "unknown", "X11 待核实", "发现 X socket", "/tmp/.X11-unix"
+        p_explain = "仅检测到 X Socket，没有同时确认 LightDM/Xorg；Socket 可能是残留的。"
     elif package(report, "xserver-xorg-core").get("installed"):
         p_state, p_value, p_detail, p_path = (
             "unknown", "Xorg 已安装", "无活动 X11 会话", "/usr/bin/Xorg")
@@ -356,9 +373,15 @@ def build(report: dict, signals: dict) -> list[Node]:
         s_detail = res if real_x11_output else "分辨率待核实"
         s_path = "logind session " + sid if sid else "loginctl"
         s_explain = "logind 有活动用户会话；分辨率属于显示输出设置，非登录管理器。"
+    elif x11_login_ready and output.state == "ok" and dm_node.state == "ok":
+        s_state, s_value, s_detail, s_path = (
+            "ok", "登录入口就绪", "待输入密码", "LightDM / Xorg")
+        s_explain = ("本地 DRM 输出、LightDM、Xorg、Greeter 与桌面依赖已经具备。"
+                     "绿色表示登录入口可用的本地条件已具备，不代表已登录用户会话；"
+                     "RustDesk 登录前画面与重启恢复仍需实际验证。")
     else:
-        s_state, s_value, s_detail, s_path = "unknown", "用户未登录", "需从登录界面登录", "loginctl"
-        s_explain = "缺少已确认的活动图形用户会话。GDM/LightDM 服务运行不代表用户已登录。"
+        s_state, s_value, s_detail, s_path = "unknown", "用户未登录", "登录入口尚未确认", "loginctl"
+        s_explain = "没有已登录用户图形会话，也未能确认本地图形登录入口就绪。"
     if not multiple and not truncated:
         user_session = Node("图形会话", s_state, s_value, s_detail, s_path, s_explain)
 

@@ -98,6 +98,12 @@ def sessions():
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
+def xorg_running():
+    # An X11 socket alone could be stale.
+    code, _ = run('pgrep', '-x', 'Xorg', timeout=2)
+    return code == 0
+
+
 def x11_sockets():
     base = pathlib.Path("/tmp/.X11-unix")
     try:
@@ -164,6 +170,7 @@ def collect():
             'xvfb_service': service('hdm-xvfb'),
             'x11_socket_present': bool(x11_sockets()),
             'x11_socket_paths': x11_sockets(),
+            'xorg_running': xorg_running(),
         },
         'sessions': ss,
         'sessions_truncated': sessions_truncated,

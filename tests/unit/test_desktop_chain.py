@@ -172,6 +172,58 @@ assert not_users[4].state == "unknown"
 # installed instead of blaming DRM or declaring the protocol unrecognized.
 assert chain.build({**without_user, "sessions": []}, signals)[2].value == "Xorg 已安装"
 
+# Pre-login must be green when the LightDM+Xorg local login endpoint is
+# demonstrably started; authenticated user sessions remain independently empty.
+prelogin = {
+    "packages": {name: {"installed": True, "version": "1.0"} for name in (
+        "xfce4-session", "xserver-xorg-core", "lightdm",
+        "lightdm-gtk-greeter", "rustdesk")},
+    "display": {"lightdm_service": "active", "gdm3_service": "inactive",
+                "xorg_running": True, "x11_socket_paths": ["X0"]},
+    "sessions": [], "rustdesk": {"service": "active"},
+}
+prelogin_signals = {"manager": "lightdm", "drm": "connected",
+                    "resolution": "", "rustdesk_id": "386105417"}
+before_login = chain.build(prelogin, prelogin_signals)
+assert len(before_login) == 7
+assert all(n.state == "ok" for n in before_login), before_login
+assert before_login[2].value == "X11 登录入口就绪"
+assert before_login[4].value == "登录入口就绪"
+assert before_login[4].detail == "待输入密码"
+assert len(chain.graphical_sessions(prelogin)) == 0
+
+# A stale X socket cannot make login readiness green.
+for disp in (
+    {**prelogin["display"], "xorg_running": False},
+    {**prelogin["display"], "lightdm_service": "inactive"},
+    {**prelogin["display"], "x11_socket_paths": []},
+):
+    not_ready = chain.build({**prelogin, "display": disp}, prelogin_signals)
+    assert not_ready[4].state != "ok", not_ready[4]
+assert chain.build(
+    {**prelogin, "packages": {**prelogin["packages"],
+        "lightdm-gtk-greeter": {"installed": False, "version": None}}},
+    prelogin_signals
+)[4].state != "ok"
+assert chain.build(prelogin, {**prelogin_signals, "drm": "disconnected"})[4].state != "ok"
+assert chain.build(prelogin, {**prelogin_signals, "manager": "gdm3"})[4].state != "ok"
+assert chain.build({**prelogin, "sessions_truncated": True}, prelogin_signals)[4].state != "ok"
+
+# Post-login still displays the real user session ID and X11 display.
+after_login = {**prelogin, "sessions": [
+    {"id": "3376", "class": "user", "state": "active", "type": "x11", "desktop": "xfce"}]}
+with patch.object(chain, "session_display", return_value=":0"):
+    logged_in = chain.build(after_login, prelogin_signals)
+assert logged_in[4].state == "ok" and "3376" in logged_in[4].value
+assert "登录入口就绪" not in logged_in[4].value
+
+# The process detection in read-only diagnostics must not mistake a socket
+# for a running process.
+with patch.object(chain.status_json, "run", return_value=(0, "2132")):
+    assert chain.status_json.xorg_running()
+with patch.object(chain.status_json, "run", return_value=(1, "")):
+    assert not chain.status_json.xorg_running()
+
 # A headless XFCE/LightDM/RustDesk host can have every package installed but
 # no *logged-in* user. Inventory must say 0 missing, DM pending start, user
 # pending login; it must never declare GNOME/GDM3 missing.

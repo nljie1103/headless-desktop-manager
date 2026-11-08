@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.5.7-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.8-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -82,7 +82,7 @@ sudo hdm
 
 Installing HDM **does not automatically install GNOME or change the display manager**. In an interactive terminal it opens the menu; `HDM_NO_AUTO_MENU=1` skips that auto-opening.
 
-The v4.5.7 menu follows the seven-stage desktop dependency axis exactly: **1 Display output**, **2 Login manager**, **3 Graphics protocol**, **4 Desktop environment**, **5 Graphical sessions**, **6 RustDesk**, **7 Device ID**, and **8 HDM maintenance / quick setup**. There are 74 entries, including 63 actions. All independent desktop and login-manager installation/removal functions are preserved. Explicit menu installs, updates, startup and auto-start toggles avoid redundant y/N prompts; destructive or remote-disruptive actions retain one safety check. The 481 legacy menu declarations remain internal, not presented as duplicate diagnostics.
+The v4.5.8 menu follows the seven-stage desktop dependency axis exactly: **1 Display output**, **2 Login manager**, **3 Graphics protocol**, **4 Desktop environment**, **5 Graphical sessions**, **6 RustDesk**, **7 Device ID**, and **8 HDM maintenance / quick setup**. There are 74 entries, including 63 actions. All independent desktop and login-manager installation/removal functions are preserved. Explicit menu installs, updates, startup and auto-start toggles avoid redundant y/N prompts; destructive or remote-disruptive actions retain one safety check. The 481 legacy menu declarations remain internal, not presented as duplicate diagnostics.
 ---
 
 ## 🔗 Seven-stage dependency diagnostics (separate from the task menu)
@@ -94,6 +94,8 @@ Green means the **local** check succeeded, red means a confirmed missing/broken 
 Use `sudo hdm --chain` for full paths and explanations, or `sudo env HDM_HIDE_RUSTDESK_ID=1 hdm` to hide the device ID in screen-sharing demos. [Desktop chain design and limitations](docs/desktop-chain.md).
 
 v4.5.7 fixes the LightDM default-session save failure when an existing HDM-managed `99-zz-hdm-session.conf` was not on the backup allowlist. The authorization is exact-file-only and does not permit arbitrary LightDM configurations. Updating HDM does not modify the host login session.
+
+In v4.5.8, the LightDM/Xorg login entry point can be locally green before user authentication. The checks require the active LightDM service, live Xorg process, X11 socket, installed greeter and desktop, and detected display output. The node says login entry ready, awaiting password. Only after authentication does it display the real user session. This is not proof of RustDesk remote capture, lock screen or reboot recovery.
 
 Day-to-day paths: **2 → 3** start LightDM/GDM3, **3 → 1** inspect X11/Wayland/Xorg, **3 → 2** select a LightDM XFCE/MATE X11 session, **4 → 1** install XFCE without binding a login manager, **5 → 2** prepare the authenticated login greeter, **6 → 9** set the RustDesk password, **7 → 1** view device ID, and **8 → 4** update HDM.
 ### Graphical sessions and actual protocol management
