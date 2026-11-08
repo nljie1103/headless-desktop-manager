@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-hdm_menu_has_children() { awk -F '|' -v wanted="$1" '$1==wanted {found=1; exit}END{exit !found}' "$HDM_ROOT/ui/menus.tsv"; }
-hdm_menu_label() { awk -F '|' -v wanted="$1" '$4==wanted {print $3; exit}' "$HDM_ROOT/ui/menus.tsv"; }
-hdm_legacy_menu_label() { awk -F '|' -v wanted="$1" '$4==wanted {print $3; exit}' "$HDM_ROOT/ui/legacy-menus.tsv"; }
-hdm_menu_action_target() { awk -F '|' -v wanted="$1" '$1==wanted {print $2; exit}' "$HDM_ROOT/ui/menu-targets.tsv"; }
+hdm_menu_has_children() { awk -F '|' -v wanted="$1" '($1 "")==(wanted "") {found=1; exit}END{exit !found}' "$HDM_ROOT/ui/menus.tsv"; }
+hdm_menu_label() { awk -F '|' -v wanted="$1" '($4 "")==(wanted "") {print $3; exit}' "$HDM_ROOT/ui/menus.tsv"; }
+hdm_legacy_menu_label() { awk -F '|' -v wanted="$1" '($4 "")==(wanted "") {print $3; exit}' "$HDM_ROOT/ui/legacy-menus.tsv"; }
+hdm_menu_action_target() { awk -F '|' -v wanted="$1" '($1 "")==(wanted "") {print $2; exit}' "$HDM_ROOT/ui/menu-targets.tsv"; }
 hdm_menu_execute() {
   local id=$1 target
   target=$(hdm_menu_action_target "$id")

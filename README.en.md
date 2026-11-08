@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.4.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.4.2-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -177,3 +177,7 @@ Routine actions are direct: **2 → 2 → 1** removes GDM3, **4 → 2 → 1** re
 ### v4.4.1 update permission fix
 
 The official v4.4.0 tar update could install `hdm.sh` without an executable bit under a restrictive root umask, making `sudo hdm` appear missing. v4.4.1 fixes this before atomically switching versions and adds isolated umask-077 regression tests. If affected, run `sudo chmod 755 /opt/hdm/current/hdm.sh && sudo hdm` from SSH/provider console, then use menu **8 → 1** to update to the newest official Release. This does not modify desktop or RustDesk software.
+
+### Fixed menu ID collision (v4.4.2)
+
+Earlier releases v4.4.0/v4.4.1 erroneously compared the IDs `8.1` and `8.10` as equal in awk, making the direct HDM update action open an empty submenu. Use **8 → 10 → 1 → 2 → 2** to update these older installed versions to the latest official Release. With v4.4.2 installed, the normal one-click **8 → 1** action works correctly. All menu identifiers are now compared as exact strings, with an exhaustive menu-routing regression. If `sudo hdm` is unavailable after upgrading to v4.4.0, first repair the executable bit from SSH using `sudo chmod 755 /opt/hdm/current/hdm.sh`.
