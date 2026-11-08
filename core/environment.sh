@@ -48,6 +48,26 @@ hdm_env_active_session() {
   done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=129{print $1}')
   if ((!capped && (known || seen==0))); then printf 'none\n'; else printf 'unknown\n'; fi
 }
+# Check a *GNOME* user session, not just any running X11/Wayland desktop.
+# An XFCE/MATE session must never satisfy GDM3/GNOME readiness.
+hdm_env_gnome_session() {
+  local sid typ cls state desktop uncertain=0
+  hdm_has loginctl || { printf 'unknown\n'; return 0; }
+  while IFS= read -r sid; do
+    [[ $sid =~ ^[A-Za-z0-9_-]{1,48}$ ]] || continue
+    typ=$(loginctl show-session "$sid" -p Type --value 2>/dev/null) || { uncertain=1; continue; }
+    [[ $typ == x11 || $typ == wayland ]] || continue
+    cls=$(loginctl show-session "$sid" -p Class --value 2>/dev/null) || { uncertain=1; continue; }
+    state=$(loginctl show-session "$sid" -p State --value 2>/dev/null) || { uncertain=1; continue; }
+    [[ $cls == user && ( $state == active || $state == online ) ]] || continue
+    desktop=$(loginctl show-session "$sid" -p Desktop --value 2>/dev/null) || { uncertain=1; continue; }
+    case "${desktop,,}" in
+      gnome|gnome-*|ubuntu|ubuntu-*) printf '%s\n' "$typ"; return 0;;
+      '') uncertain=1;;
+    esac
+  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=128{print $1}')
+  if (( uncertain )); then printf 'unknown\n'; else printf 'none\n'; fi
+}
 hdm_env_drm_short() {
   case "$1" in connected) printf 已连接;; not-connected) printf 未连接;; *) printf 未知;; esac
 }

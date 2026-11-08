@@ -2,10 +2,11 @@
 # GNOME session checks deliberately separate packages, GDM greeter, DRM output,
 # loginctl graphical *user* session and RustDesk screen capture.
 hdm_session_report() {
-  local desktop drm session target gdm rustdesk
+  local desktop drm session gnome_session target gdm rustdesk
   desktop=$(hdm_env_desktop_kind)
   drm=$(hdm_env_drm_state)
   session=$(hdm_env_active_session)
+  gnome_session=$(hdm_env_gnome_session)
   gdm=$(hdm_service_state gdm3)
   rustdesk=$(hdm_service_state rustdesk)
   target=$(systemctl get-default 2>/dev/null || printf unknown)
@@ -19,6 +20,11 @@ hdm_session_report() {
     none) printf '活动用户会话   无\n';;
     *) printf '活动用户会话   无法确认（loginctl 数据不足）\n';;
   esac
+  case "$gnome_session" in
+    x11|wayland) printf 'GNOME 用户会话  %s（尚未验证远程画面）\n' "$gnome_session";;
+    none) printf 'GNOME 用户会话  无（其他桌面的会话不算 GNOME）\n';;
+    *) printf 'GNOME 用户会话  无法确认\n';;
+  esac
   printf 'RustDesk 服务  %s（不代表可捕获画面）\n' "$rustdesk"
   if ! hdm_installed gdm3; then
     printf '\n[缺失] 未安装 GDM3；当前桌面环境为 %s，不能按已安装 GNOME 进行会话修复。\n' "$desktop"
@@ -26,8 +32,8 @@ hdm_session_report() {
   elif [[ "$gdm" != active ]]; then
     printf '\n[阻断] GDM3 已安装但未运行；软件包存在不等于图形登录服务已启动。\n'
     printf '下一步：菜单 4 → 管理图形会话 → 启动/检查 GDM3；或 sudo hdm --session-start\n'
-  elif [[ "$session" != x11 && "$session" != wayland ]]; then
-    printf '\n[未就绪] GDM3 已运行，但尚无活跃图形用户会话。登录界面不等于桌面。\n'
+  elif [[ "$gnome_session" != x11 && "$gnome_session" != wayland ]]; then
+    printf '\n[未就绪] GDM3 已运行，但尚无可确认的 GNOME 用户会话。其他桌面或登录界面不等于 GNOME。\n'
   else
     printf '\n[待验证] 已检测到图形用户会话；仍需从另一设备确认图像与输入。\n'
   fi
@@ -43,7 +49,7 @@ hdm_session_protocol_report() {
   else
     if hdm_gdm_x11_enabled /etc/gdm3/custom.conf; then printf '已配置 GDM3 X11 模式。\n'; else printf '未强制 GDM3 X11。\n'; fi
   fi
-  printf '活动图形用户会话：%s\n' "$(hdm_env_active_session)"
+  printf '活动图形用户会话：%s；GNOME 用户会话：%s\n' "$(hdm_env_active_session)" "$(hdm_env_gnome_session)"
 }
 hdm_session_user_report() {
   local sid typ cls state remote desk count=0
@@ -94,8 +100,8 @@ hdm_session_start_gdm() {
   if [[ $(hdm_service_state gdm3) == active ]]; then
     printf 'GDM3 已在运行，无需重启。\n'
     hdm_session_report
-    if [[ $(hdm_env_active_session) != x11 && $(hdm_env_active_session) != wayland ]]; then
-      printf '[部分完成] 当前没有活动图形用户会话。\n'
+    if [[ $(hdm_env_gnome_session) != x11 && $(hdm_env_gnome_session) != wayland ]]; then
+      printf '[部分完成] 当前没有可确认的 GNOME 图形用户会话（其他桌面不算）。\n'
       return 3
     fi
     return 0
@@ -122,9 +128,9 @@ hdm_session_start_gdm() {
   printf 'GDM3 已启动；继续检查是否出现实际图形用户会话。\n'
   hdm_session_report
   local detected
-  detected=$(hdm_env_active_session)
+  detected=$(hdm_env_gnome_session)
   if [[ $detected != x11 && $detected != wayland ]]; then
-    printf '[部分完成] 登录管理器运行，但没有已登录的图形用户会话；RustDesk 仍可能拒绝连接。\n'
+    printf '[部分完成] 登录管理器运行，但没有已登录的 GNOME 图形用户会话；RustDesk 仍可能拒绝连接。\n'
     return 3
   fi
 }
@@ -160,7 +166,7 @@ hdm_session_repair() {
      "$output" "$(hdm_service_state gdm3)" "$(hdm_env_active_session)"
   if [[ $(hdm_service_state gdm3) == active ]]; then
     hdm_session_report
-    if [[ $(hdm_env_active_session) != x11 && $(hdm_env_active_session) != wayland ]]; then return 3; fi
+    if [[ $(hdm_env_gnome_session) != x11 && $(hdm_env_gnome_session) != wayland ]]; then return 3; fi
     return 0
   fi
   if [[ "$output" == not-connected ]]; then

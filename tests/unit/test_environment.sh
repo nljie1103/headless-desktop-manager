@@ -53,4 +53,32 @@ for name in etc state cache log; do [[ ! -e $TMP/$name ]]; done
 # Main menu displays detection summary immediately, without modifying system.
 output=$(printf '0\n' | bash "$ROOT/hdm.sh")
 [[ $output == *'显示'* && $output == *'桌面'* && $output != *'快速入口'* && $output != *'建议：'* ]]
-echo 'PASS environmental four-way preflight, conservative detection and RustDesk permissions'
+# A graphical session is not automatically a GNOME session. Regression for
+# containers that run an active XFCE/X11 desktop while GDM3 is absent or active.
+mkdir -p "$TMP/bin"
+cat > "$TMP/bin/loginctl" <<'MOCK_LOGINCTL'
+#!/usr/bin/env bash
+case "$1" in
+  list-sessions) echo "c2 1000 user - - active no -" ;;
+  show-session)
+    case "$4" in
+      Type) echo "$MOCK_SESSION_TYPE" ;;
+      Class) echo "$MOCK_SESSION_CLASS" ;;
+      State) echo "$MOCK_SESSION_STATE" ;;
+      Desktop) echo "$MOCK_SESSION_DESKTOP" ;;
+      *) exit 1 ;;
+    esac ;;
+  *) exit 1 ;;
+esac
+MOCK_LOGINCTL
+chmod +x "$TMP/bin/loginctl"
+mock_gnome_session() {
+  PATH="$TMP/bin:$PATH" MOCK_SESSION_DESKTOP="$1" MOCK_SESSION_TYPE="$2" \
+    MOCK_SESSION_CLASS="$3" MOCK_SESSION_STATE="$4" hdm_env_gnome_session
+}
+[[ $(mock_gnome_session xfce x11 user active) == none ]]
+[[ $(mock_gnome_session ubuntu x11 user active) == x11 ]]
+[[ $(mock_gnome_session gnome wayland user active) == wayland ]]
+[[ $(mock_gnome_session gnome x11 greeter active) == none ]]
+[[ $(mock_gnome_session '' x11 user active) == unknown ]]
+echo 'PASS environmental four-way preflight, GNOME-only session detection and RustDesk permissions'
