@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.4.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.4.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -99,9 +99,19 @@ sudo hdm
 
 ### 正式 Release 更新遇到 HTTP 504
 
-从 **v4.4.0** 起，正式更新先使用 GitHub Release 资产直链，遇到连接/HTTP 504 错误时自动改用 **GitHub API 同一资产的二进制下载**。所有下载依旧校验 Release 公布的原始 SHA256，若本机设置了独立可信 SHA256，也必须一致；校验不通过时不会切换版本。不会使用未经校验的第三方镜像。
+从 **v4.4.1** 起，正式更新先使用 GitHub Release 资产直链，遇到连接/HTTP 504 错误时自动改用 **GitHub API 同一资产的二进制下载**。所有下载依旧校验 Release 公布的原始 SHA256，若本机设置了独立可信 SHA256，也必须一致；校验不通过时不会切换版本。不会使用未经校验的第三方镜像。
 
 旧版本的开发分支更新保留在高级维护；新版本常用菜单 `8 → 1` 只安装最新正式 Release，并在直链 504 时自动使用 GitHub API 同资产 SHA256 下载。
+
+### v4.4.0 升级后 `sudo hdm` 提示找不到命令？
+
+v4.4.0 的正式归档更新器在严格的 root umask 下可能丢失 `hdm.sh` 的执行位。**v4.4.1 已修复**。如已遇到该问题，可通过独立 SSH / 云控制台运行：
+
+```bash
+sudo chmod 755 /opt/hdm/current/hdm.sh && sudo hdm
+```
+
+然后使用简洁菜单 `8 → 1` 更新至最新正式版。权限修复仅针对 HDM 管理器，不涉及 GNOME、LightDM、RustDesk 或用户配置。
 
 ## 🔗 桌面链路数轴
 
@@ -126,7 +136,7 @@ sudo hdm --chain
 
 ```text
   ─────────────────────────────────────────────────────────────
-  HDM v4.4.0  ·  ubuntu 24.04 / x86_64
+  HDM v4.4.1  ·  ubuntu 24.04 / x86_64
   ──────◆──────────●──────────●──────────●──────
        显示输出     登录管理器    图形协议     桌面环境
        ? 待核实     ✓ GDM3       ✓ X11        ✓ XFCE

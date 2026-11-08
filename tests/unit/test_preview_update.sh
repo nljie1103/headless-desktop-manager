@@ -30,7 +30,11 @@ curl() {
     [[ -n $dest ]] || return 1
     cp -- "$TMP/valid.tar.gz" "$dest"
 }
+umask 077
 hdm_update_preview_install > "$TMP/normal.out"
+[[ -x $TMP/install/releases/v${NEXT_VERSION}/hdm.sh ]]
+[[ $(stat -c %a "$TMP/install/releases/v${NEXT_VERSION}/hdm.sh") == 755 ]]
+[[ $(stat -c %a "$TMP/install/releases/v${NEXT_VERSION}") == 755 ]]
 [[ $(readlink "$TMP/install/current") == "$TMP/install/releases/v${NEXT_VERSION}" ]]
 [[ -f $TMP/install/releases/v${NEXT_VERSION}/VERSION ]]
 [[ $(cat "$TMP/install/releases/v${NEXT_VERSION}/VERSION") == "$NEXT_VERSION" ]]

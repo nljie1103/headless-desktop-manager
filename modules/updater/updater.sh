@@ -64,6 +64,16 @@ hdm_update_check() {
   fi
   ((found == 1))
 }
+# Archive extraction may honor the invoking root umask (often 077).
+# Normalize permissions on trusted, verified source code before switching
+# /opt/hdm/current. Config/secrets live outside the version directory.
+hdm_update_code_permissions() {
+  local dir=$1
+  [[ -d $dir && ! -L $dir && -f $dir/hdm.sh && -f $dir/install.sh ]] || return 1
+  chmod -R a+rX -- "$dir" || return 1
+  chmod 755 -- "$dir/hdm.sh" "$dir/install.sh" || return 1
+  [[ -x $dir/hdm.sh && -x $dir/install.sh ]]
+}
 hdm_update_preview_install() {
   hdm_root || return 1
   for cmd in curl python3 tar mktemp flock; do command -v "$cmd" >/dev/null 2>&1 || { hdm_warn "缺少依赖：$cmd"; return 1; }; done
@@ -114,7 +124,12 @@ hdm_update_preview_install() {
   if ! mv -- "$unpacked" "$target"; then
     hdm_warn '写入新版本目录失败'; rm -rf -- "$stage"; exec {lock_fd}>&-; return 1
   fi
-  chmod +x "$target/hdm.sh" "$target/install.sh" || :
+  if ! hdm_update_code_permissions "$target"; then
+    hdm_warn '更新归档的脚本权限修复失败，已保留当前版本。'
+    rm -rf -- "$target" "$stage"
+    exec {lock_fd}>&-
+    return 1
+  fi
   if ! ln -s "$target" "$base/.current.$$" || ! mv -Tf "$base/.current.$$" "$base/current"; then
     hdm_warn '原子切换失败；当前版本未确认改变，请检查 /opt/hdm/current。'
     rm -f -- "$base/.current.$$"; rm -rf -- "$stage"; exec {lock_fd}>&-; return 1
@@ -132,6 +147,7 @@ hdm_update_trusted_digest() {
 }
 hdm_update_install() {
   local mode=${1:-latest} tag=${2:-} meta mtag asset digest url asset_id file staging release_dir
+  local base=${HDM_UPDATE_BASE:-/opt/hdm}
   hdm_root || return 1
   meta=$(hdm_release_query hdm "$mode" "$tag") || { hdm_warn '无法读取真实的 HDM Release，或者不存在匹配的发行包与哈希。'; return 1; }
   IFS=$'\t' read -r mtag asset digest url asset_id <<< "${meta%%$'\n'*}"
@@ -151,19 +167,32 @@ hdm_update_install() {
   hdm_download_verified "$url" "$file" "$digest" "$asset_id" || return 1
   # Verify extracted archive names before extraction; no absolute paths, .. or symlinks.
   if ! python3 "$HDM_ROOT/core/verify_archive.py" "$file"; then hdm_error 'Release tarball 内容不安全'; return 1; fi
-  staging=$(mktemp -d /opt/hdm/.staging.XXXXXX) || return 1
+  [[ $base == /* && $base != / && $base != *..* ]] || { hdm_warn '非法 HDM 更新目录。'; return 1; }
+  mkdir -p "$base/releases" || return 1
+  staging=$(mktemp -d "$base/.staging.XXXXXX") || return 1
   if ! tar -xzf "$file" --no-same-owner --no-same-permissions -C "$staging"; then rm -rf "$staging"; return 1; fi
   [[ -f $staging/headless-desktop-manager/VERSION && -f $staging/headless-desktop-manager/hdm.sh ]] || { rm -rf "$staging"; return 1; }
   [[ $(cat "$staging/headless-desktop-manager/VERSION") == "${mtag#v}" ]] || { rm -rf "$staging"; return 1; }
   bash -n "$staging/headless-desktop-manager/hdm.sh" || { rm -rf "$staging"; return 1; }
   hdm_danger "将 HDM 更新为 $mtag，受影响的是管理器代码而不是 GNOME/RustDesk，确定继续？" || { rm -rf "$staging"; return 2; }
-  release_dir="/opt/hdm/releases/$mtag"
-  [[ ! -e $release_dir ]] || { rm -rf "$staging"; hdm_warn '版本目录已经存在，未覆盖。'; return 1; }
-  mkdir -p /opt/hdm/releases
-  mv "$staging/headless-desktop-manager" "$release_dir"
+  release_dir="$base/releases/$mtag"
+  [[ ! -e $release_dir && ! -L $release_dir ]] || { rm -rf "$staging"; hdm_warn '版本目录已经存在，未覆盖。'; return 1; }
+  if ! mv -- "$staging/headless-desktop-manager" "$release_dir"; then
+    rm -rf -- "$staging"
+    return 1
+  fi
+  if ! hdm_update_code_permissions "$release_dir"; then
+    hdm_warn '安装包权限检查失败，原版本未切换。'
+    rm -rf -- "$release_dir" "$staging"
+    return 1
+  fi
   rmdir "$staging" || :
-  ln -s "$release_dir" "/opt/hdm/.current.$$"
-  mv -Tf "/opt/hdm/.current.$$" /opt/hdm/current
+  if ! ln -s "$release_dir" "$base/.current.$$" ||
+     ! mv -Tf "$base/.current.$$" "$base/current"; then
+    hdm_warn 'HDM 版本链接切换失败，原版本未确认改变。'
+    rm -f -- "$base/.current.$$"
+    return 1
+  fi
   hdm_info "HDM 已切换至 $mtag。旧版本目录保留，支持回滚。"
 }
 hdm_update_rollback() {

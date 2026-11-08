@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.4.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.4.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -162,14 +162,18 @@ Maintained by [nljie1103](https://github.com/nljie1103).
 
 </div>
 
-### Real desktop and login-manager removal in v4.4.0
+### Real desktop and login-manager removal in v4.4.1
 
 Menu 2 provides both **APT removal previews** and actual guarded removal for GDM3/LightDM, plus an interactive system `dpkg-reconfigure` option to select the default manager. Menu 4 provides guarded GNOME/XFCE/MATE removal. A live replacement desktop/login manager, no conflicting user session, protected dependency checks and one explicit confirmation are required before `apt-get remove -y` runs. These actions never automatically purge configuration, run autoremove or restart the graphical service. On Ubuntu 26, install and verify XFCE/X11/LightDM **before** removing GNOME/GDM3.
 
-### Resilient GitHub Release downloads (v4.4.0)
+### Resilient GitHub Release downloads (v4.4.1)
 
 If the official GitHub Release asset link returns HTTP 504, HDM now retries via the corresponding GitHub Releases API asset ID, downloading **the same binary asset** and checking it against **the exact same SHA256 digest**. A configured locally trusted digest remains required when present. No third-party mirror or unverified source is substituted. Older HDM versions can use `8 → Update HDM → Install update → from main` for a commit-pinned HTTPS snapshot, which has a different trust model from a digest-verified formal Release.
 
-### Simplified menus and uninstall-first workflow (v4.4.0)
+### Simplified menus and uninstall-first workflow (v4.4.1)
 
 Routine actions are direct: **2 → 2 → 1** removes GDM3, **4 → 2 → 1** removes GNOME, **4 → 1 → 2** installs XFCE + Xorg + LightDM; **6 → 1/2/3** installs/removes/updates RustDesk, and **8 → 1** updates HDM to the newest stable Release. A single confirmation is required for potentially disruptive package removal. APT dependency simulation runs automatically, rejecting plans that would remove protected SSH, RustDesk, Xorg, system packages or unrelated login managers. Users may remove the old desktop first and install the replacement afterwards; maintain an independent SSH/provider-console recovery path because a currently running graphical or RustDesk session can disconnect immediately. Older update channels, detailed package options and rollback remain available under Advanced Maintenance rather than being separate routine choices.
+
+### v4.4.1 update permission fix
+
+The official v4.4.0 tar update could install `hdm.sh` without an executable bit under a restrictive root umask, making `sudo hdm` appear missing. v4.4.1 fixes this before atomically switching versions and adds isolated umask-077 regression tests. If affected, run `sudo chmod 755 /opt/hdm/current/hdm.sh && sudo hdm` from SSH/provider console, then use menu **8 → 1** to update to the newest official Release. This does not modify desktop or RustDesk software.
