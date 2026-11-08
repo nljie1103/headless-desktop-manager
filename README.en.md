@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.4.2-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -181,3 +181,9 @@ The official v4.4.0 tar update could install `hdm.sh` without an executable bit 
 ### Fixed menu ID collision (v4.4.2)
 
 Earlier releases v4.4.0/v4.4.1 erroneously compared the IDs `8.1` and `8.10` as equal in awk, making the direct HDM update action open an empty submenu. Use **8 → 10 → 1 → 2 → 2** to update these older installed versions to the latest official Release. With v4.4.2 installed, the normal one-click **8 → 1** action works correctly. All menu identifiers are now compared as exact strings, with an exhaustive menu-routing regression. If `sudo hdm` is unavailable after upgrading to v4.4.0, first repair the executable bit from SSH using `sudo chmod 755 /opt/hdm/current/hdm.sh`.
+
+### v4.5.0: Direct actions, remove or purge, and intuitive Back
+
+All eight primary stages are preserved, but common tasks are single-level commands: **2 → 3** removes GDM3, **4 → 4** removes GNOME, **4 → 1** installs XFCE + Xorg + LightDM, **6 → 1/2/3** manages RustDesk, **8 → 1** upgrades HDM. Detailed historical features remain grouped under Advanced Tools. Uninstall displays the APT dependency plan and then asks for just one choice: **1 Keep package configuration (remove)**, **2 Delete package-managed system configuration (purge)**, **0/q Cancel**. Both removal modes simulate their actual dependency plans and reject removal of unrelated protected system, SSH, RustDesk, or Xorg components. Purging does not delete user home directories or run autoremove. Lowercase **q** or **0** goes back one submenu, **Q** exits immediately, and **q** exits from the main menu only.
+
+When `sudo hdm` is missing after upgrading from an older updater, correct the release-directory access permissions via SSH: `sudo chmod -R a+rX "$(sudo readlink -f /opt/hdm/current)" && sudo chmod 755 /opt/hdm/current/hdm.sh && sudo hdm`. That only changes HDM source permissions, not GNOME or RustDesk.

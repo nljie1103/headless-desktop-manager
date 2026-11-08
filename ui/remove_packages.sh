@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Guarded real package removals; never purge config, autoremove, or reboot.
+# Real package removal: choose to keep or purge package configuration.
+# No automatic autoremove, reboot, or removal of user home directories.
 hdm_v2_default_dm() {
   local val=''
   if [[ -r /etc/X11/default-display-manager ]]; then
@@ -72,18 +73,19 @@ hdm_v2_remove_precheck() {
 
 # Check the complete apt simulation before the destructive apt call.
 hdm_v2_remove_plan() {
-  local target=$1 output line name pkg found=0 blocked
+  local target=$1 mode=${2:-remove} output line name pkg found=0 blocked
+  [[ $mode == remove || $mode == purge ]] || return 2
   local -a removed=()
   hdm_v2_remove_packages_for "$target" || return $?
   hdm_v2_remove_precheck "$target" || return $?
-  if ! output=$(LC_ALL=C apt-get -s remove "${HDM_REMOVE_PACKAGES[@]}" 2>&1); then
+  if ! output=$(LC_ALL=C apt-get -s "$mode" "${HDM_REMOVE_PACKAGES[@]}" 2>&1); then
     printf '%s\n' "$output" | tail -n 15
     hdm_warn 'APT 模拟失败，卸载已阻止。'
     return 2
   fi
   while IFS= read -r line; do
-    if [[ $line =~ ^Remv[[:space:]]+([^[:space:]]+) ]]; then
-      name=${BASH_REMATCH[1]%%:*}
+    if [[ $line =~ ^(Remv|Purg)[[:space:]]+([^[:space:]]+) ]]; then
+      name=${BASH_REMATCH[2]%%:*}
       removed+=("$name")
       for pkg in "${HDM_REMOVE_PACKAGES[@]}"; do [[ $name == "$pkg" ]] && found=1; done
       blocked=0
@@ -106,25 +108,41 @@ hdm_v2_remove_plan() {
     hdm_warn '模拟没有可确认的目标删除记录，拒绝执行。'
     return 2
   fi
-  printf '真实卸载目标：%s；APT remove %s\n' "$target" "${HDM_REMOVE_PACKAGES[*]}"
+  printf '目标：%s；APT %s %s\n' "$target" "$mode" "${HDM_REMOVE_PACKAGES[*]}"
   printf 'APT 计划删除 %s 个软件包：\n' "${#removed[@]}"
   printf '  - %s\n' "${removed[@]}"
-  printf '保留配置文件；不执行 purge / autoremove；不自动重启图形服务。\n'
+  if [[ $mode == purge ]]; then
+    printf '将清除所列软件包由 APT 管理的系统配置；不会清空用户主目录。\n'
+  else
+    printf '保留软件包的系统配置。\n'
+  fi
+  printf '不执行 autoremove，不自动重启。\n'
 }
 
 hdm_v2_remove_real() {
-  local target=$1
+  local target=$1 choice mode
   hdm_root && hdm_guard_platform || return 1
-  hdm_v2_remove_plan "$target" || return $?
-  printf '\n[注意] 如果这是当前登录管理器或桌面，卸载后图形登录、RustDesk 画面可能立即中断。\n'
-  printf '可先卸载再安装，但请在独立 SSH / 云控制台操作，保持救援入口可用。\n'
-  # Exactly one confirmation. Do not silently bypass it via QUICK_APPROVED.
-  hdm_confirm "确认卸载 $target？" || {
-    hdm_warn '已取消，系统未更改。'
-    return 2
-  }
-  # Recheck dependencies silently in case the APT plan changed at the prompt.
-  hdm_v2_remove_plan "$target" >/dev/null || return $?
-  hdm_apt_call remove -y "${HDM_REMOVE_PACKAGES[@]}" || return $?
-  hdm_info "$target 已执行 APT remove；保留配置和其他未受影响的软件包。"
+  # Show the expected removal scope before the single user choice.
+  hdm_v2_remove_plan "$target" remove || return $?
+  printf '\n[注意] 卸载正在使用的登录管理器或桌面可能立即中断 RustDesk 图形连接。\n'
+  printf '请在独立 SSH / 云控制台执行。\n\n'
+  printf '  1. 卸载软件，保留配置（APT remove）\n'
+  printf '  2. 卸载软件，同时清除配置（APT purge）\n'
+  printf '  0/q. 取消返回\n'
+  hdm_prompt '  请选择 > ' choice || return 0
+  case "$choice" in
+    1) mode=remove ;;
+    2) mode=purge ;;
+    0|q|Q|'') printf '已取消，没有删除任何软件包。\n'; return 0 ;;
+    *) hdm_warn '无效选择，系统未更改。'; return 0 ;;
+  esac
+  # Always simulate the chosen APT mode immediately before acting.
+  # A purge simulation may contain Purg rather than Remv records.
+  if [[ $mode == purge ]]; then
+    hdm_v2_remove_plan "$target" "$mode" || return $?
+  else
+    hdm_v2_remove_plan "$target" "$mode" >/dev/null || return $?
+  fi
+  hdm_apt_call "$mode" -y "${HDM_REMOVE_PACKAGES[@]}" || return $?
+  hdm_info "$target 已执行 APT $mode；未自动清理依赖或用户目录。"
 }

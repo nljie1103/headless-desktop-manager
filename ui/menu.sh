@@ -107,9 +107,9 @@ hdm_menu() {
     printf '\n'
     if [[ $path == root ]]; then hdm_menu_main; else hdm_menu_children "$path"; fi
     hdm_menu_rule "$path"
-    if [[ $path == root ]]; then printf '  0 / q 退出\n'; else printf '  0 返回    q 退出\n'; fi
+    if [[ $path == root ]]; then printf '  0/q 退出\n'; else printf '  0/q 返回    Q 退出\n'; fi
     if ! hdm_prompt '  请选择 > ' selection; then return 0; fi
-    case "$selection" in q|Q) return 99;; 0) return 0;; esac
+    case "$selection" in 0|q) return 0;; Q) return 99;; esac
     ident=''
     while IFS='|' read -r match code label val; do
       if [[ $match == "$path" && $code == "$selection" ]]; then ident=$val; break; fi

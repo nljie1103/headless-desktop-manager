@@ -125,6 +125,7 @@ hdm_v2_uninstall() {
 
 hdm_v2_dispatch() {
   case "$1" in
+    display-status) hdm_display_status ;;
     dm-install-lightdm) hdm_v2_display_manager_install_lightdm ;;
     dm-uninstall-preview-gdm) hdm_action_remove_preview gdm3 ;;
     dm-remove-gdm3) hdm_v2_remove_real gdm3 ;;

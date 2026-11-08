@@ -65,3 +65,13 @@ Ubuntu 26 移除的是 **GNOME Xorg 会话**，并没有取消系统层面的 Xo
 **先卸载后安装**：`2 → 2 → 1`（卸载 GDM3）→ `4 → 2 → 1`（卸载 GNOME）→ `4 → 1 → 2`（安装 XFCE + Xorg + LightDM）→ 必要时 `2 → 5 → 1` 选择默认 LightDM → 重启和外部 RustDesk 验证。
 
 **先安装后卸载**：可先 `4 → 1 → 2` 安装 XFCE 并切换、验证，再卸载旧 GNOME/GDM3。两条路径均为用户自行选择，程序不作人为顺序限制。APT 在后台模拟将删除的依赖，仍会拦截误删 RustDesk、OpenSSH、系统基础包、Xorg 和不相关桌面管理器；仅要求一次卸载确认。**先卸载时，图形桌面及 RustDesk 当前画面可能立即中断，且无法保证无人值守恢复。**
+
+## v4.5.0 精简操作步骤与配置选择
+
+在独立 SSH / 云控制台中，先使用菜单 `2 → 3` 卸载 GDM3，再使用 `4 → 4` 卸载 GNOME，最后使用 `4 → 1` 安装 XFCE + Xorg + LightDM；或者按相反顺序先装新桌面。每次卸载时直接选 `1` 保留系统配置（remove）、`2` 清除包管理系统配置（purge）或 `0/q` 取消。选择 purge 不意味着自动删除用户主目录/个人配置，也不会自动执行 autoremove。
+
+菜单内小写 q 和 0 均返回上一级，只有根菜单 q（或任何页面大写 Q）退出 HDM。若旧更新器导致 `sudo hdm` 找不到命令，在 SSH 下执行：
+
+```bash
+sudo chmod -R a+rX "$(sudo readlink -f /opt/hdm/current)" && sudo chmod 755 /opt/hdm/current/hdm.sh && sudo hdm
+```

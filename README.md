@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.4.2-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -108,7 +108,7 @@ sudo hdm
 v4.4.0 的正式归档更新器在严格的 root umask 下可能丢失 `hdm.sh` 的执行位。**v4.4.1 已修复**。如已遇到该问题，可通过独立 SSH / 云控制台运行：
 
 ```bash
-sudo chmod 755 /opt/hdm/current/hdm.sh && sudo hdm
+sudo chmod -R a+rX "$(sudo readlink -f /opt/hdm/current)" && sudo chmod 755 /opt/hdm/current/hdm.sh && sudo hdm
 ```
 
 **注意：v4.4.0 和 v4.4.1 的 `8 → 1` 存在编号比较问题，会误进入空子菜单。** 请使用旧版本的 `8 → 10 → 1 → 2 → 2` 选择正式 Release 更新；升级到 **v4.4.2** 后，`8 → 1` 一键正式更新才恢复正常。权限修复仅针对 HDM 管理器，不涉及 GNOME、LightDM、RustDesk 或用户配置。
@@ -132,11 +132,11 @@ sudo hdm --chain
 
 ## 🧭 终端菜单
 
-主菜单严格按上方七节点链路排列，**1–7 分别对应显示输出、登录管理器、图形协议、桌面环境、图形会话、RustDesk 和设备 ID；8 管理 HDM 脚本与日志**。宽终端双列、窄终端单列，子菜单才按安装、卸载、更新与配置等操作展开。
+主菜单严格按上方七节点链路排列，**1–7 分别对应显示输出、登录管理器、图形协议、桌面环境、图形会话、RustDesk 和设备 ID；8 管理 HDM 脚本与日志**。宽终端双列、窄终端单列，安装、卸载、更新和状态直达；进阶配置集中收纳。
 
 ```text
   ─────────────────────────────────────────────────────────────
-  HDM v4.4.1  ·  ubuntu 24.04 / x86_64
+  HDM v4.5.0  ·  ubuntu 24.04 / x86_64
   ──────◆──────────●──────────●──────────●──────
        显示输出     登录管理器    图形协议     桌面环境
        ? 待核实     ✓ GDM3       ✓ X11        ✓ XFCE
@@ -153,27 +153,28 @@ sudo hdm --chain
   4. 桌面环境管理                  8. HDM 脚本管理
 
   ─────────────────────────────────────────────────────────────
-  0 / q 退出
+  0/q 退出
   请选择 >
 ```
 
 *以上为菜单排版示意；版本以实际安装为准，桌面、协议和 RustDesk 状态会实时检测。原有底层操作通过兼容映射继续执行，用户看到的编号已统一为八阶段新路径。*
 新结构重点如下：**6 → 安装 / 卸载 / 更新 / 配置 ID、Relay、Key**；**7 → 查看设备 ID、架构、系统及 RustDesk 版本**；**8 → 更新脚本、卸载脚本、更新日志、安装日志、快速导出全部日志**。
 
-新版菜单包含 **590 个导航条目、438 个叶子入口**，保留原有 **381 个不同的底层动作**。多数额外入口是历史或跨模块的进阶功能，已归入高级维护，不需要逐一经过它们才能执行常用操作。
+日常菜单已进一步压缩：**8 个主模块不变，常用命令直接在模块第一层。** 旧版 381 个不同的底层动作继续保留，但不再堆在常用页面；长尾功能放在各自模块的「高级工具」里。菜单清单共 **563 个路由条目、449 个叶子入口**（含重复的历史/高级入口），不等于全部都已通过实机端到端验收。
 
-**日常操作快捷路径：**
-
-| 任务 | 路径 |
+| 日常操作 | 路径 |
 |:---|:---|
-| 卸载 GDM3 / LightDM | `2 → 2 → 1/2` |
-| 安装 XFCE + Xorg + LightDM | `4 → 1 → 2` |
-| 卸载 GNOME / XFCE / MATE | `4 → 2 → 1/2/3` |
+| 安装 / 卸载 GDM3 | `2 → 1` / `2 → 3` |
+| 安装 / 卸载 LightDM | `2 → 2` / `2 → 4` |
+| 安装 XFCE + Xorg + LightDM | **`4 → 1`** |
+| 卸载 GNOME / XFCE / MATE | **`4 → 4/5/6`** |
 | 安装 / 卸载 / 更新 RustDesk | `6 → 1/2/3` |
-| **更新 HDM 最新正式版** | **`8 → 1`** |
-| 卸载 HDM（保留数据） | `8 → 2` |
+| 更新 HDM 最新正式版 | **`8 → 1`** |
+| 卸载 HDM（保留配置与日志） | `8 → 2` |
 
-**先卸载再安装也被支持**，无需先让 LightDM 接管：在独立 SSH 或云控制台中，可先选择 `2 → 2 → 1` 卸载 GDM3、`4 → 2 → 1` 卸载 GNOME，然后用 `4 → 1 → 2` 安装 XFCE + Xorg + LightDM。程序会自动在后台模拟 APT 依赖删除，阻止连带卸载 RustDesk、SSH、系统基础组件等非目标软件，真正卸载前只进行**一次确认**，不要求重复预览。卸载当前图形登录服务可能**立即切断 RustDesk 画面**，务必保留独立救援入口。
+**卸载 GDM3/GNOME 可以先于安装 XFCE/LightDM**，但必须有独立 SSH 或云控制台。卸载时仅需选择一次：`1. 保留配置（APT remove）`、`2. 清除软件配置（APT purge）`、`0/q. 取消`。程序会自动模拟实际 APT 删除计划，保护 RustDesk、OpenSSH、Xorg 和系统核心包；不会自动 `autoremove`、清除用户主目录或重启。`purge` 只针对软件包管理的系统配置，不代表会擦除所有用户个人设置。
+
+**子菜单 `0` 和小写 `q` 都返回上一级；只有在主菜单按 `q` 才退出。** 大写 `Q` 可从任意页面直接退出。取消卸载不会删除 HDM 命令或退出整个程序。
 
 **卸载 HDM 管理器**只清理启动命令和当前版本链接，保留历史版本、配置、日志及所有已安装桌面软件，不卸载 RustDesk。
 
