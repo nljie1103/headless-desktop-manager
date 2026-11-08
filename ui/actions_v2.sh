@@ -23,6 +23,31 @@ hdm_v2_display_manager_upgrade() {
   hdm_warn "升级 $pkg 可能影响远程登录界面；请保留 SSH/云平台控制台。"
   hdm_pkg_upgrade "$pkg"
 }
+hdm_v2_rustdesk_install() {
+  # The explicit menu choice authorizes the install, including package
+  # dependency checks. Existing RustDesk config and device ID are retained.
+  local HDM_QUICK_APPROVED=1
+  hdm_rustdesk_install_online latest
+}
+hdm_v2_update_release() {
+  # Choosing this one menu item is explicit intent. The updater still checks
+  # Release metadata, SHA256, archive safety and the version before switching.
+  local HDM_QUICK_APPROVED=1
+  hdm_update_install latest
+}
+hdm_v2_display_manager_upgrade_current() {
+  local selected
+  selected=$(hdm_v2_default_dm)
+  if [[ $selected == unknown ]]; then
+    if [[ $(hdm_service_state lightdm) == active ]]; then selected=lightdm
+    elif [[ $(hdm_service_state gdm3) == active ]]; then selected=gdm3
+    fi
+  fi
+  case "$selected" in
+    lightdm|gdm3) hdm_v2_display_manager_upgrade "$selected" ;;
+    *) hdm_warn '未检测到正在使用的登录管理器，请先安装 GDM3 或 LightDM。'; return 2;;
+  esac
+}
 hdm_v2_protocol_info() {
   printf 'X11 是图形显示协议，Xorg 是常用 X11 服务器实现；Wayland 是另一套显示协议。\n'
   printf 'GDM3/LightDM 负责登录认证与桌面会话启动，不是虚拟显示器。\n'
@@ -111,11 +136,20 @@ hdm_v2_dispatch() {
     desktop-remove-mate) hdm_v2_remove_real mate ;;
     dm-uninstall-preview-lightdm) hdm_action_remove_preview lightdm ;;
     dm-uninstall-guide)
-      hdm_warn '真实卸载入口已提供，但会检查替代登录管理器是否已启动、当前活动桌面及 APT 删除依赖。先切换并实测 LightDM/XFCE，再卸载 GDM3；必须保留 SSH 与云控制台。' ;;
+      hdm_warn '支持先卸载旧桌面再安装新桌面。APT 自动检查依赖，执行前确认一次；卸载当前图形登录组件可能立即中断 RustDesk，请使用 SSH/云控制台。' ;;
     dm-versions) hdm_v2_display_manager_info ;;
+    dm-upgrade-current) hdm_v2_display_manager_upgrade_current ;;
     dm-upgrade-gdm) hdm_v2_display_manager_upgrade gdm3 ;;
+    desktop-install-gnome) hdm_desktop_install_gnome full ;;
+    desktop-install-xfce) hdm_desktop_install_light xfce standard ;;
+    desktop-install-mate) hdm_desktop_install_light mate standard ;;
+    desktop-update) hdm_desktop_update ;;
     dm-upgrade-lightdm) hdm_v2_display_manager_upgrade lightdm ;;
     protocol-guide) hdm_v2_protocol_info ;;
+    rustdesk-install) hdm_v2_rustdesk_install ;;
+    rustdesk-update) hdm_v2_rustdesk_install ;;
+    rustdesk-remove) hdm_rustdesk_uninstall ;;
+    script-update) hdm_v2_update_release ;;
     script-uninstall-preview) hdm_v2_uninstall_preview ;;
     script-uninstall) hdm_v2_uninstall ;;
     *) hdm_warn "未识别的新版菜单动作：$1"; return 2 ;;

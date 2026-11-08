@@ -27,7 +27,8 @@ hdm_v2_choose_dm() {
   fi
   printf '当前登录管理器：%s；目标：%s\n' "$(hdm_v2_default_dm)" "$pkg"
   printf '即将打开系统登录管理器选择界面。不会自动重启或停止当前服务。\n'
-  hdm_confirm "确认运行 dpkg-reconfigure $pkg？" || return 2
+  # The user's menu selection is enough; the system choice dialog is the
+  # only additional interaction. Do not ask "continue?" before it opens.
   if [[ ${HDM_DRY_RUN:-0} == 1 ]]; then echo "[DRY RUN] dpkg-reconfigure $pkg"; return 0; fi
   dpkg-reconfigure "$pkg" || return 1
   if [[ $(hdm_v2_default_dm) != "$pkg" ]]; then
@@ -59,60 +60,14 @@ hdm_v2_remove_packages_for() {
 }
 
 hdm_v2_remove_precheck() {
-  local target=$1 active
+  local target=$1
+  # Both valid workflows are supported: uninstall old first, OR install new
+  # first. Do not impose the latter as a technical requirement.
+  case "$target" in gdm3|lightdm|gnome|xfce|mate) ;; *) return 2;; esac
   if [[ $(hdm_type) != apt ]] || ! hdm_has apt-get; then
-    hdm_warn '真实卸载仅支持 Debian/Ubuntu APT。'
+    hdm_warn '卸载需要 Debian/Ubuntu APT。'
     return 2
   fi
-  active=$(hdm_env_active_desktop_kind)
-  case "$target" in
-    gdm3|gnome)
-      if ! hdm_installed lightdm || { ! hdm_installed xfce4-session && ! hdm_installed mate-session-manager; }; then
-        hdm_warn '先安装 LightDM、XFCE/MATE 与 Xorg，不能先卸载旧图形链路。'
-        return 2
-      fi
-      if ! hdm_installed xserver-xorg-core; then
-        hdm_warn 'Xorg 核心组件尚未安装，先完成 XFCE/X11 环境安装。'
-        return 2
-      fi
-      if [[ $(hdm_v2_default_dm) != lightdm || $(hdm_service_state lightdm) != active ]]; then
-        hdm_warn 'LightDM 尚未被选为默认且正在运行。请先完成切换并重启验证。'
-        return 2
-      fi
-      if [[ $(hdm_service_state gdm3) == active ]]; then
-        hdm_warn '旧 GDM3 服务仍在运行，必须先完成 LightDM 接管与重启，禁止直接删除。'
-        return 2
-      fi
-      if [[ $active == GNOME || $active == multiple || $active == unknown ]]; then
-        hdm_warn '当前仍有 GNOME/多桌面会话，或无法确认用户会话；先通过 loginctl 核实并验证 XFCE/MATE。'
-        return 2
-      fi
-      ;;
-    lightdm)
-      if [[ $(hdm_v2_default_dm) != gdm3 || $(hdm_service_state gdm3) != active ]] ||
-         ! hdm_installed gdm3 || ! hdm_installed gnome-shell; then
-        hdm_warn '必须先安装 GNOME/GDM3 并确认 GDM3 已为默认且正在运行。'
-        return 2
-      fi
-      ;;
-    xfce|mate)
-      if [[ $active == multiple || $active == unknown ||
-            ( $target == xfce && $active == XFCE ) ||
-            ( $target == mate && $active == MATE ) ]]; then
-        hdm_warn '当前桌面仍有活跃用户会话，拒绝卸载。'
-        return 2
-      fi
-      if [[ $target == xfce ]] && ! hdm_installed gnome-shell && ! hdm_installed mate-session-manager; then
-        hdm_warn '需要先安装替代的 GNOME/MATE 桌面。'
-        return 2
-      fi
-      if [[ $target == mate ]] && ! hdm_installed gnome-shell && ! hdm_installed xfce4-session; then
-        hdm_warn '需要先安装替代的 GNOME/XFCE 桌面。'
-        return 2
-      fi
-      ;;
-    *) return 2;;
-  esac
 }
 
 # Check the complete apt simulation before the destructive apt call.
@@ -161,13 +116,15 @@ hdm_v2_remove_real() {
   local target=$1
   hdm_root && hdm_guard_platform || return 1
   hdm_v2_remove_plan "$target" || return $?
-  printf '请确保 SSH/云控制台和快照可用。APT 卸载可能中断当前图形登录。\n'
-  # This prompt is never bypassed by HDM_QUICK_APPROVED.
-  hdm_confirm "我已保留 SSH/控制台、测试替代桌面，确认立即真实卸载 $target？" || {
-    hdm_warn '取消卸载，未执行删除。'
+  printf '\n[注意] 如果这是当前登录管理器或桌面，卸载后图形登录、RustDesk 画面可能立即中断。\n'
+  printf '可先卸载再安装，但请在独立 SSH / 云控制台操作，保持救援入口可用。\n'
+  # Exactly one confirmation. Do not silently bypass it via QUICK_APPROVED.
+  hdm_confirm "确认卸载 $target？" || {
+    hdm_warn '已取消，系统未更改。'
     return 2
   }
-  hdm_v2_remove_plan "$target" || return $?
+  # Recheck dependencies silently in case the APT plan changed at the prompt.
+  hdm_v2_remove_plan "$target" >/dev/null || return $?
   hdm_apt_call remove -y "${HDM_REMOVE_PACKAGES[@]}" || return $?
-  hdm_info "$target 已通过 APT 执行卸载；请核对服务与实际远控。"
+  hdm_info "$target 已执行 APT remove；保留配置和其他未受影响的软件包。"
 }

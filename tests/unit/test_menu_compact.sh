@@ -29,4 +29,15 @@ PYTEST
 nested=$(printf '1\n1\n0\n0\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
 [[ $nested == *'安装 Xorg Dummy'* && $nested == *'安装 Xvfb'* ]]
 [[ $nested == *'0 返回    q 退出'* && $nested == *'请选择 > '* ]]
-echo 'PASS Baota-style compact menu, 2-column/1-column layouts, nested navigation and auto-open guard'
+dm_uninstall=$(printf '2\n2\n0\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
+[[ $dm_uninstall == *'1.   卸载 GDM3'* && $dm_uninstall == *'2.   卸载 LightDM'* ]]
+[[ $dm_uninstall != *'预览 GDM3'* && $dm_uninstall != *'须先启用 LightDM'* ]]
+desktop_install=$(printf '4\n1\n0\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
+[[ $desktop_install == *'2.   安装 XFCE + Xorg + LightDM'* ]]
+rustdesk_root=$(printf '6\n0\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
+[[ $rustdesk_root == *'1.   安装 RustDesk'* && $rustdesk_root == *'2.   卸载 RustDesk'* ]]
+[[ $rustdesk_root == *'3.   更新 RustDesk'* ]]
+script_root=$(printf '8\n0\n0\n' | COLUMNS=92 bash "$ROOT/hdm.sh")
+[[ $script_root == *'1.   更新 HDM（最新正式版）'* ]]
+[[ $script_root != *'2.   安装正式 Release'* && $script_root != *'5.   从 main 更新'* ]]
+echo 'PASS compact direct install/remove/update menus, original chain and nested navigation'

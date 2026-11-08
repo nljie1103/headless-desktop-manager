@@ -28,7 +28,7 @@ RustDesk 官方的 **Wayland 无人值守预览版** 已介绍登录界面访问
 
 Ubuntu 26 移除的是 **GNOME Xorg 会话**，并没有取消系统层面的 Xorg。XFCE 和 MATE 仍提供 X11 选项，LightDM 可以作为独立登录管理器。HDM 在未安装桌面，或仅有 GNOME Wayland 的主机上，优先生成 XFCE 安装计划；支持 Xorg、LightDM、GTK Greeter 和 RustDesk 依赖的安装。
 
-对于检测到的未连接 DRM 输出，计划可能包括 Xorg Dummy；该配置有断开当前远程显示的风险，须先准备独立的 SSH/云控制台，并由用户确认。安装 XFCE 和 LightDM 不代表 GDM3 已自动替换；HDM 不擅自卸载 GNOME、启用自动登录或重启显示服务。可在菜单 `4 → 4.4` 查看默认登录管理器与手动切换说明。
+对于检测到的未连接 DRM 输出，计划可能包括 Xorg Dummy；该配置有断开当前远程显示的风险，须先准备独立的 SSH/云控制台，并由用户确认。安装 XFCE 和 LightDM 不代表 GDM3 已自动替换；HDM 不擅自卸载 GNOME、启用自动登录或重启显示服务。可通过菜单 `2 → 5` 选择默认登录管理器。
 
 此方案属于**可操作的 X11 部署路径**，但其登录界面 RustDesk 捕获、锁屏、无人值守和冷启动恢复依然需要逐项实机验证。
 
@@ -57,6 +57,11 @@ Ubuntu 26 移除的是 **GNOME Xorg 会话**，并没有取消系统层面的 Xo
 - [RustDesk：Wayland Unattended Preview (x86_64)](https://rustdesk.com/blog/unattended-remote-access-wayland/)
 - [HDM 兼容测试矩阵](testing-and-limitations.md) · [返回项目首页](../README.md)
 
-## v4.3.1 迁移菜单
 
-系统已经实现实际卸载路径：在菜单 4 安装 XFCE，菜单 `2 → 切换默认登录管理器` 运行交互式 `dpkg-reconfigure lightdm`，再通过独立 SSH/云控制台安排重启、验证 XFCE/X11/LightDM 以及 RustDesk。只有新登录管理器已成为默认并且真正运行，才能从菜单 `2 → 卸载` 删除 GDM3，最后从菜单 `4 → 卸载与预览` 删除 GNOME。APT 会先模拟整个依赖删除集合，意外涉及 Xorg、RustDesk 或替代桌面则拒绝执行。
+## v4.4.0：两种桌面迁移顺序
+
+菜单支持直接卸载当前 GDM3/GNOME，不再强迫先安装 LightDM。必须在**独立 SSH/云控制台**中进行，以便图形界面在卸载后暂时不可用时仍能安装软件。
+
+**先卸载后安装**：`2 → 2 → 1`（卸载 GDM3）→ `4 → 2 → 1`（卸载 GNOME）→ `4 → 1 → 2`（安装 XFCE + Xorg + LightDM）→ 必要时 `2 → 5 → 1` 选择默认 LightDM → 重启和外部 RustDesk 验证。
+
+**先安装后卸载**：可先 `4 → 1 → 2` 安装 XFCE 并切换、验证，再卸载旧 GNOME/GDM3。两条路径均为用户自行选择，程序不作人为顺序限制。APT 在后台模拟将删除的依赖，仍会拦截误删 RustDesk、OpenSSH、系统基础包、Xorg 和不相关桌面管理器；仅要求一次卸载确认。**先卸载时，图形桌面及 RustDesk 当前画面可能立即中断，且无法保证无人值守恢复。**

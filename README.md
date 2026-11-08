@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.3.2-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.4.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -54,9 +54,9 @@ Ubuntu 24.04 x86_64 是持续集成的主要测试环境；Debian、Fedora、RHE
 
 ### 推荐策略：可用性优先
 
-Ubuntu 26 的 GNOME 只能使用 Wayland，**但 XFCE、MATE 仍有 X11 会话可选**。当标准 RustDesk 需要传统 X11 登录界面时，HDM 的智能安装优先提供 **XFCE + Xorg + LightDM + RustDesk**，而非强制把 GNOME 切回 X11。GNOME 仍可以通过菜单 3 手动安装，已有桌面不会自动卸载。
+Ubuntu 26 的 GNOME 只能使用 Wayland，**但 XFCE、MATE 仍有 X11 会话可选**。当标准 RustDesk 需要传统 X11 登录界面时，HDM 的智能安装优先提供 **XFCE + Xorg + LightDM + RustDesk**，而非强制把 GNOME 切回 X11。GNOME 仍可以通过菜单 4 手动安装，已有桌面不会自动卸载。
 
-如果宿主机没有已连接的显示输出，XFCE 路径会在计划中提示 Xorg Dummy，并在执行前确认。安装 LightDM **不代表**已经成为默认登录管理器，需通过菜单 4.4 查看，并在可用的 SSH/云控制台保护下手动选择；HDM 不会未经确认就重启桌面或切换登录管理器。
+如果宿主机没有已连接的显示输出，XFCE 路径会在计划中提示 Xorg Dummy，并在执行前确认。安装 LightDM **不代表**已经成为默认登录管理器，可通过菜单 2 → 5 查看及切换，并在可用的 SSH/云控制台保护下选择；HDM 不会未经确认就重启桌面或切换登录管理器。
 
 这只是更有希望实现登录前访问的技术路径，**不是无人值守成功承诺**。登录界面、虚拟显示、锁屏与重启后实际控制仍需现场验证。参考 [Ubuntu 官方桌面会话说明](https://documentation.ubuntu.com/release-notes/26.04/summary-for-lts-users/) 和 [RustDesk 官方 Linux 指南](https://rustdesk.com/docs/en/client/linux/)。
 
@@ -99,9 +99,9 @@ sudo hdm
 
 ### 正式 Release 更新遇到 HTTP 504
 
-从 **v4.3.2** 起，正式更新先使用 GitHub Release 资产直链，遇到连接/HTTP 504 错误时自动改用 **GitHub API 同一资产的二进制下载**。所有下载依旧校验 Release 公布的原始 SHA256，若本机设置了独立可信 SHA256，也必须一致；校验不通过时不会切换版本。不会使用未经校验的第三方镜像。
+从 **v4.4.0** 起，正式更新先使用 GitHub Release 资产直链，遇到连接/HTTP 504 错误时自动改用 **GitHub API 同一资产的二进制下载**。所有下载依旧校验 Release 公布的原始 SHA256，若本机设置了独立可信 SHA256，也必须一致；校验不通过时不会切换版本。不会使用未经校验的第三方镜像。
 
-旧版 v4.3.0/v4.3.1 没有此回退机制。若旧版下载失败，可通过 `8 → 更新脚本 → 安装更新 → 从 main 更新` 获取经 GitHub API 固定提交的源码归档，但该方式仅依赖 GitHub HTTPS 和提交 ID，并非独立签名的 Release。
+旧版本的开发分支更新保留在高级维护；新版本常用菜单 `8 → 1` 只安装最新正式 Release，并在直链 504 时自动使用 GitHub API 同资产 SHA256 下载。
 
 ## 🔗 桌面链路数轴
 
@@ -126,7 +126,7 @@ sudo hdm --chain
 
 ```text
   ─────────────────────────────────────────────────────────────
-  HDM v4.3.2  ·  ubuntu 24.04 / x86_64
+  HDM v4.4.0  ·  ubuntu 24.04 / x86_64
   ──────◆──────────●──────────●──────────●──────
        显示输出     登录管理器    图形协议     桌面环境
        ? 待核实     ✓ GDM3       ✓ X11        ✓ XFCE
@@ -150,9 +150,20 @@ sudo hdm --chain
 *以上为菜单排版示意；版本以实际安装为准，桌面、协议和 RustDesk 状态会实时检测。原有底层操作通过兼容映射继续执行，用户看到的编号已统一为八阶段新路径。*
 新结构重点如下：**6 → 安装 / 卸载 / 更新 / 配置 ID、Relay、Key**；**7 → 查看设备 ID、架构、系统及 RustDesk 版本**；**8 → 更新脚本、卸载脚本、更新日志、安装日志、快速导出全部日志**。
 
-新版菜单共有 **586 个条目、433 个可选入口**，其中保留原有 **381 个不同的底层动作**；重复出现的是跨阶段的便捷入口，不代表额外实现了 426 项互不相同的能力。登录管理器及桌面提供真实卸载，但仅在替代桌面/登录管理器已实际运行、APT 依赖安全且用户再次确认后执行；不自动 purge 或 autoremove。
+新版菜单包含 **590 个导航条目、438 个叶子入口**，保留原有 **381 个不同的底层动作**。多数额外入口是历史或跨模块的进阶功能，已归入高级维护，不需要逐一经过它们才能执行常用操作。
 
-**Ubuntu 26 的 GNOME → XFCE 迁移（全部使用 HDM 菜单）**：先在 `4 → 安装 → XFCE → 标准 XFCE` 安装新桌面；从 `2 → 切换默认登录管理器 → 选择 LightDM` 调用系统选择界面；在 SSH/云控制台保护下重启并验证 LightDM/XFCE 和 RustDesk；确认成功后，再从 `2 → 卸载 → 真实卸载 GDM3` 和 `4 → 卸载与预览 → 真实卸载 GNOME` 执行实际 APT remove。未满足切换条件时菜单会拒绝删除旧登录管理器，以防止断连。
+**日常操作快捷路径：**
+
+| 任务 | 路径 |
+|:---|:---|
+| 卸载 GDM3 / LightDM | `2 → 2 → 1/2` |
+| 安装 XFCE + Xorg + LightDM | `4 → 1 → 2` |
+| 卸载 GNOME / XFCE / MATE | `4 → 2 → 1/2/3` |
+| 安装 / 卸载 / 更新 RustDesk | `6 → 1/2/3` |
+| **更新 HDM 最新正式版** | **`8 → 1`** |
+| 卸载 HDM（保留数据） | `8 → 2` |
+
+**先卸载再安装也被支持**，无需先让 LightDM 接管：在独立 SSH 或云控制台中，可先选择 `2 → 2 → 1` 卸载 GDM3、`4 → 2 → 1` 卸载 GNOME，然后用 `4 → 1 → 2` 安装 XFCE + Xorg + LightDM。程序会自动在后台模拟 APT 依赖删除，阻止连带卸载 RustDesk、SSH、系统基础组件等非目标软件，真正卸载前只进行**一次确认**，不要求重复预览。卸载当前图形登录服务可能**立即切断 RustDesk 画面**，务必保留独立救援入口。
 
 **卸载 HDM 管理器**只清理启动命令和当前版本链接，保留历史版本、配置、日志及所有已安装桌面软件，不卸载 RustDesk。
 
