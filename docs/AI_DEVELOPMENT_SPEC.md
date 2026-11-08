@@ -1,3 +1,5 @@
+> **当前菜单规范（v4.3.0）**：此前 10 项主菜单为历史设计。现在主菜单采用七节点桌面链路对应的 1–7 阶段，加第 8 项 HDM 脚本管理。所有原动作保存在 `ui/legacy-menus.tsv` 并通过 `ui/menu-targets.tsv` 显式路由，新的实现及导航以 [菜单指南](menu-guide.md) 为准。不要从本历史规格重新生成生产菜单。
+
 > **最新需求决策（2026-11-08，v4.1.0）**：HDM 定位为便携、按需的 Linux 图形桌面管理脚本，不以 GNOME 登录前无人值守为硬性目标。Ubuntu 26 GNOME Wayland-only 环境优先推荐 XFCE + X11 + LightDM + RustDesk；GNOME 和 MATE 均可由用户选装；已有桌面保留，切换登录管理器须明确确认。以下历史菜单规格及旧默认方案仅保留供设计追溯，发生冲突时以本决策和当前源码为准。
 
 # Headless Desktop Manager（HDM）AI 开发规格书

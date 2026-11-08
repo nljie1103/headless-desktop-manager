@@ -54,7 +54,7 @@ hdm_update_check() {
     IFS=$'\t' read -r version sha <<< "$meta"
     printf '开发分支 main：v%s（提交 %.12s）\n' "$version" "$sha"
     if hdm_update_newer "$version" "$HDM_VERSION"; then
-      printf '检测到更新：菜单 8 → 2 → 5 可安装 main 更新。\n'
+      printf '检测到更新：菜单 8 → 更新脚本 → 安装更新 → 从 main 更新 可安装 main 更新。\n'
     else
       printf '本机版本不低于 main 版本；无须更新。\n'
     fi
@@ -136,7 +136,7 @@ hdm_update_install() {
   meta=$(hdm_release_query hdm "$mode" "$tag") || { hdm_warn '无法读取真实的 HDM Release，或者不存在匹配的发行包与哈希。'; return 1; }
   IFS=$'\t' read -r mtag asset digest url <<< "${meta%%$'\n'*}"
   if ! hdm_update_newer "${mtag#v}" "$HDM_VERSION"; then
-    hdm_info "已经是 v$HDM_VERSION 或更高版本，不执行降级。需要回滚请使用菜单 8 → 5。"
+    hdm_info "已经是 v$HDM_VERSION 或更高版本，不执行降级。需要回滚请使用菜单 8 → 更新脚本 → 回滚 HDM。"
     return 0
   fi
   if [[ -r $HDM_ETC/trusted-releases.tsv ]]; then

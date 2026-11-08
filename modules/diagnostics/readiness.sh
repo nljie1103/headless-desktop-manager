@@ -146,12 +146,12 @@ hdm_readiness_report() {
   hdm_readiness_pkg xvfb 'Xvfb' 0
   printf '\n建议\n'
   if hdm_gnome_wayland_only && [[ $desktop == GNOME ]]; then
-    printf '本机 GNOME 为 Wayland-only；如需传统 X11 登录界面，可通过菜单 3.2 安装 XFCE + LightDM，菜单 4.4 查看切换方法。原 GNOME 将保留。\n'
+    printf '本机 GNOME 为 Wayland-only；如需传统 X11 登录界面，可通过菜单 4 → 安装 XFCE，菜单 2 → 登录管理器 查看切换方法。原 GNOME 将保留。\n'
   elif hdm_gnome_wayland_only && [[ $desktop == none ]]; then
     printf '建议按 XFCE + LightDM / X11 路径安装，GNOME 可手动选择；登录前远控仍需外部实测。\n'
   fi
   if ((HDM_READINESS_MISSING > 0)); then
-    printf '有 %s 项必需软件包待补齐。通过菜单 9 查看安装计划。\n' "$HDM_READINESS_MISSING"
+    printf '有 %s 项必需软件包待补齐。通过菜单 8 → 智能安装与续装查看安装计划。\n' "$HDM_READINESS_MISSING"
   else
     printf '本机目标桌面的必需软件包检查完成；继续核实服务、会话和远端画面。\n'
   fi

@@ -28,10 +28,10 @@ hdm_session_report() {
   printf 'RustDesk 服务  %s（不代表可捕获画面）\n' "$rustdesk"
   if ! hdm_installed gdm3; then
     printf '\n[缺失] 未安装 GDM3；当前桌面环境为 %s，不能按已安装 GNOME 进行会话修复。\n' "$desktop"
-    printf '下一步：如需 GNOME，先通过菜单 3 安装 GNOME/GDM3，再检查图形会话。\n'
+    printf '下一步：如需 GNOME，先通过菜单 4 安装 GNOME/GDM3，再检查图形会话。\n'
   elif [[ "$gdm" != active ]]; then
     printf '\n[阻断] GDM3 已安装但未运行；软件包存在不等于图形登录服务已启动。\n'
-    printf '下一步：菜单 4 → 管理图形会话 → 启动/检查 GDM3；或 sudo hdm --session-start\n'
+    printf '下一步：菜单 5 → 查看会话状态 → 启动/检查 GDM3；或 sudo hdm --session-start\n'
   elif [[ "$gnome_session" != x11 && "$gnome_session" != wayland ]]; then
     printf '\n[未就绪] GDM3 已运行，但尚无可确认的 GNOME 用户会话。其他桌面或登录界面不等于 GNOME。\n'
   else
@@ -159,7 +159,7 @@ hdm_session_enable_graphical_boot() {
 # available as an actual kernel module, and explicitly approved once.
 hdm_session_repair() {
   hdm_root && hdm_guard_platform || return 1
-  hdm_installed gdm3 || { hdm_error '尚未安装 GDM3，先通过菜单 3 安装 GNOME'; return 1; }
+  hdm_installed gdm3 || { hdm_error '尚未安装 GDM3，先通过菜单 4 安装 GNOME'; return 1; }
   local output loaded=0
   output=$(hdm_env_drm_state)
   printf '图形会话修复：当前 DRM %s；GDM3 %s；会话 %s\n' \

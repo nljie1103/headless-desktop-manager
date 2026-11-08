@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.2.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.3.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -116,11 +116,11 @@ sudo hdm --chain
 
 ## 🧭 终端菜单
 
-主菜单沿用稳定的 10 个入口，采用类似服务器管理面板的紧凑布局：宽终端双列、窄终端单列；子菜单按短编号逐级进入。
+主菜单严格按上方七节点链路排列，**1–7 分别对应显示输出、登录管理器、图形协议、桌面环境、图形会话、RustDesk 和设备 ID；8 管理 HDM 脚本与日志**。宽终端双列、窄终端单列，子菜单才按安装、卸载、更新与配置等操作展开。
 
 ```text
   ─────────────────────────────────────────────────────────────
-  HDM v4.2.0  ·  ubuntu 24.04 / x86_64
+  HDM v4.3.0  ·  ubuntu 24.04 / x86_64
   ──────◆──────────●──────────●──────────●──────
        显示输出     登录管理器    图形协议     桌面环境
        ? 待核实     ✓ GDM3       ✓ X11        ✓ XFCE
@@ -131,18 +131,23 @@ sudo hdm --chain
   ◆ 待核实 · ● 本地通过 · ○ 异常（实际终端使用颜色）
   ─────────────────────────────────────────────────────────────
 
-  1. 安装虚拟显示器                6. 更新 RustDesk
-  2. 管理显示与分辨率              7. RustDesk 连接配置
-  3. 安装桌面环境                  8. 更新 HDM 管理器
-  4. 管理桌面与会话                9. 智能安装与续装
-  5. 安装 RustDesk                 10. 系统诊断与日志
+  1. 显示输出管理                  5. 图形会话管理
+  2. 登录管理器管理                6. RustDesk 管理
+  3. 图形协议管理                  7. 设备 ID 与设备信息
+  4. 桌面环境管理                  8. HDM 脚本管理
 
   ─────────────────────────────────────────────────────────────
   0 / q 退出
   请选择 >
 ```
 
-*以上为菜单排版示意；版本以实际安装为准，桌面、协议和 RustDesk 状态会实时检测。菜单编号和操作路由未因排版改变。*
+*以上为菜单排版示意；版本以实际安装为准，桌面、协议和 RustDesk 状态会实时检测。原有底层操作通过兼容映射继续执行，用户看到的编号已统一为八阶段新路径。*
+新结构重点如下：**6 → 安装 / 卸载 / 更新 / 配置 ID、Relay、Key**；**7 → 查看设备 ID、架构、系统及 RustDesk 版本**；**8 → 更新脚本、卸载脚本、更新日志、安装日志、快速导出全部日志**。
+
+新版菜单共有 **578 个条目、426 个可选入口**，其中保留原有 **381 个不同的底层动作**；重复出现的是跨阶段的便捷入口，不代表额外实现了 426 项互不相同的能力。部分卸载操作依旧只能预览，需保留 SSH/云控制台。
+
+**卸载 HDM 管理器**只清理启动命令和当前版本链接，保留历史版本、配置、日志及所有已安装桌面软件，不卸载 RustDesk。
+
 全部菜单路径：`hdm --menu-tree`；[菜单使用指南](docs/menu-guide.md)。
 
 ---

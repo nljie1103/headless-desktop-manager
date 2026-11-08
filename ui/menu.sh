@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 hdm_menu_has_children() { awk -F '|' -v wanted="$1" '$1==wanted {found=1; exit}END{exit !found}' "$HDM_ROOT/ui/menus.tsv"; }
 hdm_menu_label() { awk -F '|' -v wanted="$1" '$4==wanted {print $3; exit}' "$HDM_ROOT/ui/menus.tsv"; }
+hdm_legacy_menu_label() { awk -F '|' -v wanted="$1" '$4==wanted {print $3; exit}' "$HDM_ROOT/ui/legacy-menus.tsv"; }
+hdm_menu_action_target() { awk -F '|' -v wanted="$1" '$1==wanted {print $2; exit}' "$HDM_ROOT/ui/menu-targets.tsv"; }
+hdm_menu_execute() {
+  local id=$1 target
+  target=$(hdm_menu_action_target "$id")
+  if [[ -z $target ]]; then
+    hdm_warn "菜单 $id 未绑定执行目标，请检查菜单配置。"
+    return 2
+  fi
+  case "$target" in
+    new:*) hdm_v2_dispatch "${target#new:}" ;;
+    *) hdm_dispatch "$target" ;;
+  esac
+}
 hdm_menu_tree() { sed '/^#/d' "$HDM_ROOT/ui/menus.tsv" | awk -F '|' '{print $4 " " $3}'; }
 # Calculate cell width without depending on terminal-specific padding of CJK text.
 hdm_menu_cell_width() {
@@ -51,7 +65,7 @@ hdm_menu_header() {
     # On reduced terminal widths the chain wraps or becomes vertical.
     if ! python3 -B "$HDM_ROOT/modules/diagnostics/desktop_chain.py" \
       --width "$(hdm_menu_terminal_cols)"; then
-      hdm_warn '桌面链路检测失败，可从菜单 10 查看诊断信息。'
+      hdm_warn '桌面链路检测失败，可从菜单 8 查看诊断信息。'
     fi
   else
     printf '  %s\n' "$(hdm_menu_label "$path")"
@@ -59,11 +73,11 @@ hdm_menu_header() {
   hdm_menu_rule "$path"
 }
 hdm_menu_main() {
-  local -a left=(1 2 3 4 5) right=(6 7 8 9 10)
+  local -a left=(1 2 3 4) right=(5 6 7 8)
   local cols i l r
   cols=$(hdm_menu_terminal_cols)
   if ((cols>=72)); then
-    for ((i=0;i<5;i++)); do
+    for ((i=0;i<4;i++)); do
       l="${left[i]}. $(hdm_menu_label "${left[i]}")"
       r="${right[i]}. $(hdm_menu_label "${right[i]}")"
       printf '  '
@@ -71,7 +85,7 @@ hdm_menu_main() {
       printf '%s\n' "$r"
     done
   else
-    for i in {1..10}; do printf '  %-3s %s\n' "${i}." "$(hdm_menu_label "$i")"; done
+    for i in {1..8}; do printf '  %-3s %s\n' "${i}." "$(hdm_menu_label "$i")"; done
   fi
 }
 hdm_menu_children() {
@@ -106,13 +120,14 @@ hdm_menu() {
     else
       hdm_show "$ident $(hdm_menu_label "$ident")"
       local operation_rc=0
-      hdm_dispatch "$ident" || operation_rc=$?
+      hdm_menu_execute "$ident" || operation_rc=$?
       if [[ $EUID -eq 0 && -n ${HDM_LOG_DIR:-} && -d $HDM_LOG_DIR ]]; then
         printf '%s | HDM %s | menu %s | %s | exit=%s\n' \
           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$HDM_VERSION" "$ident" "$(hdm_menu_label "$ident")" "$operation_rc" \
           >> "$HDM_LOG_DIR/steps.log"
       fi
-      ((operation_rc == 0)) || hdm_warn "操作未完成（退出码 $operation_rc），可从菜单 10 导出诊断包。"
+      ((operation_rc == 0)) || hdm_warn "操作未完成（退出码 $operation_rc），可从菜单 8 查看日志及导出诊断包。"
+      [[ ${HDM_UNINSTALLED:-0} == 1 ]] && return 99
       # The parent menus have sourced old code. After an atomic HDM upgrade or
       # rollback, replace this entire process so Enter never returns to old UI.
       local active_base=${HDM_UPDATE_BASE:-/opt/hdm} active_root

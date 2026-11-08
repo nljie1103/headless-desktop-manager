@@ -137,7 +137,7 @@ hdm_quick_status() {
   fi
   if hdm_gnome_wayland_only && [[ $(hdm_quick_desktop_choice "$(hdm_env_desktop_kind)") == XFCE ]]; then
     printf '[方案] XFCE / LightDM / X11：不会强制 GNOME 使用 Xorg，也不会卸载现有 GNOME。\n'
-    printf '[需核实] 安装 LightDM 不等于它已成为默认登录管理器；请在菜单 4.4 检查并在控制台确认后切换。\n'
+    printf '[需核实] 安装 LightDM 不等于它已成为默认登录管理器；请在菜单 2 → 状态与配置 检查并在控制台确认后切换。\n'
     printf '[必须实测] X11 实际显示输出、登录界面、RustDesk 画面及键鼠控制。\n'
   elif hdm_gnome_wayland_only; then
     printf '[重要] GNOME Wayland-only：本方案不会强制 GDM X11，不会写入 Xorg Dummy 全局配置。\n'
@@ -192,13 +192,13 @@ hdm_quick_plan() {
   if hdm_gnome_wayland_only && [[ $(hdm_quick_desktop_choice "$(hdm_env_desktop_kind)") == XFCE ]]; then
     cat <<'MODERN_XFCE'
 当前 GNOME 为 Wayland-only，优先选用 XFCE + LightDM / X11。原 GNOME 保留，HDM 不会自动卸载桌面或切换登录管理器。
-无已连接 DRM 输出时才列出 Xorg Dummy 安装/配置步骤；配置前需明确确认风险。安装后请到菜单 4.4 检查默认登录管理器。
+无已连接 DRM 输出时才列出 Xorg Dummy 安装/配置步骤；配置前需明确确认风险。安装后请到菜单 2 → 状态与配置 检查默认登录管理器。
 即使使用 X11，也要实际验证显示输出、RustDesk 远程连接以及锁屏/登录前场景。
 MODERN_XFCE
   elif hdm_gnome_wayland_only; then
     cat <<'MODERN'
 当前 GNOME Wayland-only：不强制 GDM X11、不创建 Xorg Dummy 全局配置。
-若需传统 RustDesk 登录前连接，请考虑菜单 3 安装 XFCE + LightDM，并在菜单 4 明确选择登录管理器。
+若需传统 RustDesk 登录前连接，请考虑菜单 4 安装 XFCE + LightDM，并在菜单 2 明确选择登录管理器。
 MODERN
   else
     printf '如果有现成显示输出或检测结果未知，不会强制写入 Xorg Dummy/GDM X11 配置。\n'
@@ -255,7 +255,7 @@ hdm_quick_install() {
     else
       rc=$?
       hdm_quick_mark "$step" failed || :
-      hdm_warn "安装中断于 $step（退出码 $rc）。稍后可从菜单 9.7.2 安全续装；不会重做已验证的组件。"
+      hdm_warn "安装中断于 $step（退出码 $rc）。稍后可从菜单 8 → 智能安装与续装 → 继续安装 安全续装；不会重做已验证的组件。"
       return "$rc"
     fi
   done

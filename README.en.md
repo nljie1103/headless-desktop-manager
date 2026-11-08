@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.2.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.3.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -82,17 +82,19 @@ sudo hdm
 
 Installing HDM **does not automatically install GNOME or change the display manager**. In an interactive terminal it opens the menu; `HDM_NO_AUTO_MENU=1` skips that auto-opening.
 
-The CLI keeps 10 stable main entries with a compact two-column layout (one column on narrow terminals). Use `0` to return from a submenu and `0` / `q` to exit from the root. The actual options are listed by `hdm --menu-tree`.
+The CLI now uses **eight main entries**: stages 1–7 follow the seven-node desktop chain, and stage 8 manages the HDM script, logs, diagnostics and resumable installation. Install/uninstall/update/configuration actions live in the relevant submenus; long terminal lines wrap automatically. Existing implementation IDs are preserved through an explicit compatibility routing map. Use `0` to return from a submenu and `0` / `q` to exit at root. List the full structure using `hdm --menu-tree`.
 
 ---
 
-## 🔗 Seven-stage desktop dependency graph
+## 🔗 Seven-stage desktop dependency graph and matching menu
 
 The main menu now shows **display output → login manager (GDM3/LightDM) → graphics protocol (X11/Wayland) → desktop environment → user session and verified resolution → RustDesk service → device ID**.
 
 Green means the **local** check succeeded, red means a confirmed missing/broken component, and amber means more verification is needed. Green does not prove that an external RustDesk connection works. Wide terminals show a horizontal progress axis; narrow terminals wrap or switch to a vertical flow. Versions, configuration paths and the locally queried RustDesk ID appear below each node where available.
 
 Use `sudo hdm --chain` for full paths and explanations, or `sudo env HDM_HIDE_RUSTDESK_ID=1 hdm` to hide the device ID in screen-sharing demos. [Desktop chain design and limitations](docs/desktop-chain.md).
+
+The main entries are: 1 Display outputs, 2 Display/login managers, 3 X11/Wayland protocols, 4 Desktop environments, 5 User graphical sessions, 6 RustDesk, 7 Device ID and host details, 8 HDM script and logs. **6** groups RustDesk installation, removal, upgrades, ID/relay/key and password configuration. **7** exposes the device ID, CPU architecture and software versions. **8** offers script updates and safe uninstallation (preserving configurations, logs and prior releases), changelog, installation logs, export, troubleshooting, backups and smart setup.
 
 ## ⌨️ Diagnostics and day-to-day commands
 

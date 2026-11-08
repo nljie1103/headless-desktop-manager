@@ -12,7 +12,7 @@ hdm_gdm_x11() {
   hdm_root && hdm_guard_platform || return 1
   if hdm_gnome_wayland_only; then
     hdm_warn '当前 GNOME 不再支持 Xorg 会话。已跳过 WaylandEnable=false，避免 GDM3 登录循环。'
-    hdm_warn '继续测试 GNOME Wayland、PipeWire、RustDesk；Xorg Dummy 可在菜单1中独立安装，但不能替代 GNOME Wayland 显示。'
+    hdm_warn '继续测试 GNOME Wayland、PipeWire、RustDesk；Xorg Dummy 可在菜单 1 中独立安装，但不能替代 GNOME Wayland 显示。'
     return 2
   fi
   local file=/etc/gdm3/custom.conf tmp
@@ -77,7 +77,7 @@ hdm_desktop_login_manager_guide() {
     printf '保留 SSH/控制台，再在可交互的终端执行 sudo dpkg-reconfigure lightdm。\n'
     printf 'HDM 不会代替用户切换显示管理器或立即重启现有图形会话。\n'
   else
-    printf '如需 XFCE / X11，请先从菜单 3.2 安装 XFCE、Xorg、LightDM 和登录界面组件。\n'
+    printf '如需 XFCE / X11，请先从菜单 4 → 安装 → XFCE 安装 XFCE、Xorg、LightDM 和登录界面组件。\n'
   fi
   printf '切换后还需验证 X11 登录界面、RustDesk 远控及重启恢复。\n'
 }
@@ -96,7 +96,7 @@ hdm_desktop_switch() {
       local pkg
       [[ $desktop == xfce ]] && pkg=xfce4-session || pkg=mate-session-manager
       if ! hdm_installed "$pkg"; then
-        hdm_warn "未安装 $desktop 图形会话，请先从菜单 3 安装。"
+        hdm_warn "未安装 $desktop 图形会话，请先从菜单 4 安装。"
         return 1
       fi
       hdm_warn '请先确认 SSH/云控制台可用，再在登录界面选择对应 X11 会话；HDM 不自动重启图形会话。'
@@ -105,7 +105,7 @@ hdm_desktop_switch() {
   esac
 }
 hdm_desktop_repair() {
-  if hdm_installed gnome-shell; then hdm_desktop_install_gnome repair; else hdm_warn 'GNOME 未安装。请先从菜单 3 选择安装。'; fi
+  if hdm_installed gnome-shell; then hdm_desktop_install_gnome repair; else hdm_warn 'GNOME 未安装。请先从菜单 4 选择安装。'; fi
 }
 hdm_desktop_compare() {
   cat <<'END_COMPARE'

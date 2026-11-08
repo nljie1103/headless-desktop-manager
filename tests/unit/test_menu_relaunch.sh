@@ -31,6 +31,7 @@ hdm_dispatch() {
 # Temporarily replace the menu root lookup source with a readonly fake copy.
 mkdir -p "$TMP/copy/ui"
 printf 'root|1|更新|8.2.5\n' > "$TMP/copy/ui/menus.tsv"
+printf '8.2.5|8.2.5\n' > "$TMP/copy/ui/menu-targets.tsv"
 HDM_ROOT="$TMP/copy"
 output=$(hdm_menu root)
 [[ $output == *'NEW_MENU_STARTED'* ]]

@@ -120,7 +120,7 @@ hdm_rustdesk_rollback() {
   local i answer tag asset digest url file
   mapfile -t entries < <(hdm_rustdesk_cache_list 2>/dev/null)
   if [[ ${#entries[@]} -eq 0 ]]; then
-    hdm_warn '没有可用的经校验本地历史安装包；可从菜单 5.3 下载官方历史版本。'; return 1
+    hdm_warn '没有可用的经校验本地历史安装包；可从菜单 6 → 安装 → 选择指定历史版本 下载官方历史版本。'; return 1
   fi
   hdm_show '已验证的 RustDesk 本地版本（不包含未知来源包）'
   for i in "${!entries[@]}"; do
@@ -335,9 +335,9 @@ hdm_rustdesk_import_config() {
   if ((rc != 0)); then
     hdm_warn '至少一个 RustDesk 配置作用域写入失败、服务启动失败或保存后被覆盖，正在恢复快照。'
     if [[ $state == active ]]; then systemctl stop rustdesk >/dev/null 2>&1 || :; fi
-    hdm_snapshot_restore "$snapshot" || hdm_warn '自动恢复失败，请通过菜单 7.11 查看并手动恢复配置快照。'
+    hdm_snapshot_restore "$snapshot" || hdm_warn '自动恢复失败，请通过菜单 6 → 配置 → 备份/恢复 查看并手动恢复配置快照。'
     if [[ $state == active ]]; then systemctl start rustdesk >/dev/null 2>&1 || hdm_warn 'RustDesk 恢复后服务未能启动，需人工检查。'; fi
-    hdm_error '配置保存验证失败。未宣称成功；查看菜单 7.3 和 RustDesk 服务日志。'
+    hdm_error '配置保存验证失败。未宣称成功；查看菜单 6 → 配置 → 查看服务器配置 和 RustDesk 服务日志。'
     return 1
   fi
   hdm_info 'root 配置已保存并读回一致。'
@@ -418,7 +418,7 @@ hdm_rustdesk_server_status() {
   printf 'RustDesk 已安装：%s；systemd 服务：%s\n' "$(hdm_pkg_version rustdesk)" "$(hdm_service_state rustdesk)"
   file=$(hdm_rustdesk_root_config)
   printf '\n[Root CLI 已保存配置（读取磁盘，不代表服务生效）]\n'
-  hdm_rustdesk_root_inspect || printf '无法确认 root CLI 配置，菜单 7.1.7 保存后可复查。\n'
+  hdm_rustdesk_root_inspect || printf '无法确认 root CLI 配置，菜单 6 → 配置 → 保存并校验 保存后可复查。\n'
   if [[ -n ${SUDO_USER:-} && ${SUDO_USER:-root} != root ]] && hdm_has getent; then
     user_home=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     if [[ -n $user_home && -r $user_home/.config/rustdesk/RustDesk2.toml ]]; then
@@ -533,7 +533,7 @@ hdm_rustdesk_permission_report() {
     fi
   fi
   printf 'GUI 的 Security / Network 通常需要 Unlock 并通过管理员/Polkit 授权。\n'
-  printf 'HDM 可用菜单 7.1 保存自建服务器，再做磁盘读回校验；不能据此证明服务已加载。\n'
+  printf 'HDM 可用菜单 6 → 配置自建服务器 保存自建服务器，再做磁盘读回校验；不能据此证明服务已加载。\n'
   printf '不建议 sudo rustdesk 图形界面、chmod 777、关闭认证或手动复制密码到配置文件。\n'
   if hdm_gnome_wayland_only; then
     printf '[Wayland] 未登录、锁屏、熄屏和没有任何显示输出互不等同；标准版预登录捕获可能不可用。\n'

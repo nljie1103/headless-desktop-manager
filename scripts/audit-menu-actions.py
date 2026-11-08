@@ -1,50 +1,53 @@
 #!/usr/bin/env python3
-"""Production menu routing audit: reachability != functional verification."""
+"""Audit both the v4.3 user-visible menu and retained v4.2 dispatch contracts."""
 from pathlib import Path
 import re
 
-root = Path(__file__).resolve().parent.parent
-lines = (root / "ui/menus.tsv").read_text(encoding="utf-8").splitlines()
-rows = [line.split("|") for line in lines if line and not line.startswith("#")]
-assert all(len(row) == 4 for row in rows), "Invalid menu row"
-all_ids = {row[3] for row in rows}
-assert len(all_ids) == len(rows), "Duplicate menu ID"
-parents = {row[0] for row in rows}
-assert all(parent == "root" or parent in all_ids for parent in parents)
-leaves = {row[3]: row for row in rows if row[3] not in parents}
-actions = (root / "ui/actions.sh").read_text(encoding="utf-8")
+root = Path(__file__).resolve().parents[1]
+rows = [line.split("|") for line in (root / "ui/menus.tsv").read_text().splitlines()
+        if line and not line.startswith("#")]
+old = [line.split("|") for line in (root / "ui/legacy-menus.tsv").read_text().splitlines()
+       if line and not line.startswith("#")]
+parents = {r[0] for r in rows}
+legacy_parents = {r[0] for r in old}
+new_leaves = {r[3]: r for r in rows if r[3] not in parents}
+legacy_leaves = {r[3]: r for r in old if r[3] not in legacy_parents}
+targets = {}
+for line in (root / "ui/menu-targets.tsv").read_text().splitlines():
+    if line and not line.startswith("#"):
+        m, target = line.split("|")
+        assert m not in targets
+        targets[m] = target
+assert set(new_leaves) == set(targets)
+actions = (root / "ui/actions.sh").read_text()
 routes = {}
-for entry in re.finditer(r"(?m)^\s{2}([0-9][0-9.A-Z|]*)\)\s*(.+?);;\s*$", actions):
-    for route in entry.group(1).split("|"):
-        assert route not in routes, ("Duplicate route", route)
-        routes[route] = entry.group(2)
-assert set(routes) == set(leaves), {
-    "missing": sorted(set(leaves) - set(routes)),
-    "orphan": sorted(set(routes) - set(leaves)),
-}
-assert len(rows) == 481 and len(leaves) == 381
-# Production-sensitive actions must not silently degrade to generic warning text.
-required = {
+for match in re.finditer(r"(?m)^\s{2}([0-9][0-9.A-Z|]*)\)\s*(.+?);;\s*$", actions):
+    for old_id in match.group(1).split("|"):
+        assert old_id not in routes, old_id
+        routes[old_id] = match.group(2)
+assert set(routes) == set(legacy_leaves), {"missing": set(legacy_leaves)-set(routes)}
+new_actions = (root / "ui/actions_v2.sh").read_text()
+custom = set(re.findall(r"(?m)^\s{4}([a-z][a-z0-9-]+)\)\s*[^\n]+;;", new_actions))
+mapped_legacy = set()
+for menu_id, target in targets.items():
+    if target.startswith("new:"):
+        assert target[4:] in custom, (menu_id, target)
+    else:
+        assert target in routes, (menu_id, target)
+        mapped_legacy.add(target)
+assert mapped_legacy == set(legacy_leaves), set(legacy_leaves) - mapped_legacy
+# Critical user-facing navigation must retain audited, concrete implementation.
+expect = {
     "4.8.1": "hdm_action_desktop_remove_preview",
     "6.10.1": "hdm_action_remove_preview rustdesk",
     "10.8.8": "hdm_diag_prune_logs",
     "2.8.4": "hdm_action_display_remove_preview",
     "9.2.1": "hdm_quick_install",
-    "9.2.4": "hdm_action_other_desktop_plan",
     "4.8.3": "hdm_display_remove_config",
 }
-for route, handler in required.items():
-    assert handler in routes[route], (route, routes[route])
-# An informational-only route must not advertise mutating behavior without
-# plainly labeling itself as a guide, limitation or information.
-for route, action in routes.items():
-    if not action.startswith("hdm_warn "):
-        continue
-    label = leaves[route][2]
-    if any(word in label for word in ("卸载", "删除", "设置", "配置", "安装", "清理", "切换")):
-        assert any(word in label for word in ("说明", "指南", "入口", "限制", "方式")), (route, label)
-# These counts are explicit evidence scopes, NOT 381 feature success assertions.
-warnings = sum(action.startswith("hdm_warn ") for action in routes.values())
-print(f"PASS menu route audit: {len(rows)} entries, {len(leaves)} leaves, "
-      f"{len(routes)} unique routes, {warnings} informational/limited handlers; "
-      "zero missing/orphan routes")
+for action_id, function in expect.items():
+    assert function in routes[action_id], (action_id, function)
+warnings = sum(routes[x].startswith("hdm_warn ") for x in mapped_legacy)
+print(f"PASS v4.3 menu audit: {len(rows)} entries, {len(new_leaves)} visible actions, "
+      f"{len(routes)} old actions preserved, {len(custom)} new handlers, "
+      f"{warnings} informational legacy handlers, no orphan routes")

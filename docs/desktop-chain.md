@@ -56,3 +56,7 @@ hdm --chain-json
 - [RustDesk Wayland 无人值守预览](https://www.rustdesk.com/blog/unattended-remote-access-wayland/)
 
 [返回 README](../README.md) · [菜单操作指南](menu-guide.md) · [Ubuntu 26 ARM64 指南](ubuntu26-arm64.md)
+
+## v4.3.0 阶段与菜单对应关系
+
+状态图的第 1–7 个节点分别对应主菜单 1–7：显示输出、登录管理器、图形协议、桌面环境、图形用户会话、RustDesk、设备 ID。新增第 **8 菜单「HDM 脚本管理」**，负责更新及安全卸载 HDM、更新日志、安装日志、完整诊断导出、智能部署和备份。此第 8 项不属于图形/远控链路，属于管理工具本身。
