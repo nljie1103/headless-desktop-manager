@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.3.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.3.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -120,7 +120,7 @@ sudo hdm --chain
 
 ```text
   ─────────────────────────────────────────────────────────────
-  HDM v4.3.0  ·  ubuntu 24.04 / x86_64
+  HDM v4.3.1  ·  ubuntu 24.04 / x86_64
   ──────◆──────────●──────────●──────────●──────
        显示输出     登录管理器    图形协议     桌面环境
        ? 待核实     ✓ GDM3       ✓ X11        ✓ XFCE
@@ -144,7 +144,9 @@ sudo hdm --chain
 *以上为菜单排版示意；版本以实际安装为准，桌面、协议和 RustDesk 状态会实时检测。原有底层操作通过兼容映射继续执行，用户看到的编号已统一为八阶段新路径。*
 新结构重点如下：**6 → 安装 / 卸载 / 更新 / 配置 ID、Relay、Key**；**7 → 查看设备 ID、架构、系统及 RustDesk 版本**；**8 → 更新脚本、卸载脚本、更新日志、安装日志、快速导出全部日志**。
 
-新版菜单共有 **578 个条目、426 个可选入口**，其中保留原有 **381 个不同的底层动作**；重复出现的是跨阶段的便捷入口，不代表额外实现了 426 项互不相同的能力。部分卸载操作依旧只能预览，需保留 SSH/云控制台。
+新版菜单共有 **586 个条目、433 个可选入口**，其中保留原有 **381 个不同的底层动作**；重复出现的是跨阶段的便捷入口，不代表额外实现了 426 项互不相同的能力。登录管理器及桌面提供真实卸载，但仅在替代桌面/登录管理器已实际运行、APT 依赖安全且用户再次确认后执行；不自动 purge 或 autoremove。
+
+**Ubuntu 26 的 GNOME → XFCE 迁移（全部使用 HDM 菜单）**：先在 `4 → 安装 → XFCE → 标准 XFCE` 安装新桌面；从 `2 → 切换默认登录管理器 → 选择 LightDM` 调用系统选择界面；在 SSH/云控制台保护下重启并验证 LightDM/XFCE 和 RustDesk；确认成功后，再从 `2 → 卸载 → 真实卸载 GDM3` 和 `4 → 卸载与预览 → 真实卸载 GNOME` 执行实际 APT remove。未满足切换条件时菜单会拒绝删除旧登录管理器，以防止断连。
 
 **卸载 HDM 管理器**只清理启动命令和当前版本链接，保留历史版本、配置、日志及所有已安装桌面软件，不卸载 RustDesk。
 

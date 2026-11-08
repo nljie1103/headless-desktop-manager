@@ -6,7 +6,7 @@ for module in \
   core/common.sh core/environment.sh core/operation.sh core/backup.sh core/packages.sh core/downloader.sh \
   modules/display/display.sh modules/desktop/desktop.sh modules/desktop/session.sh modules/rustdesk/rustdesk.sh \
   modules/updater/updater.sh modules/diagnostics/diagnostics.sh modules/diagnostics/readiness.sh \
-  modules/quick-install/quick-install.sh ui/actions.sh ui/actions_v2.sh ui/menu.sh; do
+  modules/quick-install/quick-install.sh ui/actions.sh ui/remove_packages.sh ui/actions_v2.sh ui/menu.sh; do
   # shellcheck disable=SC1090
   source "$HDM_ENTRY_ROOT/$module"
 done

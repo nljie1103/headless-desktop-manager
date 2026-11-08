@@ -56,3 +56,7 @@ Ubuntu 26 移除的是 **GNOME Xorg 会话**，并没有取消系统层面的 Xo
 - [RustDesk Linux：Wayland 与登录界面限制](https://rustdesk.com/docs/en/client/linux/)
 - [RustDesk：Wayland Unattended Preview (x86_64)](https://rustdesk.com/blog/unattended-remote-access-wayland/)
 - [HDM 兼容测试矩阵](testing-and-limitations.md) · [返回项目首页](../README.md)
+
+## v4.3.1 迁移菜单
+
+系统已经实现实际卸载路径：在菜单 4 安装 XFCE，菜单 `2 → 切换默认登录管理器` 运行交互式 `dpkg-reconfigure lightdm`，再通过独立 SSH/云控制台安排重启、验证 XFCE/X11/LightDM 以及 RustDesk。只有新登录管理器已成为默认并且真正运行，才能从菜单 `2 → 卸载` 删除 GDM3，最后从菜单 `4 → 卸载与预览` 删除 GNOME。APT 会先模拟整个依赖删除集合，意外涉及 Xorg、RustDesk 或替代桌面则拒绝执行。
