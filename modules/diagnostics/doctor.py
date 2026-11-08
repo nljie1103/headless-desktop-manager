@@ -83,9 +83,19 @@ def inspect(report: dict) -> list[dict]:
             '菜单 3.2' if chosen == 'XFCE' and not found else ('菜单 3.3' if not found else '')))
         lightdm = display.get('lightdm_service')
         lightdm_package = bool(packages.get('lightdm', {}).get('installed'))
-        checks.append(finding('lightdm', 'ok' if lightdm_package else 'warning', 'LightDM 登录管理器',
-            f'软件包 {"已安装" if lightdm_package else "未安装"}，服务 {lightdm or "unknown"}。'
-            '安装不等于已选为默认登录管理器。', '菜单 4.4 检查默认登录管理器'))
+        gdm_alternative = display.get('gdm3_service') == 'active' and any(
+            s.get('type') == 'x11' and s.get('class') == 'user'
+            and s.get('state') in ('active', 'online')
+            and str(s.get('desktop') or '').lower().startswith(chosen.lower())
+            for s in report.get('sessions', []))
+        dm_ok = lightdm_package or gdm_alternative
+        dm_detail = (
+            '当前 XFCE/MATE 已通过运行中的 GDM3 建立 X11 会话；LightDM 是可选项。'
+            if gdm_alternative and not lightdm_package else
+            f'LightDM 软件包 {"已安装" if lightdm_package else "未安装"}，服务 {lightdm or "unknown"}；'
+            '是否作为默认登录管理器需独立核实。')
+        checks.append(finding('lightdm', 'ok' if dm_ok else 'warning', 'X11 登录管理器',
+            dm_detail, '菜单 4.4 检查默认登录管理器' if not dm_ok else ''))
         xorg = bool(packages.get('xserver-xorg-core', {}).get('installed'))
         checks.append(finding('xorg_package', 'ok' if xorg else 'action', 'Xorg 图形服务',
             'Xorg 软件包已安装（不等于虚拟显示可用）。' if xorg else '缺少 Xorg 服务软件包。',

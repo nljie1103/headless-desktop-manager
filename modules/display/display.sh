@@ -191,11 +191,25 @@ hdm_display_change_res() {
   hdm_display_select_res || return 1
   if [[ -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]]; then hdm_display_dummy_config; else hdm_info '已保存下次 Dummy 安装使用的分辨率。'; fi
 }
+# Never delete a custom file with an HDM-looking name or a symlink.
+hdm_display_owned_dummy_config() {
+  [[ -f $1 && ! -L $1 ]] && grep -Fq 'Managed by HDM' "$1"
+}
 hdm_display_remove_config() {
-  hdm_danger '删除 HDM 自己创建的 Dummy 配置（可能造成远程黑屏）？' || return 0
-  hdm_snapshot_create /etc/X11/xorg.conf.d/20-hdm-dummy.conf || return 1
+  local path=/etc/X11/xorg.conf.d/20-hdm-dummy.conf
+  hdm_root && hdm_guard_platform || return 1
+  if [[ ! -e $path && ! -L $path ]]; then
+    printf '[无需清理] 本机不存在 HDM Dummy 配置。\n'
+    return 0
+  fi
+  if ! hdm_display_owned_dummy_config "$path"; then
+    hdm_warn '拒绝删除：目标不是可验证的 HDM 自建 Dummy 配置，或是符号链接。'
+    return 2
+  fi
+  hdm_danger '删除 HDM 自建 Dummy 配置（可能造成远程黑屏）？' || return 2
+  hdm_snapshot_create "$path" || return 1
   hdm_recovery_arm "$HDM_LAST_SNAPSHOT" || return 1
-  rm -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf
+  rm -f -- "$path" || return 1
   hdm_info '仅清理 HDM Dummy 配置，未删除系统驱动软件包。'
 }
 hdm_display_current_package() {

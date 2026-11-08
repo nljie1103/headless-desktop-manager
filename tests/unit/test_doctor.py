@@ -73,6 +73,11 @@ assert any(c['code']=='x11_user_session' and c['level']=='ok' for c in xfce_chec
 assert any(c['code']=='lightdm' and c['level']=='ok' for c in xfce_checks)
 assert not any(c['code'] in ('gnome_package','gdm_service','gnome_session','display_stack') for c in xfce_checks)
 assert xfce_checks[-1]['code']=='remote_validation' and xfce_checks[-1]['level']=='manual'
+xfce_via_gdm = dict(xfce)
+xfce_via_gdm['packages'] = {k:v for k,v in xfce['packages'].items() if k != 'lightdm'}
+xfce_via_gdm['display'] = {**xfce['display'], 'gdm3_service':'active', 'lightdm_service':'inactive'}
+checks_via_gdm = doctor.inspect(xfce_via_gdm)
+assert any(c['code']=='lightdm' and c['level']=='ok' and 'GDM3' in c['detail'] for c in checks_via_gdm)
 # Installed XFCE alone does not trump an actively logged-in GNOME Wayland user.
 gnome_active = dict(xfce)
 gnome_active['sessions'] = [{'type':'wayland','desktop':'gnome','state':'active','class':'user'}]

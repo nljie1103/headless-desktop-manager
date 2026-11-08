@@ -7,6 +7,7 @@ export HDM_TEST_MODE=1 HDM_LOG_DIR="$TMP/log" HDM_ETC="$TMP/etc" HDM_STATE="$TMP
 mkdir -p "$HDM_LOG_DIR" "$TMP/bin"
 source "$ROOT/core/common.sh"
 source "$ROOT/modules/diagnostics/diagnostics.sh"
+source "$ROOT/modules/display/display.sh"
 source "$ROOT/ui/actions.sh"
 hdm_root() { return 0; }
 hdm_type() { printf 'apt\n'; }
@@ -46,4 +47,11 @@ hdm_diag_prune_logs >/dev/null
 [[ ! -e $HDM_LOG_DIR/operation-old.log ]]
 [[ -f $HDM_LOG_DIR/operation-recent.log && -f $HDM_LOG_DIR/hdm.log ]]
 [[ -f $HDM_LOG_DIR/steps.log && -e $TMP/external && -L $HDM_LOG_DIR/operation-symlink.log ]]
-echo 'PASS APT removal preview, allowlisted packages, confirmed log pruning and symlink retention'
+# Only HDM-owned regular files are eligible for Dummy configuration deletion.
+printf '# User-managed Xorg config\n' > "$TMP/custom.conf"
+printf '# Managed by HDM\n' > "$TMP/managed.conf"
+ln -s "$TMP/managed.conf" "$TMP/managed-link.conf"
+! hdm_display_owned_dummy_config "$TMP/custom.conf"
+hdm_display_owned_dummy_config "$TMP/managed.conf"
+! hdm_display_owned_dummy_config "$TMP/managed-link.conf"
+echo 'PASS APT removal preview, safe log retention and HDM-owned display file verification'
