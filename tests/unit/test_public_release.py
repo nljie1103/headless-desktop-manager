@@ -12,4 +12,8 @@ assert mod.INTERNAL.search('PowerShell')
 assert mod.INTERNAL.search('GitHub Actions')
 assert not mod.INTERNAL.search('预览版更新前校验归档并保留旧版以便回滚')
 assert 'v0.3.5' not in (root/'release/RELEASE_NOTES.md').read_text()
+workflow = (root/'.github/workflows/release.yml').read_text()
+assert 'gh release view "$GITHUB_REF_NAME"' in workflow
+assert 'gh release upload "$GITHUB_REF_NAME"' in workflow and '--clobber' in workflow
+
 print('PASS: public release copy policy')

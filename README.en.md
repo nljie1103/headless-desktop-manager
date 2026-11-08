@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.5.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.2-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -82,19 +82,24 @@ sudo hdm
 
 Installing HDM **does not automatically install GNOME or change the display manager**. In an interactive terminal it opens the menu; `HDM_NO_AUTO_MENU=1` skips that auto-opening.
 
-The CLI now uses **eight main entries**: stages 1–7 follow the seven-node desktop chain, and stage 8 manages the HDM script, logs, diagnostics and resumable installation. Install/uninstall/update/configuration actions live in the relevant submenus; long terminal lines wrap automatically. Existing implementation IDs are preserved through an explicit compatibility routing map. Use `0` to return from a submenu and `0` / `q` to exit at root. List the full structure using `hdm --menu-tree`.
-
+The v4.5.2 software now has **six task-based sections**, instead of eight technical stages: 1 Quick setup, 2 Desktop environments, 3 Login managers, 4 RustDesk, 5 Display settings, 6 HDM maintenance. The task menu has 70 entries (60 actions), with redundant diagnostic/help routes removed. The 381 legacy action implementations remain in source for compatibility, but are not all in the user-visible menu. Starting/stopping services and enabling boot startup are separate actions. These changes are in **v4.5.2**. Existing v4.5.1 installations keep their original menu until the HDM manager is upgraded.
 ---
 
-## 🔗 Seven-stage desktop dependency graph and matching menu
+## 🔗 Seven-stage dependency diagnostics (separate from the task menu)
 
-The main menu now shows **display output → login manager (GDM3/LightDM) → graphics protocol (X11/Wayland) → desktop environment → user session and verified resolution → RustDesk service → device ID**.
+The optional `hdm --chain` command shows **display output → login manager (GDM3/LightDM) → graphics protocol (X11/Wayland) → desktop environment → user session and verified resolution → RustDesk service → device ID**. The daily-use home screen now shows only a brief state summary.
 
-Green means the **local** check succeeded, red means a confirmed missing/broken component, and amber means more verification is needed. Green does not prove that an external RustDesk connection works. Wide terminals show a horizontal progress axis; narrow terminals wrap or switch to a vertical flow. Versions, configuration paths and the locally queried RustDesk ID appear below each node where available.
+Green means the **local** check succeeded, red means a confirmed missing/broken component, and amber means more verification is needed. Green does not prove that an external RustDesk connection works. The `hdm --chain` command can still render these details, but no longer dominates the daily-use home screen.
 
 Use `sudo hdm --chain` for full paths and explanations, or `sudo env HDM_HIDE_RUSTDESK_ID=1 hdm` to hide the device ID in screen-sharing demos. [Desktop chain design and limitations](docs/desktop-chain.md).
 
-The main entries are: 1 Display outputs, 2 Display/login managers, 3 X11/Wayland protocols, 4 Desktop environments, 5 User graphical sessions, 6 RustDesk, 7 Device ID and host details, 8 HDM script and logs. **6** groups RustDesk installation, removal, upgrades, ID/relay/key and password configuration. **7** exposes the device ID, CPU architecture and software versions. **8** offers script updates and safe uninstallation (preserving configurations, logs and prior releases), changelog, installation logs, export, troubleshooting, backups and smart setup.
+Day-to-day paths on `main`: **2 → 1** install XFCE only, **3 → 3** start the selected LightDM/GDM3 service, **3 → 6** enable boot startup, **4 → 1/2/7/8** install/start/update/remove RustDesk, **6 → 1** update HDM to the latest published Release. Risky stop/restart/uninstall actions require independent SSH/provider-console access.
+
+### Graphical sessions and actual protocol management
+
+The `2 → 9` submenu lists real X11/Wayland user sessions, safely terminates a selected graphical session with explicit confirmation (SSH/TTY excluded), starts the display manager to prepare a new login, and reports available session types. For installed XFCE/MATE with LightDM, it can set the **default X11 desktop session** without restarting the machine. It cannot change DRM into Wayland or force GNOME 50 into an unavailable Xorg session.
+
+Desktop environment installs are now **separate from display managers**: installing XFCE/GNOME/MATE does not explicitly reinstall LightDM/GDM3/Xorg; the guided full-stack installer still fills missing prerequisites. A host with many SSH sessions no longer reports graphical-session overflow just because the first 24 logind rows were occupied by SSH.
 
 ## ⌨️ Diagnostics and day-to-day commands
 
@@ -184,7 +189,7 @@ Earlier releases v4.4.0/v4.4.1 erroneously compared the IDs `8.1` and `8.10` as 
 
 ### v4.5.0: Direct actions, remove or purge, and intuitive Back
 
-All eight primary stages are preserved, but common tasks are single-level commands: **2 → 3** removes GDM3, **4 → 4** removes GNOME, **4 → 1** installs XFCE + Xorg + LightDM, **6 → 1/2/3** manages RustDesk, **8 → 1** upgrades HDM. Detailed historical features remain grouped under Advanced Tools. Uninstall displays the APT dependency plan and then asks for just one choice: **1 Keep package configuration (remove)**, **2 Delete package-managed system configuration (purge)**, **0/q Cancel**. Both removal modes simulate their actual dependency plans and reject removal of unrelated protected system, SSH, RustDesk, or Xorg components. Purging does not delete user home directories or run autoremove. Lowercase **q** or **0** goes back one submenu, **Q** exits immediately, and **q** exits from the main menu only.
+Historical note for v4.5.1 (not the current main menu): eight primary stages used the following paths: **2 → 3** removes GDM3, **4 → 4** removes GNOME, **4 → 1** installs XFCE + Xorg + LightDM, **6 → 1/2/3** manages RustDesk, **8 → 1** upgrades HDM. Detailed historical features remain grouped under Advanced Tools. Uninstall displays the APT dependency plan and then asks for just one choice: **1 Keep package configuration (remove)**, **2 Delete package-managed system configuration (purge)**, **0/q Cancel**. Both removal modes simulate their actual dependency plans and reject removal of unrelated protected system, SSH, RustDesk, or Xorg components. Purging does not delete user home directories or run autoremove. Lowercase **q** or **0** goes back one submenu, **Q** exits immediately, and **q** exits from the main menu only.
 
 When `sudo hdm` is missing after upgrading from an older updater, correct the release-directory access permissions via SSH: `sudo chmod -R a+rX "$(sudo readlink -f /opt/hdm/current)" && sudo chmod 755 /opt/hdm/current/hdm.sh && sudo hdm`. That only changes HDM source permissions, not GNOME or RustDesk.
 

@@ -288,8 +288,14 @@ def build(report: dict, signals: dict) -> list[Node]:
     elif has_socket:
         p_state, p_value, p_detail, p_path = "unknown", "X11 待登录", "发现 X socket", "/tmp/.X11-unix"
         p_explain = "发现 X11 Socket，但尚无确认的活跃图形用户会话。"
+    elif package(report, "xserver-xorg-core").get("installed"):
+        p_state, p_value, p_detail, p_path = (
+            "unknown", "Xorg 已安装", "无活动 X11 会话", "/usr/bin/Xorg")
+        p_explain = ("已有 Xorg 软件包，但没有已确认的 X11/Wayland 图形会话。"
+                     "DRM connected 只说明内核显示输出已连接，不代表 Xorg 正在运行。"
+                     "请先安装桌面会话、启动 LightDM/GDM3，再从另一设备实际验证。")
     else:
-        p_state, p_value, p_detail, p_path = "bad", "未建立", "协议待检测", "Xorg / Wayland"
+        p_state, p_value, p_detail, p_path = "bad", "未建立", "未安装 Xorg / 无活动会话", "Xorg / Wayland"
         p_explain = "未检测到活跃 X11/Wayland 图形协议，不能推断桌面可被控制。"
     if not multiple and not truncated:
         protocol = Node("图形协议", p_state, p_value, p_detail, p_path, p_explain)

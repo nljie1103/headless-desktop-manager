@@ -1,56 +1,207 @@
 #!/usr/bin/env bash
-# GNOME session checks deliberately separate packages, GDM greeter, DRM output,
-# loginctl graphical *user* session and RustDesk screen capture.
+# Graphical session tools separate packages, display managers, DRM outputs,
+# actual X11/Wayland user sessions and RustDesk screen capture.
+# All desktops use the same generic status: never require GDM on an XFCE host.
 hdm_session_report() {
-  local desktop drm session gnome_session target gdm rustdesk
+  local desktop drm session target rustdesk dm lightdm gdm3
   desktop=$(hdm_env_desktop_kind)
   drm=$(hdm_env_drm_state)
   session=$(hdm_env_active_session)
-  gnome_session=$(hdm_env_gnome_session)
-  gdm=$(hdm_service_state gdm3)
+  gdm3=$(hdm_service_state gdm3)
+  lightdm=$(hdm_service_state lightdm)
   rustdesk=$(hdm_service_state rustdesk)
   target=$(systemctl get-default 2>/dev/null || printf unknown)
-  hdm_show '图形会话检查'
-  printf '桌面软件       %s\n' "$desktop"
-  printf '默认启动目标   %s\n' "$target"
-  printf 'GDM3 登录服务  %s\n' "$gdm"
-  printf 'DRM 连接状态   %s（不代表有可用画面）\n' "$(hdm_env_drm_short "$drm")"
+  dm=$(hdm_v2_default_dm 2>/dev/null || printf unknown)
+  hdm_show '图形会话状态（XFCE / GNOME / MATE 通用）'
+  printf '已安装桌面       %s\n' "$desktop"
+  printf '默认登录管理器   %s\n' "$dm"
+  printf 'LightDM / GDM3   %s / %s\n' "$lightdm" "$gdm3"
+  printf '默认启动目标     %s\n' "$target"
+  printf 'DRM 显示输出     %s（不等于已有 X11/Wayland 会话）\n' "$(hdm_env_drm_short "$drm")"
   case "$session" in
-    x11|wayland) printf '活动用户会话   %s（尚未验证远程画面）\n' "$session";;
-    none) printf '活动用户会话   无\n';;
-    *) printf '活动用户会话   无法确认（loginctl 数据不足）\n';;
+    x11|wayland) printf '活动图形会话     %s（仍需测试实际画面）\n' "$session";;
+    none) printf '活动图形会话     无（SSH 会话不计入）\n';;
+    *) printf '活动图形会话     待确认（会话扫描失败或不完整）\n';;
   esac
-  case "$gnome_session" in
-    x11|wayland) printf 'GNOME 用户会话  %s（尚未验证远程画面）\n' "$gnome_session";;
-    none) printf 'GNOME 用户会话  无（其他桌面的会话不算 GNOME）\n';;
-    *) printf 'GNOME 用户会话  无法确认\n';;
-  esac
-  printf 'RustDesk 服务  %s（不代表可捕获画面）\n' "$rustdesk"
-  if ! hdm_installed gdm3; then
-    printf '\n[缺失] 未安装 GDM3；当前桌面环境为 %s，不能按已安装 GNOME 进行会话修复。\n' "$desktop"
-    printf '下一步：如需 GNOME，先通过菜单 4 安装 GNOME/GDM3，再检查图形会话。\n'
-  elif [[ "$gdm" != active ]]; then
-    printf '\n[阻断] GDM3 已安装但未运行；软件包存在不等于图形登录服务已启动。\n'
-    printf '下一步：菜单 5 → 查看会话状态 → 启动/检查 GDM3；或 sudo hdm --session-start\n'
-  elif [[ "$gnome_session" != x11 && "$gnome_session" != wayland ]]; then
-    printf '\n[未就绪] GDM3 已运行，但尚无可确认的 GNOME 用户会话。其他桌面或登录界面不等于 GNOME。\n'
-  else
-    printf '\n[待验证] 已检测到图形用户会话；仍需从另一设备确认图像与输入。\n'
-  fi
-  if hdm_gnome_wayland_only && [[ "$drm" == not-connected ]]; then
-    printf '[提示] Wayland 需要真实可用的 DRM/KMS 输出；Xorg Dummy 无法直接替代。\n'
+  printf 'RustDesk 服务    %s（不证明远端可控）\n' "$rustdesk"
+  if [[ $desktop == none ]]; then
+    printf '[下一步] 先从菜单 2 选择 XFCE / GNOME / MATE 安装，再按需启动登录管理器。\n'
+  elif [[ $lightdm != active && $gdm3 != active ]]; then
+    printf '[下一步] 已有 %s，但没有登录管理器运行；从菜单 3 启动当前默认管理器。\n' "$desktop"
+  elif [[ $session == none ]]; then
+    printf '[下一步] 登录管理器可能正在显示登录界面；需要用户实际登录，不能从 SSH 自动视为已有桌面。\n'
   fi
 }
+
 hdm_session_protocol_report() {
-  hdm_show '会话协议与 GDM 设置'
-  if hdm_gnome_wayland_only; then
-    printf '当前 GNOME 只提供 Wayland 会话。\n'
-    printf 'WaylandEnable=false 不会创造显示输出，反而可能导致登录失败。\n'
+  local current
+  current=$(hdm_env_active_session)
+  hdm_show '当前图形协议与可选会话'
+  printf '当前活动图形用户会话：%s（SSH 会话不计算）\n' "$current"
+  printf 'DRM/KMS 是内核显示输出，不是 X11 或 Wayland 协议。\n'
+  if hdm_installed xserver-xorg-core; then
+    printf 'Xorg（X11 图形服务器）：已安装；'
   else
-    if hdm_gdm_x11_enabled /etc/gdm3/custom.conf; then printf '已配置 GDM3 X11 模式。\n'; else printf '未强制 GDM3 X11。\n'; fi
+    printf 'Xorg（X11 图形服务器）：未安装；'
   fi
-  printf '活动图形用户会话：%s；GNOME 用户会话：%s\n' "$(hdm_env_active_session)" "$(hdm_env_gnome_session)"
+  if pgrep -x Xorg >/dev/null 2>&1; then printf '有运行进程\n'; else printf '未运行（无图形会话时可能正常）\n'; fi
+  printf '已安装的 X11 会话文件：\n'
+  local found=0 file
+  for file in /usr/share/xsessions/*.desktop; do
+    [[ -f $file ]] || continue
+    printf '  %s（X11）\n' "${file##*/}"
+    found=1
+  done
+  ((found)) || printf '  无\n'
+  printf '已安装的 Wayland 会话文件：\n'
+  found=0
+  for file in /usr/share/wayland-sessions/*.desktop; do
+    [[ -f $file ]] || continue
+    printf '  %s（Wayland）\n' "${file##*/}"
+    found=1
+  done
+  ((found)) || printf '  无\n'
+  printf '切换协议应选择实际存在的桌面会话，而不是卸载 DRM；Ubuntu 26 GNOME 不支持 GNOME Xorg 会话。\n'
 }
+
+# Display only graphical user logins, not the often dozens of SSH/TTY sessions.
+hdm_session_candidates() {
+  python3 - "$HDM_ROOT/modules/diagnostics/status_json.py" <<'PYSESSION'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("hdm_status_json", sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+sessions, incomplete = module.sessions()
+if incomplete:
+    sys.exit(3)  # Don't take destructive actions on partial listing.
+for s in sessions:
+    if s.get('state') not in ('active', 'online'):
+        continue
+    values = [str(s.get(k, '')).replace('|', '').replace('\n','')[:80]
+              for k in ('id', 'name', 'desktop', 'type', 'state')]
+    print('|'.join(values))
+PYSESSION
+}
+
+hdm_session_list_graphical() {
+  local entries
+  hdm_show '可管理的图形用户会话'
+  if ! entries=$(hdm_session_candidates); then
+    hdm_warn '会话信息读取失败或超过安全扫描范围，暂不操作。'
+    return 2
+  fi
+  if [[ -z $entries ]]; then
+    printf '当前没有已登录的 X11/Wayland 图形用户会话。SSH/TTY 连接不属于图形会话。\n'
+    return 0
+  fi
+  printf '%-12s %-16s %-16s %-9s %s\n' '会话 ID' '用户' '桌面' '协议' '状态'
+  while IFS='|' read -r sid name desktop typ state; do
+    printf '%-12s %-16s %-16s %-9s %s\n' "$sid" "$name" "$desktop" "$typ" "$state"
+  done <<< "$entries"
+}
+
+hdm_session_terminate_graphical() {
+  local entries sid name desk proto state chosen candidate current_type current_cls
+  hdm_root && hdm_guard_platform || return 1
+  if ! entries=$(hdm_session_candidates); then
+    hdm_warn '无法读取完整的图形会话列表，已拒绝结束会话。'
+    return 2
+  fi
+  if [[ -z $entries ]]; then
+    printf '没有可结束的图形用户会话；不会终止 SSH 或登录管理器。\n'
+    return 0
+  fi
+  hdm_session_list_graphical
+  hdm_prompt '输入要结束的图形会话 ID（0 取消）：' chosen || return 2
+  [[ $chosen == 0 || -z $chosen ]] && { printf '已取消。\n'; return 0; }
+  [[ $chosen =~ ^[A-Za-z0-9_-]{1,48}$ ]] || { hdm_warn '无效会话 ID。'; return 2; }
+  candidate=''
+  while IFS='|' read -r sid name desk proto state; do
+    if [[ $sid == "$chosen" ]]; then candidate="$sid|$name|$desk|$proto|$state"; break; fi
+  done <<< "$entries"
+  [[ -n $candidate ]] || { hdm_warn '会话不在已验证的图形用户列表中。'; return 2; }
+  if [[ $chosen == "${XDG_SESSION_ID:-__none__}" ]]; then
+    hdm_warn '拒绝结束当前执行 HDM 的会话。'
+    return 2
+  fi
+  # Revalidate immediately before action: session IDs may disappear/recycle.
+  current_type=$(loginctl show-session "$chosen" -p Type --value 2>/dev/null || :)
+  current_cls=$(loginctl show-session "$chosen" -p Class --value 2>/dev/null || :)
+  [[ ( $current_type == x11 || $current_type == wayland ) && $current_cls == user ]] || {
+    hdm_warn '会话类型已变化或已经退出，拒绝操作。'
+    return 2
+  }
+  printf '即将结束：%s\n' "$candidate"
+  hdm_warn '结束会话会关闭该桌面上的程序，未保存的编辑可能丢失；不等于删除账户。'
+  hdm_confirm '确定结束这个图形用户会话？' || { printf '已取消。\n'; return 0; }
+  if [[ ${HDM_DRY_RUN:-0} == 1 ]]; then
+    printf '[DRY RUN] loginctl terminate-session %s\n' "$chosen"
+    return 0
+  fi
+  # Re-check after interactive confirmation; logind session IDs may be reused.
+  current_type=$(loginctl show-session "$chosen" -p Type --value 2>/dev/null || :)
+  current_cls=$(loginctl show-session "$chosen" -p Class --value 2>/dev/null || :)
+  local current_name
+  current_name=$(loginctl show-session "$chosen" -p Name --value 2>/dev/null || :)
+  if [[ ( $current_type != x11 && $current_type != wayland ) || $current_cls != user ||
+        $current_name != "$name" ]]; then
+    hdm_warn '会话身份/类型在确认期间发生变化，已取消操作。'
+    return 2
+  fi
+  loginctl terminate-session "$chosen"
+}
+
+# The actual logged-in desktop is created by LightDM/GDM, not by a synthetic
+# "create session" command. Starting the greeter is the proper preparation.
+hdm_session_prepare_login() {
+  hdm_v2_dm_service start
+}
+
+# Choose one installed X11 desktop as the LightDM default. This is a genuine
+# configuration operation, not a fictitious global 'DRM -> Wayland switch'.
+hdm_session_select_default() {
+  local chosen pkg target tmp session
+  hdm_root && hdm_guard_platform || return 1
+  if [[ $(hdm_v2_default_dm) != lightdm ]]; then
+    hdm_warn '默认登录管理器不是 LightDM。GNOME/Wayland 请在 GDM3 登录界面选择；不能直接把 DRM 切成 Wayland。'
+    return 2
+  fi
+  hdm_installed lightdm || { hdm_warn 'LightDM 未安装。'; return 2; }
+  printf '可设置为 LightDM 默认 X11 会话：\n'
+  if hdm_installed xfce4-session && [[ -f /usr/share/xsessions/xfce.desktop ]]; then
+    printf '  1. XFCE（X11）\n'
+  fi
+  if hdm_installed mate-session-manager && [[ -f /usr/share/xsessions/mate.desktop ]]; then
+    printf '  2. MATE（X11）\n'
+  fi
+  printf '  0. 取消\n'
+  hdm_prompt '请选择：' chosen || return 2
+  case "$chosen" in
+    0|'') return 0;;
+    1) session=xfce; pkg=xfce4-session;;
+    2) session=mate; pkg=mate-session-manager;;
+    *) hdm_warn '无效选项。'; return 2;;
+  esac
+  [[ -f /usr/share/xsessions/$session.desktop ]] && hdm_installed "$pkg" || {
+    hdm_warn "未安装 $session 桌面会话，不能将它设为默认。"
+    return 2
+  }
+  target=/etc/lightdm/lightdm.conf.d/99-zz-hdm-session.conf
+  [[ ! -L $target ]] || { hdm_warn '目标配置为符号链接，拒绝覆盖。'; return 2; }
+  printf '将把 LightDM 默认会话设为 %s（X11），不会自动重启/注销。\n' "$session"
+  hdm_confirm '确认写入 HDM 管理的 LightDM 会话配置？' || return 2
+  if [[ ${HDM_DRY_RUN:-0} == 1 ]]; then
+    printf '[DRY RUN] LightDM user-session=%s\n' "$session"
+    return 0
+  fi
+  install -d -m 755 /etc/lightdm/lightdm.conf.d || return 1
+  if [[ -f $target ]]; then hdm_snapshot_create "$target" || return 1; fi
+  tmp=$(mktemp /etc/lightdm/lightdm.conf.d/.hdm-session.XXXXXX) || return 1
+  printf '[Seat:*]\nuser-session=%s\n' "$session" > "$tmp" || { rm -f "$tmp"; return 1; }
+  chmod 644 "$tmp" && mv -f -- "$tmp" "$target" || { rm -f "$tmp"; return 1; }
+  printf '已保存默认 %s X11 会话。请在登录界面登录或安全维护窗口重启 LightDM 后验证。\n' "$session"
+}
+
 hdm_session_user_report() {
   local sid typ cls state remote desk count=0
   hdm_show 'D-Bus / 用户图形会话'
@@ -65,7 +216,7 @@ hdm_session_user_report() {
     desk=$(loginctl show-session "$sid" -p Desktop --value 2>/dev/null || :)
     printf '会话 %s: %s / %s / %s / %s (Remote=%s)\n' "$sid" "$typ" "$desk" "$cls" "$state" "$remote"
     ((count+=1))
-  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=128{print $1}')
+  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=256{print $1}')
   (( count > 0 )) || printf '没有可识别的 X11/Wayland 会话；SSH 会话已过滤。\n'
   printf '用户总线与桌面 Portal 仅在对应用户会话建立后才可验证。\n'
 }

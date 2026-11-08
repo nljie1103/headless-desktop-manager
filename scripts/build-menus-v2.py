@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Deterministically construct the eight-stage HDM user menu.
+"""Build the task-first HDM menu; keep legacy handlers internal for compatibility.
 
-Keep old (v4.2) action identifiers stable: menu-targets.tsv maps new user-visible
-IDs to tested legacy dispatch IDs. The new menu never evals a target.
+The visible UI intentionally has only six sections and at most three menu levels.
+Legacy action identifiers remain implemented in ui/actions.sh, not exposed as
+hundreds of nested help/diagnostic entries.
 """
 from __future__ import annotations
 from collections import defaultdict
@@ -22,7 +23,6 @@ for raw in legacy.read_text(encoding="utf-8").splitlines():
     assert old_id not in original, old_id
     original[old_id] = (parent, key, label)
     children[parent].append(old_id)
-legacy_leaves = {old_id for old_id in original if old_id not in children}
 
 
 def group(title, *items):
@@ -31,6 +31,7 @@ def group(title, *items):
 
 def item(old_id, label=None):
     assert old_id in original, old_id
+    assert old_id not in children, ("Only map leaf actions in normal UI", old_id)
     return ("ref", old_id, label)
 
 
@@ -39,100 +40,80 @@ def custom(title, target):
 
 
 MAIN = [
-    group("显示输出管理",
-          item("1.1.1", "安装 Xorg Dummy"),
-          item("1.2.1", "安装 Xvfb"),
-          item("1.3.2", "启用 VKMS"),
-          custom("查看显示状态", "new:display-status"),
-          item("2.8.1", "删除 HDM Dummy 配置"),
-          group("分辨率设置", item("2.4")),
-          group("高级显示工具",
-                item("1.1"), item("1.2"), item("1.3"), item("1.4"), item("1.5"),
-                item("2.8"), item("2.2"), item("2.7"), item("2.1"),
-                item("2.3"), item("2.5"), item("2.6"), item("2.9"), item("10.2"))),
-    group("登录管理器管理",
-          item("3.1.4", "安装 GDM3"),
-          custom("安装 LightDM", "new:dm-install-lightdm"),
-          custom("卸载 GDM3", "new:dm-remove-gdm3"),
-          custom("卸载 LightDM", "new:dm-remove-lightdm"),
+    group("快速部署",
+          custom("安装 / 补齐桌面和 RustDesk（先预览确认）", "new:quick-install"),
+          custom("查看推荐安装计划", "new:quick-plan"),
+          custom("启动登录界面", "new:dm-start"),
+          custom("查看桌面就绪情况", "new:readiness")),
+    group("桌面环境",
+          custom("安装 XFCE（X11 推荐）", "new:desktop-install-xfce"),
+          custom("安装 GNOME（Ubuntu 26 为 Wayland）", "new:desktop-install-gnome"),
+          custom("安装 MATE（X11）", "new:desktop-install-mate"),
+          custom("更新当前桌面", "new:desktop-update"),
+          custom("卸载 XFCE", "new:desktop-remove-xfce"),
+          custom("卸载 GNOME", "new:desktop-remove-gnome"),
+          custom("卸载 MATE", "new:desktop-remove-mate"),
+          item("4.1.1", "查看桌面状态"),
+          group("图形会话与协议",
+                custom("查看所有图形用户会话", "new:session-list"),
+                custom("结束指定图形用户会话", "new:session-terminate"),
+                custom("启动登录界面（准备新会话）", "new:session-prepare"),
+                custom("查看 X11 / Wayland / Xorg 状态", "new:protocol-status"),
+                custom("选择 LightDM 默认 X11 桌面（XFCE / MATE）", "new:session-select"))),
+    group("登录管理器（LightDM / GDM3 选一个）",
+          custom("安装 LightDM（XFCE 推荐）", "new:dm-install-lightdm"),
+          custom("安装 GDM3（GNOME 推荐）", "new:dm-install-gdm3"),
+          custom("启动当前登录管理器", "new:dm-start"),
+          custom("停止当前登录管理器", "new:dm-stop"),
+          custom("重启当前登录管理器", "new:dm-restart"),
+          custom("启用开机自启", "new:dm-autostart-on"),
+          custom("禁用开机自启", "new:dm-autostart-off"),
           custom("更新当前登录管理器", "new:dm-upgrade-current"),
-          custom("查看登录管理器状态", "new:dm-versions"),
+          custom("卸载 LightDM", "new:dm-remove-lightdm"),
+          custom("卸载 GDM3", "new:dm-remove-gdm3"),
           group("切换默认登录管理器",
                 custom("选择 LightDM", "new:dm-select-lightdm"),
                 custom("选择 GDM3", "new:dm-select-gdm3")),
-          group("高级登录工具",
-                item("3.2.3", "LightDM 配置指南"), item("4.4"),
-                item("10.7.3"), item("4.5.3"), item("10.3.2"), item("4.5.6"),
-                custom("卸载风险说明", "new:dm-uninstall-guide"),
-                custom("更新 GDM3（指定）", "new:dm-upgrade-gdm"),
-                custom("更新 LightDM（指定）", "new:dm-upgrade-lightdm"),
-                custom("查看 GDM3 / LightDM 版本", "new:dm-versions"))),
-    group("图形协议管理",
-          item("4.5.2", "查看当前图形协议"),
-          item("10.2.2", "检查 Xorg / Xvfb"),
-          custom("X11 / Wayland 说明", "new:protocol-guide"),
-          group("高级协议诊断",
-                item("4.5.1"), item("10.2.3"), item("2.1.1"),
-                item("3.1.5", "GNOME Xorg 配置（旧版）"),
-                item("4.6.6"), item("4.5.7"), item("10.3.3"),
-                item("10.2.6"), item("3.2.4"), item("3.3.4"))),
-    group("桌面环境管理",
-          custom("安装 XFCE + Xorg + LightDM", "new:desktop-install-xfce"),
-          custom("安装 GNOME", "new:desktop-install-gnome"),
-          custom("安装 MATE + Xorg + LightDM", "new:desktop-install-mate"),
-          custom("卸载 GNOME", "new:desktop-remove-gnome"),
-          custom("卸载 XFCE", "new:desktop-remove-xfce"),
-          custom("卸载 MATE", "new:desktop-remove-mate"),
-          custom("更新当前桌面", "new:desktop-update"),
-          item("4.1.1", "查看桌面状态"),
-          group("切换桌面", item("4.3")),
-          group("高级桌面工具",
-                item("3.1"), item("3.2"), item("3.3"), item("4.2"),
-                item("4.1"), item("3.6"), item("3.4"), item("3.5"),
-                item("4.6"), item("4.7"), item("4.8"), item("4.9"), item("10.3"))),
-    group("图形会话管理",
-          item("4.5.1", "查看会话"),
-          item("4.6.3", "查看实际分辨率"),
-          item("4.5.9", "修复无图形会话"),
-          group("高级会话工具",
-                item("4.5"), item("10.2.4"), item("10.3.4"),
-                item("4.6.4"), item("10.3.7"), item("10.3.8"), item("10.3.9"))),
-    group("RustDesk 管理",
+          custom("查看当前状态", "new:dm-versions")),
+    group("RustDesk 远程控制",
           custom("安装 RustDesk", "new:rustdesk-install"),
-          custom("卸载 RustDesk", "new:rustdesk-remove"),
+          custom("启动 RustDesk", "new:rustdesk-start"),
+          custom("停止 RustDesk", "new:rustdesk-stop"),
+          custom("重启 RustDesk", "new:rustdesk-restart"),
+          custom("启用开机自启", "new:rustdesk-autostart-on"),
+          custom("禁用开机自启", "new:rustdesk-autostart-off"),
           custom("更新 RustDesk", "new:rustdesk-update"),
-          group("配置 ID / 中继 / Key",
-                *(item(f"7.{i}") for i in (1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13))),
+          custom("卸载 RustDesk", "new:rustdesk-remove"),
           item("7.8.1", "查看设备 ID"),
-          group("诊断 RustDesk", item("10.4")),
-          group("高级安装与版本回滚",
-                *(item(f"5.{i}") for i in range(1, 9)), item("6.10"),
-                *(item(f"6.{i}") for i in range(1, 10)))),
-    group("设备 ID 与设备信息",
-          item("7.8.1", "查看设备 ID"),
-          item("7.8.5", "查看设备注册状态"),
-          item("10.11", "系统 / 内核 / 架构"),
-          group("高级设备工具",
-                item("7.8.2"), item("7.8.3"), item("7.8.4"),
-                item("5.6.1"), item("5.7.1"), item("10.4.1"), item("10.5.7"))),
-    group("HDM 脚本管理",
+          custom("配置自建 ID / 中继服务器", "new:rustdesk-server"),
+          custom("设置无人值守密码", "new:rustdesk-password"),
+          custom("查看 RustDesk 状态", "new:rustdesk-status")),
+    group("显示设置（有画面则无需安装虚拟显示）",
+          custom("查看显示输出", "new:display-status"),
+          group("设置分辨率",
+                item("2.4.1", "1280×720"),
+                item("2.4.2", "1600×900"),
+                item("2.4.3", "1920×1080"),
+                item("2.4.4", "2560×1440"),
+                item("2.4.5", "自定义分辨率"),
+                item("2.4.7", "恢复默认分辨率")),
+          group("缺少显示输出时的可选工具",
+                item("1.1.1", "安装 Xorg Dummy"),
+                item("1.2.1", "安装 Xvfb"),
+                item("1.3.2", "启用 VKMS"),
+                item("2.8.1", "移除 HDM 的 Dummy 配置")),
+          custom("查看 X11 / Wayland 状态（不影响 DRM）", "new:protocol-status")),
+    group("HDM 管理",
           custom("更新 HDM（最新正式版）", "new:script-update"),
           custom("卸载 HDM（保留数据）", "new:script-uninstall"),
+          custom("诊断桌面和连接问题", "new:doctor"),
           item("10.8.7", "导出诊断日志"),
           item("10.8.1", "查看安装日志"),
-          group("更新记录", item("8.7")),
-          group("系统检查", item("10.1")),
-          group("高级维护",
-                item("10.8.9"), item("9.6"), item("10.8"),
-                item("10.5"), item("10.6"), item("10.7"), item("10.10"),
-                *(item(f"9.{i}") for i in range(1, 8)), item("10.9"),
-                *(item(f"8.{i}") for i in range(1, 11)),
-                custom("查看脚本卸载范围", "new:script-uninstall-preview"))),
+          item("10.11.1", "查看系统与架构信息")),
 ]
 
 new_rows = ["# parent|selection|label|menu_id"]
 new_targets = ["# menu_id|dispatch_target"]
-mapped_old = set()
 
 
 def append(parent: str, number: int, spec) -> str:
@@ -144,8 +125,8 @@ def append(parent: str, number: int, spec) -> str:
     elif kind == "ref":
         _, old_id, override_label = spec
         label = override_label or original[old_id][2]
-        entries = [item(child) for child in children.get(old_id, [])]
-        target = old_id if not entries else None
+        entries = []
+        target = old_id
     elif kind == "custom":
         _, label, target = spec
         assert target.startswith("new:")
@@ -156,8 +137,6 @@ def append(parent: str, number: int, spec) -> str:
     new_rows.append("|".join((parent, str(number), label, menu_id)))
     if target is not None:
         new_targets.append(menu_id + "|" + target)
-        if not target.startswith("new:"):
-            mapped_old.add(target)
     for index, child in enumerate(entries, 1):
         append(menu_id, index, child)
     return menu_id
@@ -166,12 +145,9 @@ def append(parent: str, number: int, spec) -> str:
 for index, spec in enumerate(MAIN, 1):
     append("root", index, spec)
 
-missing = legacy_leaves - mapped_old
-if missing:
-    raise AssertionError("Legacy actions not reachable: " + ", ".join(sorted(missing)))
-assert len(MAIN) == 8
-target_text = "\n".join(new_targets) + "\n"
+assert len(MAIN) == 6
 menu_text = "\n".join(new_rows) + "\n"
+target_text = "\n".join(new_targets) + "\n"
 
 if "--check" in sys.argv:
     assert menus.read_text(encoding="utf-8") == menu_text, "menus.tsv out of date"
@@ -179,5 +155,5 @@ if "--check" in sys.argv:
 else:
     menus.write_text(menu_text, encoding="utf-8")
     targets.write_text(target_text, encoding="utf-8")
-print(f"HDM v2 menus: {len(new_rows)-1} entries, {len(new_targets)-1} routed leaves, "
-      f"{len(mapped_old)}/{len(legacy_leaves)} distinct original actions preserved")
+print(f"HDM task-first menu: {len(new_rows)-1} entries, {len(new_targets)-1} actions, "
+      f"{len(original)} retained legacy declarations")

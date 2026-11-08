@@ -25,6 +25,18 @@ jobs:
             python3 scripts/check-commit-messages.py --range "$BASE_SHA..$PR_HEAD_SHA"
           elif [[ "$BEFORE" =~ ^0+$ ]] || [[ -z "$BEFORE" ]]; then
             python3 scripts/check-commit-messages.py --range HEAD
+          elif git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            # Normal pushes compare the two tips. For a rewritten branch,
+            # verify everything since the nearest common ancestor.
+            base=$(git merge-base "$BEFORE" HEAD)
+            python3 scripts/check-commit-messages.py --range "$base..HEAD"
           else
-            python3 scripts/check-commit-messages.py --range "$BEFORE..HEAD"
+            # After a force-push the old tip may not be fetched at all.
+            # Validate all commits since the previous reachable release.
+            base=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+            if [[ -n "$base" ]]; then
+              python3 scripts/check-commit-messages.py --range "$base..HEAD"
+            else
+              python3 scripts/check-commit-messages.py --range HEAD
+            fi
           fi

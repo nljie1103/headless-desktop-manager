@@ -32,8 +32,15 @@ jobs:
         run: |
           set -euo pipefail
           title=$(cat release/RELEASE_TITLE.txt)
-          gh release create "$GITHUB_REF_NAME" "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh SHA256SUMS \
-            --title "$title" --notes-file release/RELEASE_NOTES.md
+          # Retagging a corrected history must update the existing Release
+          # instead of failing with "a release with the same tag name exists".
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --title "$title" --notes-file release/RELEASE_NOTES.md
+            gh release upload "$GITHUB_REF_NAME" "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh SHA256SUMS --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "hdm-${GITHUB_REF_NAME}.tar.gz" install.sh SHA256SUMS \
+              --title "$title" --notes-file release/RELEASE_NOTES.md
+          fi
       - name: Correct v0.3.4 release display without rewriting commits or tags
         if: github.ref_name == 'v0.3.5'
         env:

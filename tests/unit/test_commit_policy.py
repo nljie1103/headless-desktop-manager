@@ -27,3 +27,10 @@ for message in [
 ]:
     assert not mod.valid(message)[0], message
 print('PASS commit policy unit tests')
+
+# A squashed/rewritten main branch no longer has github.event.before in
+# the checkout; the workflow must fall back to a reachable release anchor.
+workflow = (root / '.github/workflows/commit-policy.yml').read_text()
+assert 'git cat-file -e "$BEFORE^{commit}"' in workflow
+assert 'git merge-base "$BEFORE" HEAD' in workflow
+assert 'git describe --tags --abbrev=0 HEAD^' in workflow

@@ -35,7 +35,8 @@ hdm_quick_init_steps
 # Test the actual XFCE package plan without installing or switching any service.
 hdm_pkg_install() { printf '%s\n' "$*"; }
 install_plan=$(hdm_desktop_install_light xfce standard)
-[[ $install_plan == *'xfce4 xfce4-goodies xorg lightdm lightdm-gtk-greeter'* ]]
+[[ $install_plan == *'xfce4 xfce4-session xfce4-goodies'* ]]
+[[ $install_plan != *'xorg lightdm'* ]]
 hdm_installed() { [[ $1 == lightdm || $1 == xfce4-session ]]; }
 hdm_service_state() { printf 'inactive\n'; }
 guide=$(hdm_desktop_login_manager_guide)

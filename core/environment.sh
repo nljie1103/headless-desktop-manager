@@ -30,10 +30,10 @@ hdm_env_desktop_kind() {
 hdm_env_active_session() {
   local sid typ cls state seen=0 capped=0 known=0
   hdm_has loginctl || { printf 'unknown\n'; return 0; }
-  # SSH/TTY sessions are ignored; scan at most 32 sessions, not a noisy full list.
+  # SSH/TTY sessions are ignored; do not confuse 40 SSH sessions with graph limits.
   while IFS= read -r sid; do
     [[ $sid =~ ^[A-Za-z0-9_-]{1,48}$ ]] || continue
-    ((seen >= 128)) && { capped=1; break; }
+    ((seen >= 256)) && { capped=1; break; }
     ((seen+=1))
     typ=$(loginctl show-session "$sid" -p Type --value 2>/dev/null) || continue
     known=1
@@ -45,7 +45,7 @@ hdm_env_active_session() {
           printf '%s\n' "$typ"; return 0
         fi;;
     esac
-  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=129{print $1}')
+  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=257{print $1}')
   if ((!capped && (known || seen==0))); then printf 'none\n'; else printf 'unknown\n'; fi
 }
 # Detect the active graphical user's actual desktop, independent of which
@@ -70,7 +70,7 @@ hdm_env_active_desktop_kind() {
     esac
     if [[ -n $found && $found != "$kind" ]]; then printf 'multiple\n'; return 0; fi
     found=$kind
-  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=128{print $1}')
+  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=256{print $1}')
   printf '%s\n' "${found:-none}"
 }
 # Check a *GNOME* user session, not just any running X11/Wayland desktop.
@@ -90,7 +90,7 @@ hdm_env_gnome_session() {
       gnome|gnome-*|ubuntu|ubuntu-*) printf '%s\n' "$typ"; return 0;;
       '') uncertain=1;;
     esac
-  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=128{print $1}')
+  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=256{print $1}')
   if (( uncertain )); then printf 'unknown\n'; else printf 'none\n'; fi
 }
 hdm_env_drm_short() {

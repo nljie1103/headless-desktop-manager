@@ -57,35 +57,41 @@ hdm_menu_rule() {
   printf '  %s\n' "${line// /─}"
 }
 hdm_menu_header() {
-  local path=$1
+  local path=$1 dm desktop rustdesk_state
   hdm_menu_rule "$path"
   printf '  HDM v%s  ·  %s / %s\n' "$HDM_VERSION" "$(hdm_os)" "$(hdm_arch)"
   if [[ $path == root ]]; then
-    # Seven read-only stages; colors show local checks, not remote validation.
-    # On reduced terminal widths the chain wraps or becomes vertical.
-    if ! python3 -B "$HDM_ROOT/modules/diagnostics/desktop_chain.py" \
-      --width "$(hdm_menu_terminal_cols)"; then
-      hdm_warn '桌面链路检测失败，可从菜单 8 查看诊断信息。'
-    fi
+    dm=$(hdm_v2_default_dm)
+    case "$dm" in
+      lightdm|gdm3) dm="$dm / $(hdm_service_state "$dm")" ;;
+      *) dm="未选择" ;;
+    esac
+    if hdm_installed xfce4-session; then desktop=XFCE
+    elif hdm_installed gnome-shell; then desktop=GNOME
+    elif hdm_installed mate-session-manager; then desktop=MATE
+    else desktop=未安装; fi
+    rustdesk_state=$(hdm_service_state rustdesk)
+    printf '  桌面：%s  |  登录界面：%s  |  RustDesk：%s\n' "$desktop" "$dm" "$rustdesk_state"
+    printf '  先安装桌面，再启动登录界面；远程画面必须实际验证。\n'
   else
     printf '  %s\n' "$(hdm_menu_label "$path")"
   fi
   hdm_menu_rule "$path"
 }
 hdm_menu_main() {
-  local -a left=(1 2 3 4) right=(5 6 7 8)
+  local -a left=(1 2 3) right=(4 5 6)
   local cols i l r
   cols=$(hdm_menu_terminal_cols)
-  if ((cols>=72)); then
-    for ((i=0;i<4;i++)); do
+  if ((cols>=78)); then
+    for ((i=0;i<3;i++)); do
       l="${left[i]}. $(hdm_menu_label "${left[i]}")"
       r="${right[i]}. $(hdm_menu_label "${right[i]}")"
       printf '  '
-      hdm_menu_pad "$l" 34
+      hdm_menu_pad "$l" 39
       printf '%s\n' "$r"
     done
   else
-    for i in {1..8}; do printf '  %-3s %s\n' "${i}." "$(hdm_menu_label "$i")"; done
+    for i in {1..6}; do printf '  %-3s %s\n' "${i}." "$(hdm_menu_label "$i")"; done
   fi
 }
 hdm_menu_children() {

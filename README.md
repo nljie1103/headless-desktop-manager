@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.5.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.2-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -29,6 +29,90 @@
 | 🔄 更新回滚 | 在线更新 HDM，保留版本目录及显示配置恢复机制 |
 
 HDM 的状态判断遵循一条原则：**安装成功 ≠ 服务已运行 ≠ 已有图形用户会话 ≠ RustDesk 可以控制画面**。
+
+---
+
+## 🧩 先弄清楚：哪些软件是一类，究竟需要安装哪些？
+
+**普通用户只需选定一套桌面方案，不需要把菜单中出现的软件全部安装。** HDM 的安装 / 卸载 / 更新针对软件包；启动 / 停止 / 重启 / 开机自启针对真正的 systemd 服务。软件包“已安装”和服务“已启动”是两回事。
+
+| 层次 / 类别 | 常见选择 | 需要几个？ | 起什么作用、怎么管理 |
+|:---|:---|:---|:---|
+| **内核显示接口及输出** | **DRM/KMS**、云主机提供的 `Virtual-1`、实体显示输出 | 系统已经提供且可用就保留 | DRM/KMS 是内核接口；`connected` 仅表示连接器状态，不代表桌面能正常显示 |
+| **内核虚拟显示驱动（按需）** | **VKMS** | 仅缺乏适用 DRM/KMS 输出并验证可兼容时才考虑 | VKMS 属于内核 DRM 层，**不是 Xorg 的替代品** |
+| **X11 图形显示服务器** | **Xorg**；**Xvfb**（特殊场景） | 常规 XFCE 方案优先 Xorg；不是两个都装 | Xvfb 是无实体屏幕的 X11 服务器，不等于 DRM/KMS |
+| **Xorg 虚拟显示驱动（按需）** | **Xorg Dummy** | Xorg 缺可用输出且配置确有需要时再使用 | Dummy 由 Xorg 使用，不是与 Xorg 二选一 |
+| **图形协议与会话** | **X11** 或 **Wayland** | 由桌面环境与登录会话决定 | Xorg 通常提供 X11 服务，Wayland 通常由桌面合成器提供；二者不是物理或虚拟显示设备 |
+| **登录管理器** | **LightDM / GDM3 / SDDM** | **选一个作为默认且实际运行的登录管理器** | 提供登录界面并启动桌面；可安装多个，但不应同时启动争夺图形 seat |
+| **登录界面（Greeter）** | LightDM GTK Greeter、GDM 自带 Greeter | 与登录管理器配套 | LightDM 需要选定可用 Greeter；GDM 不必装 LightDM Greeter |
+| **桌面环境** | **XFCE / GNOME / MATE** | **选一个作为主要桌面** | 提供窗口、面板和桌面；可以共存，但没有必要全部安装 |
+| **图形会话** | XFCE X11、GNOME Wayland、MATE X11 | 必须有一个可登录的实际会话 | 是登录后形成的运行状态，**不是单独安装的软件** |
+| **远程控制** | RustDesk | 需要远控才安装 | 安装客户端后还需验证服务、会话及实际远端画面 |
+| **辅助依赖** | D-Bus、xserver-xorg、dbus-x11 等 | 根据方案自动补齐 | 普通用户不应被迫手工选择 |
+
+> **重点纠正：DRM/KMS 和 Xorg 不在同一层，不是二选一。** 典型 X11 链路是“DRM/KMS 提供显示输出 → Xorg 使用该输出 → LightDM 启动登录界面和 XFCE 会话 → RustDesk 尝试捕获画面”（简化的功能关系，非严格启动顺序）。VKMS 是内核虚拟 DRM 驱动，Xorg Dummy 是 Xorg 虚拟显示驱动，Xvfb 是单独的虚拟 X11 服务器，三者也不应当被当作同类可互换软件。**已报告 `card0-Virtual-1: connected` 的云主机，先验证它能否被 Xorg 和登录界面实际使用；不能凭 connected 就保证远控成功，也不要盲目叠加 Dummy、Xvfb、VKMS。**
+
+### 按用途选一整套，而不是逐个猜软件
+
+| 使用目标 | 推荐主要桌面 | 登录管理器 | 图形会话 | 显示输出 | RustDesk |
+|:---|:---|:---|:---|:---|:---|
+| **Ubuntu 26.04 ARM64、想试 X11 登录界面无人值守** | XFCE | LightDM + GTK Greeter | Xorg / X11 | 优先使用已有 DRM 虚拟输出 | 安装并**实际远端验证** |
+| Ubuntu 26.04、偏好完整 GNOME 桌面 | GNOME | GDM3 | Wayland | 依赖主机实际显示能力 | 登录后可测试；**不要承诺登录前可控** |
+| 轻量传统桌面 | MATE | LightDM + GTK Greeter | Xorg / X11 | 已有输出优先 | 按需 |
+
+**最短正确链路：显示输出可用 → Xorg（X11 方案）→ LightDM + GTK Greeter → XFCE → 图形登录会话 → RustDesk。** 其中“安装成功 → 能启动 → 能登录 → RustDesk 能远控”必须逐级验证，不能只因为 Docker/DRM/LightDM 显示绿色就认定部署成功。
+
+### 新加坡 ARM 实际案例：LightDM 安装了却没有运行
+
+2026-11-08 通过 SSH 只读检查确认 Ubuntu 26.04 ARM64 机器具有以下状态：
+
+- `card0-Virtual-1` 显示输出为 connected；`/usr/bin/Xorg` 已安装，但 **Xorg 进程不存在**。
+- `lightdm`、`lightdm-gtk-greeter` 已安装；`display-manager.service` 指向 LightDM，`graphical.target` 活动；**LightDM 处于 enabled / inactive (dead)**。
+- **XFCE、`xfce4-session` 未安装**，`/usr/share/xsessions/` 没有 XFCE 会话；LightDM 配置 `user-session=ubuntu` 也没有对应的可用主要桌面。
+- LightDM 的 `Result=success`、当前启动日志为空，并不能直接证明 LightDM 损坏或启动失败；需要实际启动后读取退出状态和错误日志。
+
+适合当前机器的**最小补齐方案**（会安装软件，请保留 SSH/云控制台）：
+
+```bash
+sudo apt update
+sudo apt install xfce4 xfce4-session xorg lightdm lightdm-gtk-greeter dbus-x11
+ls /usr/share/xsessions/
+```
+
+已有 LightDM 且 `/etc/X11/default-display-manager` 是 `/usr/sbin/lightdm` 时，**无需再次安装 GDM3，也无需反复重装 LightDM**。先确认 XFCE 会话文件存在，再检查/配置默认会话：
+
+```bash
+sudo install -d /etc/lightdm/lightdm.conf.d
+printf '[Seat:*]\nuser-session=xfce\ngreeter-session=lightdm-gtk-greeter\n' | sudo tee /etc/lightdm/lightdm.conf.d/99-hdm-xfce.conf
+lightdm --show-config
+```
+
+**启动与开机自启是两件事：**
+
+```bash
+sudo systemctl start lightdm         # 现在启动登录界面（会影响本机图形会话）
+sudo systemctl enable lightdm        # 下次开机自动尝试启动，不会立即启动
+systemctl status lightdm --no-pager -l
+pgrep -a Xorg                         # 检查是否真正生成 Xorg 进程
+```
+
+若不成功，不要盲目重装、重启或删除配置；先读取错误：
+
+```bash
+sudo journalctl -b -u lightdm --no-pager -n 80
+sudo ls -la /var/log/lightdm/
+sudo tail -n 80 /var/log/lightdm/lightdm.log 2>/dev/null
+```
+
+如果默认登录管理器是另一个程序，先使用 `sudo dpkg-reconfigure lightdm`（交互选择）或 HDM 的「切换默认登录管理器」，**不要并发启动 GDM3 和 LightDM**。停止/重启登录管理器会终止图形登录并可能切断 RustDesk；只能在独立 SSH/云控制台保护下执行。**完整验收还包括从另一台设备测试登录界面、锁屏、注销和重启后的 RustDesk 画面与键鼠。**
+
+### HDM 菜单该怎样理解？
+
+普通用户只应看到“**安装、卸载、更新、启动、停止、重启、开机自启**”这类能执行的动作；“X11 / Wayland 说明”“重复的状态查询”“高级协议诊断”不应作为独立日常任务。状态和兼容性检查应由安装/启动时**自动运行**并在失败时给出原因。
+
+**v4.5.2 已改为六类按任务操作的菜单**：`1` 快速部署、`2` 桌面环境、`3` 登录管理器、`4` RustDesk、`5` 显示设置、`6` HDM 管理。LightDM/GDM3 启动、停止、重启在 `3 → 3/4/5`，开机自启在 `3 → 6/7`；安装 XFCE 在 `2 → 1`，图形会话管理在 `2 → 9`。仍使用 v4.5.1 的服务器需要升级 HDM 管理器后才能使用新菜单。
+
+> **版本提醒：** 本功能属于 v4.5.2；旧版 v4.5.1 的八模块菜单不会自动改变。升级 HDM 管理器不等于自动安装桌面或启动 LightDM。HDM 尚不能保证任意云机型的登录前无人值守远控成功。
 
 ---
 
@@ -54,9 +138,9 @@ Ubuntu 24.04 x86_64 是持续集成的主要测试环境；Debian、Fedora、RHE
 
 ### 推荐策略：可用性优先
 
-Ubuntu 26 的 GNOME 只能使用 Wayland，**但 XFCE、MATE 仍有 X11 会话可选**。当标准 RustDesk 需要传统 X11 登录界面时，HDM 的智能安装优先提供 **XFCE + Xorg + LightDM + RustDesk**，而非强制把 GNOME 切回 X11。GNOME 仍可以通过菜单 4 手动安装，已有桌面不会自动卸载。
+Ubuntu 26 的 GNOME 只能使用 Wayland，**但 XFCE、MATE 仍有 X11 会话可选**。当标准 RustDesk 需要传统 X11 登录界面时，HDM 的智能安装优先提供 **XFCE + Xorg + LightDM + RustDesk**，而非强制把 GNOME 切回 X11。GNOME 仍可通过主菜单 2 手动安装，已有桌面不会自动卸载。
 
-如果宿主机没有已连接的显示输出，XFCE 路径会在计划中提示 Xorg Dummy，并在执行前确认。安装 LightDM **不代表**已经成为默认登录管理器，可通过菜单 2 → 5 查看及切换，并在可用的 SSH/云控制台保护下选择；HDM 不会未经确认就重启桌面或切换登录管理器。
+如果宿主机没有已连接的显示输出，XFCE 路径会在计划中提示 Xorg Dummy，并在执行前确认。安装 LightDM **不代表**已经成为默认登录管理器；开发分支可从 `3 → 11` 选择默认管理器，再在 `3 → 3/6` 分别启动服务与设置自启。HDM 不会未经确认就重启桌面或切换登录管理器。
 
 这只是更有希望实现登录前访问的技术路径，**不是无人值守成功承诺**。登录界面、虚拟显示、锁屏与重启后实际控制仍需现场验证。参考 [Ubuntu 官方桌面会话说明](https://documentation.ubuntu.com/release-notes/26.04/summary-for-lts-users/) 和 [RustDesk 官方 Linux 指南](https://rustdesk.com/docs/en/client/linux/)。
 
@@ -101,7 +185,7 @@ sudo hdm
 
 从 **v4.3.2** 起，正式更新先使用 GitHub Release 资产直链，遇到连接/HTTP 504 错误时自动改用 **GitHub API 同一资产的二进制下载**。所有下载依旧校验 Release 公布的原始 SHA256，若本机设置了独立可信 SHA256，也必须一致；校验不通过时不会切换版本。不会使用未经校验的第三方镜像。
 
-旧版本的开发分支更新保留在高级维护；新版本常用菜单 `8 → 1` 只安装最新正式 Release，并在直链 504 时自动使用 GitHub API 同资产 SHA256 下载。
+**历史说明：** v4.5.1 正式发布包的菜单 `8 → 1` 更新最新正式 Release；新版 v4.5.2 改为 `6 → 1`。更新器在 Release 直链 504 时仍会使用 GitHub API 下载同一资产并校验 SHA256。
 
 ### v4.4.0 升级后 `sudo hdm` 提示找不到命令？
 
@@ -115,7 +199,7 @@ sudo chmod -R a+rX "$(sudo readlink -f /opt/hdm/current)" && sudo chmod 755 /opt
 
 ## 🔗 桌面链路数轴
 
-HDM 首页现在直接展示 **显示输出 → 登录管理器 → 图形协议 → 桌面环境 → 图形用户会话 → RustDesk → 设备 ID** 七个节点。它们是完整桌面**排障依赖图**，并非严格的系统启动时序。
+使用 `hdm --chain` 可查看 **显示输出 → 登录管理器 → 图形协议 → 桌面环境 → 图形用户会话 → RustDesk → 设备 ID** 七个诊断节点；日常菜单首页改为短状态摘要，不再强制显示冗长数轴。它们是完整桌面**排障依赖图**，并非严格的系统启动时序。
 
 - **绿色圆点**：本地已检测到符合要求的服务、会话或软件；**红色圆点**：明确缺失或异常；**黄色菱形**：状态未确认。绿色不代表远端画面已验证。
 - 每个节点下面显示已识别的组件、版本号或实际分辨率、路径；设备 ID 从 RustDesk 本机查询。查询不到时明确标记，而非填写假 ID。
@@ -132,55 +216,47 @@ sudo hdm --chain
 
 在共享屏幕或录制演示时可隐藏设备 ID：`sudo env HDM_HIDE_RUSTDESK_ID=1 hdm`。详见 [桌面链路结构、状态判定与显示示意](docs/desktop-chain.md)。
 
-## 🧭 终端菜单
+## 🧭 终端菜单：6 个分类，常用操作直达
 
-主菜单严格按上方七节点链路排列，**1–7 分别对应显示输出、登录管理器、图形协议、桌面环境、图形会话、RustDesk 和设备 ID；8 管理 HDM 脚本与日志**。宽终端双列、窄终端单列，安装、卸载、更新和状态直达；进阶配置集中收纳。
+**v4.5.2** 改为按用户操作分类，去掉首页上独立的“图形协议”“图形会话”“设备 ID”技术菜单，移除大量重复“查看 / 说明 / 高级诊断”嵌套。**v4.5.1 以前的安装保留旧菜单，需要升级版本。**
 
 ```text
-  ─────────────────────────────────────────────────────────────
-  HDM v4.5.0  ·  ubuntu 24.04 / x86_64
-  ──────◆──────────●──────────●──────────●──────
-       显示输出     登录管理器    图形协议     桌面环境
-       ? 待核实     ✓ GDM3       ✓ X11        ✓ XFCE
-  ↓ 继续：会话 → RustDesk → 设备 ID
-  ──────●──────────●──────────●──────
-       图形会话      RustDesk     设备 ID
-       ✓ :0         ✓ v1.5.1     ✓ 已获取
-  ◆ 待核实 · ● 本地通过 · ○ 异常（实际终端使用颜色）
-  ─────────────────────────────────────────────────────────────
+  HDM v4.5.2 · ubuntu 26.04 / aarch64
+  桌面：未安装 | 登录界面：lightdm / inactive | RustDesk：active
+  先安装桌面，再启动登录界面；远程画面必须实际验证。
 
-  1. 显示输出管理                  5. 图形会话管理
-  2. 登录管理器管理                6. RustDesk 管理
-  3. 图形协议管理                  7. 设备 ID 与设备信息
-  4. 桌面环境管理                  8. HDM 脚本管理
+  1. 快速部署                  4. RustDesk 远程控制
+  2. 桌面环境                  5. 显示设置（有画面则无需安装虚拟显示）
+  3. 登录管理器                6. HDM 管理
 
-  ─────────────────────────────────────────────────────────────
   0/q 退出
   请选择 >
 ```
 
-*以上为菜单排版示意；版本以实际安装为准，桌面、协议和 RustDesk 状态会实时检测。原有底层操作通过兼容映射继续执行，用户看到的编号已统一为八阶段新路径。*
-新结构重点如下：**6 → 安装 / 卸载 / 更新 / 配置 ID、Relay、Key**；**7 → 查看设备 ID、架构、系统及 RustDesk 版本**；**8 → 更新脚本、卸载脚本、更新日志、安装日志、快速导出全部日志**。
+*示意中的检测状态以实际机器为准；状态栏只显示摘要，详细七节点依赖诊断仍可通过 `hdm --chain` 查看。*
 
-日常菜单已进一步压缩：**8 个主模块不变，常用命令直接在模块第一层。** 旧版 381 个不同的底层动作继续保留，但不再堆在常用页面；长尾功能放在各自模块的「高级工具」里。菜单清单共 **563 个路由条目、449 个叶子入口**（含重复的历史/高级入口），不等于全部都已通过实机端到端验收。
+| 分类 | 常用操作 | 直接菜单入口 |
+|:---|:---|:---|
+| 快速部署 | 安装/补齐桌面与 RustDesk、预览计划、启动登录界面、查看就绪情况 | `1 → 1/2/3/4` |
+| 桌面环境 | 独立安装 XFCE / GNOME / MATE、更新、卸载、状态；图形会话管理 | `2 → 1/2/3` 安装；`2 → 4` 更新；`2 → 5/6/7` 卸载；`2 → 9` 会话与协议 |
+| 登录管理器 | 安装 LightDM / GDM3、启动、停止、重启、开机自启、更新、卸载、切换 | `3 → 1/2` 安装；`3 → 3/4/5` 启停重启；`3 → 6/7` 自启开关；`3 → 8` 更新；`3 → 9/10` 卸载；`3 → 11` 切换 |
+| RustDesk | 安装、启动、停止、重启、自启开关、更新、卸载、设备 ID、服务器和密码 | `4 → 1–12` |
+| 显示设置 | 查看输出、调整分辨率；只有缺输出才研究 Dummy / Xvfb / VKMS | `5 → 1/2/3` |
+| HDM 管理 | 更新 HDM、卸载 HDM、诊断、日志、系统信息 | `6 → 1–6` |
 
-| 日常操作 | 路径 |
-|:---|:---|
-| 安装 / 卸载 GDM3 | `2 → 1` / `2 → 3` |
-| 安装 / 卸载 LightDM | `2 → 2` / `2 → 4` |
-| 安装 XFCE + Xorg + LightDM | **`4 → 1`** |
-| 卸载 GNOME / XFCE / MATE | **`4 → 4/5/6`** |
-| 安装 / 卸载 / 更新 RustDesk | `6 → 1/2/3` |
-| 更新 HDM 最新正式版 | **`8 → 1`** |
-| 卸载 HDM（保留配置与日志） | `8 → 2` |
+**无需把所有组件装一遍。** LightDM / GDM3 是同类登录管理器，选一个默认运行；XFCE / GNOME / MATE 是同类桌面环境，选一个主桌面。Xorg 是 X11 显示服务器，DRM/KMS 是内核显示接口，两者不是同类竞争软件；已连接可用的虚拟显示输出无需额外安装 Dummy、Xvfb、VKMS。
 
-**卸载 GDM3/GNOME 可以先于安装 XFCE/LightDM**，但必须有独立 SSH 或云控制台。卸载时仅需选择一次：`1. 保留配置（APT remove）`、`2. 清除软件配置（APT purge）`、`0/q. 取消`。程序会自动模拟实际 APT 删除计划，保护 RustDesk、OpenSSH、Xorg 和系统核心包；不会自动 `autoremove`、清除用户主目录或重启。`purge` 只针对软件包管理的系统配置，不代表会擦除所有用户个人设置。
+**单独安装桌面不捆绑登录管理器。** 例如 `2 → 1` 只安装 XFCE 及会话组件，已安装的 LightDM 和 Xorg 不会重复安装；`1 → 1` 则会按缺失项补齐整体桌面与 RustDesk。
 
-**子菜单 `0` 和小写 `q` 都返回上一级；只有在主菜单按 `q` 才退出。** 大写 `Q` 可从任意页面直接退出。取消卸载不会删除 HDM 命令或退出整个程序。
+图形会话与协议：`2 → 9 → 1` 查看全部图形用户会话，`2 → 9 → 2` 经确认结束指定图形会话（不包含 SSH/TTY），`2 → 9 → 3` 启动登录界面，`2 → 9 → 4` 查看 Xorg / X11 / Wayland，`2 → 9 → 5` 选择已安装的 LightDM 默认 XFCE/MATE X11 会话。无活动 Xorg 会话不代表 DRM 有问题，也不是让你切换物理显示协议。
 
-**卸载 HDM 管理器**只清理启动命令和当前版本链接，保留历史版本、配置、日志及所有已安装桌面软件，不卸载 RustDesk。
+普通用户不需要知道每一个 `loginctl`、X11、Wayland 诊断项。**原有 381 个底层动作的实现文件保留，已不全部暴露在菜单中**；需要深度排障可使用 `hdm --doctor`、`hdm --chain` 或导出诊断日志。新版菜单为 **70 个条目（含 6 个分类与 60 个可执行操作）**，最大三级，不再是五百多个子菜单。
 
-全部菜单路径：`hdm --menu-tree`；[菜单使用指南](docs/menu-guide.md)。
+**重要：** “开机自启”只影响下次启动，不等于现在启动；停止或重启 LightDM/GDM3、RustDesk 可能切断远程图形会话，需在 SSH / 云控制台操作。安装成功、服务运行、图形会话可用、RustDesk 外部实测是四个不同的验收阶段。
+
+**返回规则：** 子菜单按 `0` 或小写 `q` 返回上一级；主菜单按 `0/q` 退出；大写 `Q` 直接退出。卸载先模拟 APT 删除计划，再选择保留配置或清除包配置，不会自动 `autoremove`、清理用户数据或重启。HDM 自身卸载只处理脚本入口，保留已安装桌面、RustDesk、旧版本和日志。
+
+全部当前菜单：`hdm --menu-tree`；详见 [菜单使用指南](docs/menu-guide.md)。
 
 ---
 

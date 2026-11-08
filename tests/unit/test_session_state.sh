@@ -36,10 +36,10 @@ hdm_installed() { return 1; }
 hdm_env_desktop_kind() { printf 'XFCE'; }
 hdm_service_state() { printf 'inactive'; }
 report=$(hdm_session_report)
-[[ $report == *'[缺失] 未安装 GDM3'* ]]
-[[ $report == *'当前桌面环境为 XFCE'* ]]
-[[ $report != *'GNOME 软件包已安装'* ]]
+[[ $report == *'已安装桌面       XFCE'* ]]
+[[ $report == *'没有登录管理器运行'* ]]
+[[ $report != *'先安装 GNOME'* ]]
 hdm_installed() { return 0; }
 report=$(hdm_session_report)
-[[ $report == *'[阻断] GDM3 已安装但未运行'* ]]
+[[ $report == *'LightDM / GDM3   inactive / inactive'* ]]
 echo 'PASS GDM3 package/service/session state and XFCE-only reporting'

@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import stat
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
@@ -46,27 +47,51 @@ def os_release():
 
 
 def sessions():
-    code, raw = run('loginctl', 'list-sessions', '--no-legend', timeout=6)
+    """Inspect logind sessions without counting SSH/TTY as graphical desktops.
+
+    A host can have dozens of SSH connections but zero graphical sessions.
+    The cap is on actual logind records scanned (not on the first 24 rows).
+    """
+    code, raw = run('loginctl', 'list-sessions', '--no-legend', '--no-pager', timeout=6)
     if code != 0:
-        return [], False
-    result = []
-    all_sessions = raw.splitlines()
-    # Keep this health query responsive; expose truncation rather than
-    # silently claiming that the first N entries are the only sessions.
-    truncated = len(all_sessions) > 24
-    for line in all_sessions[:24]:
+        return [], True  # retrieval failed; do not claim 'no sessions'
+    identifiers = []
+    for line in raw.splitlines():
         fields = line.split()
         if not fields:
             continue
         sid = fields[0]
-        if not all(c.isalnum() or c in '-_' for c in sid):
-            continue
-        ec, details = run('loginctl', 'show-session', sid, '-p', 'Type', '-p', 'Desktop', '-p', 'State', '-p', 'Class', timeout=4)
-        if ec != 0:
-            continue
+        if len(sid) <= 48 and all(c.isalnum() or c in '-_' for c in sid):
+            identifiers.append(sid)
+    # 256 logind records is more than enough for ordinary servers. If the
+    # bounded read is incomplete, surface uncertainty instead of a false "none".
+    truncated = len(identifiers) > 256
+    identifiers = identifiers[:256]
+
+    def inspect(sid):
+        code, details = run(
+            'loginctl', 'show-session', sid, '-p', 'Type', '-p', 'Desktop',
+            '-p', 'State', '-p', 'Class', '-p', 'Name', '-p', 'Remote', timeout=2)
+        if code != 0:
+            return None
         data = dict(p.split('=', 1) for p in details.splitlines() if '=' in p)
-        result.append({'id': sid, 'type': data.get('Type', ''), 'desktop': data.get('Desktop', ''),
-                       'state': data.get('State', ''), 'class': data.get('Class', '')})
+        if data.get('Type') not in ('x11', 'wayland') or data.get('Class') != 'user':
+            return {}  # SSH/TTY, greeters and background managers are not user desktops
+        return {
+            'id': sid, 'type': data['Type'], 'desktop': data.get('Desktop', ''),
+            'state': data.get('State', ''), 'class': data['Class'],
+            'name': data.get('Name', ''), 'remote': data.get('Remote', ''),
+        }
+
+    result = []
+    # Bounded concurrency avoids sequentially launching 40-100 processes
+    # when a server has many SSH logins.
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for entry in pool.map(inspect, identifiers):
+            if entry is None:
+                truncated = True  # a live session disappeared or could not be read
+            elif entry:
+                result.append(entry)
     return result, truncated
 
 

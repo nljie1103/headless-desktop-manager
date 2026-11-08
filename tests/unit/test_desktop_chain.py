@@ -157,6 +157,9 @@ not_users = chain.build({**base, "sessions": [
     {"id":"c1", "class":"greeter", "state":"active", "type":"wayland", "desktop":"gnome"},
     {"id":"c2", "class":"user", "state":"active", "type":"tty", "desktop":""}]}, signals)
 assert not_users[4].state == "bad"
+# With connected DRM + Xorg installed but no login session, say what is
+# installed instead of blaming DRM or declaring the protocol unrecognized.
+assert chain.build({**without_user, "sessions": []}, signals)[2].value == "Xorg 已安装"
 
 # The JSON entry point must not emit ANSI, errors, credentials, or interactive prompts.
 p = subprocess.run(["bash", str(root / "hdm.sh"), "--chain-json"],
