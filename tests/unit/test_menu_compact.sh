@@ -13,8 +13,11 @@ output=$(printf '0\n' | COLUMNS=100 bash "$ROOT/hdm.sh")
 [[ $output == *'七节点桌面依赖线轴'* ]]
 [[ $output == *'显示输出'* && $output == *'登录管理器'* && $output == *'图形协议'* ]]
 [[ $output == *'桌面环境'* && $output == *'图形会话'* && $output == *'设备 ID'* ]]
-[[ $output == *'必需软件包：缺失'* ]]
-[[ $output == *'RustDesk'* && $output == *'Xorg'* ]]
+[[ $output != *'必需软件包：缺失'* ]]
+[[ $output != *'目标：XFCE'* && $output != *'[已安装] XFCE 会话'* ]]
+[[ $output != *'绿=本地通过'* && $output != *'●=本地通过'* ]]
+[[ $output != *'本机检测不代表 RustDesk'* && $output != *'软件已装不代表服务已运行'* ]]
+[[ $output == *'RustDesk'* ]]
 output=$(printf '0\n' | COLUMNS=54 bash "$ROOT/hdm.sh")
 [[ $output == *'1.  快速部署'* && $output == *'6.  HDM 管理'* ]]
 python3 - "$ROOT" <<'PYTEST'

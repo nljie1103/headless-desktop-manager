@@ -466,7 +466,7 @@ def grid(nodes: list[Node], cell: int, enabled: bool) -> str:
     return "\n".join(rows)
 
 
-def render(nodes: list[Node], cols: int = 80, enabled: bool = False, details: bool = False) -> str:
+def render(nodes: list[Node], cols: int = 80, enabled: bool = False, details: bool = False, footer: bool = True) -> str:
     cols = max(24, cols)
     lines = []
     if cols >= 107:
@@ -485,13 +485,14 @@ def render(nodes: list[Node], cols: int = 80, enabled: bool = False, details: bo
             lines.append(f"  {mark} {idx}. {label} {value}")
             if idx != len(nodes):
                 lines.append("  │")
-    if cols < 55:
-        lines.append("  ●正常 ○异常 ◆待查")
-        lines.append("  远端控制另行实测")
-    else:
-        lines.append("  " + ("绿=本地通过 · 红=缺失/异常 · 黄=待核实" if enabled else
-                              "●=本地通过  ○=缺失/异常  ◆=待核实"))
-        lines.append("  本机检测不代表 RustDesk 远端画面已验证。")
+    if footer:
+        if cols < 55:
+            lines.append("  ●正常 ○异常 ◆待查")
+            lines.append("  远端控制另行实测")
+        else:
+            lines.append("  " + ("绿=本地通过 · 红=缺失/异常 · 黄=待核实" if enabled else
+                                  "●=本地通过  ○=缺失/异常  ◆=待核实"))
+            lines.append("  本机检测不代表 RustDesk 远端画面已验证。")
     if details:
         lines.append("")
         for idx, node in enumerate(nodes, 1):
@@ -591,6 +592,7 @@ def main() -> None:
     parser.add_argument("--width", type=int, default=shutil.get_terminal_size(fallback=(80, 24)).columns)
     parser.add_argument("--details", action="store_true")
     parser.add_argument("--home", action="store_true")
+    parser.add_argument("--axis-only", action="store_true", help="首页仅显示依赖线轴，不显示说明和组件清单")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     if args.home:
@@ -601,7 +603,7 @@ def main() -> None:
         print(json.dumps([asdict(x) for x in nodes], ensure_ascii=False, indent=2))
     else:
         enabled = sys.stdout.isatty() and os.getenv("NO_COLOR") is None and os.getenv("TERM") != "dumb"
-        print(render(nodes, args.width, enabled, args.details))
+        print(render(nodes, args.width, enabled, args.details, footer=not args.axis_only))
         if args.home:
             print("")
             print(home_inventory(report, signals, args.width))

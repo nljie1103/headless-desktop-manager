@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.5.4-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.5-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -82,12 +82,12 @@ sudo hdm
 
 Installing HDM **does not automatically install GNOME or change the display manager**. In an interactive terminal it opens the menu; `HDM_NO_AUTO_MENU=1` skips that auto-opening.
 
-The v4.5.4 software has **six task-based sections**, instead of eight technical stages: 1 Quick setup, 2 Desktop environments, 3 Login managers, 4 RustDesk, 5 Display settings, 6 HDM maintenance. The task menu has 72 entries (62 actions), with redundant diagnostic/help routes removed. The 381 legacy action implementations remain in source for compatibility, but are not all in the user-visible menu. Starting/stopping services and enabling boot startup are separate actions. These menus are current in **v4.5.4**. Existing v4.5.1 installations keep their original menu until the HDM manager is upgraded.
+The v4.5.5 software has **six task-based sections**, instead of eight technical stages: 1 Quick setup, 2 Desktop environments, 3 Login managers, 4 RustDesk, 5 Display settings, 6 HDM maintenance. The task menu has 72 entries (62 actions), with redundant diagnostic/help routes removed. The 381 legacy action implementations remain in source for compatibility, but are not all in the user-visible menu. Starting/stopping services and enabling boot startup are separate actions. These menus are current in **v4.5.5**. Existing v4.5.1 installations keep their original menu until the HDM manager is upgraded.
 ---
 
 ## 🔗 Seven-stage dependency diagnostics (separate from the task menu)
 
-The optional `hdm --chain` command shows **display output → login manager (GDM3/LightDM) → graphics protocol (X11/Wayland) → desktop environment → user session and verified resolution → RustDesk service → device ID**. The daily-use home screen again shows the complete seven-node axis plus a plan-aware package inventory: installed/missing dependencies, service not started, no user login yet, and remote access unverified. Other desktops, Dummy and Xvfb are optional and are not counted as missing.
+The optional `hdm --chain` command shows **display output → login manager (GDM3/LightDM) → graphics protocol (X11/Wayland) → desktop environment → user session and verified resolution → RustDesk service → device ID**. The daily-use home screen shows the seven-node dependency axis without a redundant component inventory, legend or extra warning paragraphs. Detailed installed/missing package and service states remain available using `hdm --readiness`; other desktops, Dummy and Xvfb remain optional.
 
 Green means the **local** check succeeded, red means a confirmed missing/broken component, and amber means more verification is needed. Green does not prove that an external RustDesk connection works. The main menu renders the compact responsive axis at every return to the home screen; `hdm --chain` provides detailed paths and explanations.
 

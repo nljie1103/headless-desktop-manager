@@ -59,6 +59,17 @@ for width in (24, 36, 53, 67, 80, 106, 107, 120, 145, 190):
 assert "\x1b[32m" in chain.render(nodes, 145, enabled=True)
 assert "/etc/X11/default-display-manager" in chain.render(nodes, 80, details=True)
 assert "本机检测" in chain.render(nodes, 80)
+for width in (32, 50, 80, 110, 145):
+    compact = chain.render(nodes, width, enabled=False, footer=False)
+    assert "设备 ID" in compact and "显示输出" in compact
+    for redundant in ("绿=本地通过", "●=本地通过", "●正常", "本机检测不代表",
+                      "远端控制另行实测", "必需软件包：缺失"):
+        assert redundant not in compact, (redundant, compact)
+    for line in compact.splitlines():
+        assert chain.text_width(line) <= max(26, width), (width, line)
+# Full --chain remains explanatory, with status legend and detailed paths.
+assert "●=本地通过" in chain.render(nodes, 80)
+assert "/etc/X11/default-display-manager" in chain.render(nodes, 80, details=True)
 
 # A running GDM3 greeter alone cannot turn missing user-session and display
 # into a falsely green success chain.
