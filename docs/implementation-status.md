@@ -1,4 +1,4 @@
-# 功能实现与兼容性状态 · HDM v4.0.0
+# 功能实现与兼容性状态 · HDM v4.1.0
 
 本表是**功能实现状态**，不将菜单入口、已安装包或服务 active 当作真实远程画面测试通过。
 
@@ -16,6 +16,10 @@
 
 ## 系统支持范围
 
-开发与测试以 Ubuntu 24.04 x86_64 为主；Ubuntu 26.04 ARM64 是已遇到实际 GNOME Wayland 显示与远控限制的目标平台。仓库目前列出了 7 条 Ubuntu 组合的测试/实现路径，但 **0 条完整通过登录前无屏远控验收**。
+开发与测试以 Ubuntu 24.04 x86_64 为主；Ubuntu 26.04 ARM64 是已遇到实际 GNOME Wayland 显示与远控限制的目标平台。仓库目前列出了 10 条 Ubuntu 组合的测试/实现路径，但 **0 条完整通过登录前无屏远控验收**。
 
 请以 [完整兼容矩阵](testing-and-limitations.md)、[Ubuntu 26 ARM64 适配说明](ubuntu26-arm64.md) 与 [主 README](../README.md) 为准。
+
+## v4.1.0 桌面推荐策略
+
+Ubuntu 26 GNOME Wayland-only 主机默认建议 XFCE + X11 + LightDM；已有 GNOME 保留并可选择继续使用。推荐计划可以在无 DRM 连接时包含 Xorg Dummy，但所有影响显示服务的配置须经用户确认，且本项目尚无 Ubuntu 26 ARM64 登录前 RustDesk 成功验收记录。

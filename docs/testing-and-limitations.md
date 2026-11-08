@@ -4,7 +4,7 @@
 
 ## 1. 系统和显示方案
 
-当前 `config/compatibility.tsv` 有 **7 条 Ubuntu 版本、CPU 架构和 GNOME 显示方案记录**，其中有原生安装验证证据的系统系列为 Ubuntu 24.04 x86_64 和 Ubuntu 26.04 ARM64；**完整通过无屏登录前 RustDesk 端到端测试的组合为 0**。
+当前 `config/compatibility.tsv` 有 **10 条 Ubuntu 版本、CPU 架构和 GNOME 显示方案记录**，其中有原生安装验证证据的系统系列为 Ubuntu 24.04 x86_64 和 Ubuntu 26.04 ARM64；**完整通过无屏登录前 RustDesk 端到端测试的组合为 0**。
 
 | 系统 / 架构 | 实施情况 | 验证证据与缺口 |
 |:---|:---|:---|
@@ -15,6 +15,9 @@
 | Ubuntu 26.04 ARM64 · GNOME Wayland | 真实安装及故障记录 | GNOME 50.1、GDM3、RustDesk 1.5.1 曾安装；登录会话未确认，出现 `cannot open display: :0` |
 | Ubuntu 26.04 x86_64 · GNOME Wayland | 代码适配 | 没有目标主机完整连接结果 |
 | Ubuntu 26.10 ARM64 · GNOME Wayland | 代码适配 | 没有目标主机完整连接结果 |
+| Ubuntu 26.04 ARM64 · XFCE/X11/LightDM | 包与推荐路径已检查 | 登录管理器、Xorg Dummy、RustDesk 远控待 ARM64 实机验证 |
+| Ubuntu 26.04 x86_64 · XFCE/X11/LightDM | 代码模拟与安装依赖核对 | 登录前画面及重启后远控待验证 |
+| Ubuntu 26.10 ARM64 · XFCE/X11/LightDM | 代码路径 | 尚未实机测试 |
 
 仓库还有 Debian / Fedora / RHEL 适配资料，以及用于不同 Ubuntu 架构的包清单。它们不等于相同级别的实机兼容认证。
 
@@ -51,3 +54,7 @@ Ubuntu 26.04 GNOME 50 采用 Wayland；Xorg Dummy 与 `WaylandEnable=false` 不�
 对于目标系统和架构，要依次记录：包安装与依赖、systemd 服务、DRM/显示实际输出、已登录 **GNOME** 用户会话、RustDesk 外部图像、鼠标键盘、锁屏与解锁、注销、重启后 GDM 登录界面及无人值守认证。
 
 在这些步骤全部完成并保留可重复的现场记录之前，不应宣称“支持无显示器、重启后可直接远控”已经通过对应机器的完整认证。
+
+## 6. 方案选择原则
+
+Ubuntu 26 上保留 GNOME Wayland 作为自选方案；智能安装为传统 X11 登录界面优先推荐 XFCE + LightDM。推荐不保证登录前远控，现有桌面不被自动卸载；更改默认登录管理器需使用独立 SSH/控制台并确认。

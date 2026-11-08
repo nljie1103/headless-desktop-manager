@@ -4,10 +4,10 @@
 
 **Linux 无显示器远程桌面部署与图形会话管理**
 
-以 GNOME 为优先桌面，集中管理 Xorg Dummy、Xvfb、VKMS、GDM3、RustDesk 及安装诊断。
+按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.0.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.1.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -24,7 +24,7 @@
 | 🖥️ 桌面管理 | 安装和检查 GNOME、XFCE、MATE；检测已有桌面并尽量保留原配置 |
 | 🪟 虚拟显示 | 管理 Xorg Dummy、Xvfb、VKMS；区分软件包存在、驱动输出与真实桌面会话 |
 | 🔗 RustDesk | 安装、更新客户端，管理 ID / 中继 / 公钥、权限、服务与配置读回 |
-| 🧭 智能部署 | 根据发行版、内存、显示设备及桌面状态生成安装计划，支持中断续装 |
+| 🧭 智能部署 | 根据系统协议、显示输出、现有桌面与内存生成安装计划，支持中断续装 |
 | 🩺 诊断修复 | 检查 GDM3、X11/Wayland、用户会话与依赖，收集安装及系统日志 |
 | 🔄 更新回滚 | 在线更新 HDM，保留版本目录及显示配置恢复机制 |
 
@@ -34,7 +34,7 @@ HDM 的状态判断遵循一条原则：**安装成功 ≠ 服务已运行 ≠ �
 
 ## 💻 适配范围与测试进度
 
-当前配置矩阵覆盖 **7 条 Ubuntu / 架构 / GNOME 显示方案路径**。它们是实现或测试路径，**不是 7 种已经完成远程桌面验收的机型**。具体 CPU、虚拟 GPU、内核 DRM、云商平台仍会影响结果。
+当前配置矩阵覆盖 **10 条 Ubuntu / 架构 / 桌面及显示方案路径**。它们是实现或测试路径，**不是 10 种已经完成远程桌面验收的机型**。具体 CPU、虚拟 GPU、内核 DRM、云商平台仍会影响结果。
 
 | 系统 / 架构 | 路径 | 已验证的范围 | 仍需验证 |
 |:---|:---|:---|:---|
@@ -45,9 +45,20 @@ HDM 的状态判断遵循一条原则：**安装成功 ≠ 服务已运行 ≠ �
 | Ubuntu 26.04 · ARM64 | GNOME 50 / Wayland | ARM64 实机曾安装 GNOME/GDM3/RustDesk，发现会话和显示问题 | 无屏输出、锁屏、登录前无人值守 |
 | Ubuntu 26.04 · x86_64 | GNOME 50 / Wayland | 包管理与兼容处理逻辑 | Wayland 登录前远控及实际画面 |
 | Ubuntu 26.10 · ARM64 | GNOME Wayland | 包管理与兼容处理逻辑 | 系统及整条图形链路实测 |
+| Ubuntu 26.04 · ARM64 | XFCE + X11 / LightDM | 包名与安装计划已核对，自动化模拟通过 | ARM64 图形登录、RustDesk 外部连接及重启 |
+| Ubuntu 26.04 · x86_64 | XFCE + X11 / LightDM | 包名与安装计划已核对，自动化模拟通过 | 实机登录管理器与远控画面 |
+| Ubuntu 26.10 · ARM64 | XFCE + X11 / LightDM | 安装路径已有代码支持 | 原生系统安装及整条远控链路 |
 
 **当前完整通过“无实体显示器 → 开机登录前 → RustDesk 可控画面”端到端验收的组合：0。**
 Ubuntu 24.04 x86_64 是持续集成的主要测试环境；Debian、Fedora、RHEL 等适配目录不代表这些系统已经获得同等级支持。详见 [功能验证矩阵](docs/testing-and-limitations.md) 和 [兼容配置](config/compatibility.tsv)。
+
+### 推荐策略：可用性优先
+
+Ubuntu 26 的 GNOME 只能使用 Wayland，**但 XFCE、MATE 仍有 X11 会话可选**。当标准 RustDesk 需要传统 X11 登录界面时，HDM 的智能安装优先提供 **XFCE + Xorg + LightDM + RustDesk**，而非强制把 GNOME 切回 X11。GNOME 仍可以通过菜单 3 手动安装，已有桌面不会自动卸载。
+
+如果宿主机没有已连接的显示输出，XFCE 路径会在计划中提示 Xorg Dummy，并在执行前确认。安装 LightDM **不代表**已经成为默认登录管理器，需通过菜单 4.4 查看，并在可用的 SSH/云控制台保护下手动选择；HDM 不会未经确认就重启桌面或切换登录管理器。
+
+这只是更有希望实现登录前访问的技术路径，**不是无人值守成功承诺**。登录界面、虚拟显示、锁屏与重启后实际控制仍需现场验证。参考 [Ubuntu 官方桌面会话说明](https://documentation.ubuntu.com/release-notes/26.04/summary-for-lts-users/) 和 [RustDesk 官方 Linux 指南](https://rustdesk.com/docs/en/client/linux/)。
 
 ### Ubuntu 26 GNOME / Wayland 的关键限制
 
@@ -93,7 +104,7 @@ sudo hdm
 
 ```text
   ─────────────────────────────────────────────────────────────
-  HDM v4.0.0  ·  ubuntu 24.04 / x86_64
+  HDM v4.1.0  ·  ubuntu 24.04 / x86_64
   桌面包 GNOME  ·  会话 x11  ·  RustDesk 1.5.1
   ─────────────────────────────────────────────────────────────
 

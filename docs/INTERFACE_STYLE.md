@@ -21,3 +21,5 @@
 - 前台保留步骤结果，完整 APT/系统失败记录以受限权限保存。
 - Git 提交标题以 HDM 版本号开头，真实描述代码变更；Release 标题只显示一次，正文不得重复标题或发布流程。
 - README 按 [Jiuliu README Style](https://github.com/nljie1103/jiuliu-readme-style) 的最新版规范排版。中文优先，英文辅助，必须明确 Ubuntu 26 GNOME Wayland 登录前与锁屏的**不同**验证边界。
+
+- 根据协议提供实用推荐：Ubuntu 26 GNOME Wayland-only 场景的推荐安装可以采用 XFCE / X11 / LightDM，但不得自动删除 GNOME 或宣称无人值守已验证。

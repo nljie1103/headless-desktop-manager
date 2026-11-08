@@ -44,7 +44,7 @@ hdm_readiness_report() {
   gnome_session=$(hdm_env_gnome_session)
   mem_kib=$(awk '/^MemTotal:/ {print $2;exit}' /proc/meminfo 2>/dev/null || :)
   preferred=GNOME
-  if [[ $mem_kib =~ ^[0-9]+$ ]] && ((mem_kib < 4194304)); then preferred=XFCE; fi
+  if hdm_gnome_wayland_only || { [[ $mem_kib =~ ^[0-9]+$ ]] && ((mem_kib < 4194304)); }; then preferred=XFCE; fi
   printf 'HDM 部署检查｜%s / %s\n' "$(hdm_os)" "$(hdm_arch)"
   printf '%s\n' '──────────────────────────────────────────────────'
   printf '桌面组件\n'
@@ -127,6 +127,11 @@ hdm_readiness_report() {
   hdm_readiness_pkg xserver-xorg-video-dummy 'Xorg Dummy' 0
   hdm_readiness_pkg xvfb 'Xvfb' 0
   printf '\n建议\n'
+  if hdm_gnome_wayland_only && [[ $desktop == GNOME ]]; then
+    printf '本机 GNOME 为 Wayland-only；如需传统 X11 登录界面，可通过菜单 3.2 安装 XFCE + LightDM，菜单 4.4 查看切换方法。原 GNOME 将保留。\n'
+  elif hdm_gnome_wayland_only && [[ $desktop == none ]]; then
+    printf '建议按 XFCE + LightDM / X11 路径安装，GNOME 可手动选择；登录前远控仍需外部实测。\n'
+  fi
   if ((HDM_READINESS_MISSING > 0)); then
     printf '有 %s 项必需软件包待补齐。通过菜单 9 查看安装计划。\n' "$HDM_READINESS_MISSING"
   else

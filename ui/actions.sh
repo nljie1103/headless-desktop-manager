@@ -109,13 +109,13 @@ hdm_dispatch() {
   3.1.7|3.6.1|3.6.2) hdm_desktop_status;;
   3.2.1) hdm_desktop_install_light xfce standard;;
   3.2.2) hdm_desktop_install_light xfce minimal;;
-  3.2.3) hdm_warn 'LightDM 切换尚未通过远程失联恢复验证；请优先保留 GNOME 的 GDM3。';;
+  3.2.3) hdm_desktop_login_manager_guide;;
   3.2.4|3.3.4) hdm_desktop_status;;
   3.2.5|3.3.5) hdm_action_disk_network;;
   3.2.6) hdm_desktop_install_light xfce standard;;
   3.3.1) hdm_desktop_install_light mate standard;;
   3.3.2) hdm_desktop_install_light mate minimal;;
-  3.3.3) hdm_warn 'LightDM 可选，默认不覆盖现有的 GDM3。';;
+  3.3.3) hdm_desktop_login_manager_guide;;
   3.3.6) hdm_desktop_install_light mate standard;;
   3.4.1) hdm_diag_system;;
   3.4.2) hdm_desktop_compare;;
@@ -142,7 +142,7 @@ hdm_dispatch() {
   4.3.4) hdm_desktop_status;;
   4.3.5|4.4.6|4.6.7|4.7.3|4.9.2) hdm_snapshot_choose;;
   4.4.2) hdm_session_protocol_report;;
-  4.4.3|4.4.4) hdm_warn '默认不替换 GDM3；LightDM 的自动切换在 V0.1 暂不支持。';;
+  4.4.3|4.4.4) hdm_desktop_login_manager_guide;;
   4.4.5) hdm_action_service_wizard restart;;
   
   4.6.2|4.6.6) hdm_diag_log desktop; hdm_warn 'RustDesk 抓屏仍需从另一台设备确认。';;
@@ -233,13 +233,13 @@ hdm_dispatch() {
   9.1.3|9.3.4) hdm_display_select_res;;
   9.1.4|9.3.6) hdm_warn '可在完整安装后通过菜单 7 配置自建 ID/Relay；避免在 RustDesk 未安装时导入。';;
   9.1.6|9.2.1|9.4.3|9.7.2) hdm_quick_install;;
-  9.2.2|9.2.3|9.2.4|9.2.5|9.2.6|9.2.7) hdm_warn 'GNOME + Dummy 是唯一默认主路径。其他组合已保留菜单但未经外部实机回归验证，请逐模块在 1、3、5 中手动完成。';;
+  9.2.2|9.2.3|9.2.4|9.2.5|9.2.6|9.2.7) hdm_quick_plan; hdm_warn '可在菜单 1、3、5 分别安装其他显示/桌面/RustDesk 组合；是否能远控需要真实验证。';;
   9.3.1) hdm_display_status;;
   9.3.2) hdm_desktop_compare; hdm_resource_recommendation;;
   9.3.3) hdm_rustdesk_status;;
   9.3.5) hdm_sources_policy;;
   9.3.7) hdm_quick_plan;;
-  9.3.8) hdm_warn '自定义组合 V0.1 不做自动批处理；确认 GNOME+Dummy 主组合可用菜单 9.1.6。';;
+  9.3.8) hdm_quick_plan; hdm_warn '按当前协议选择推荐路径；其他组合请在菜单 1、3、5 分别确认安装。';;
   9.7.3) hdm_warn '安全中止：不会自动删除已安装的系统软件包。配置可在 10.9 恢复。';;
   # 10. Diagnostics and mirrors
   10.1.1|10.1.2|10.1.4) hdm_diag_full;;

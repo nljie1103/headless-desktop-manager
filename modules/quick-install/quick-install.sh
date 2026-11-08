@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Resumable, idempotent recommended GNOME + Dummy + RustDesk installer.
+# Resumable, opt-in and protocol-aware desktop + RustDesk installer.
 # The ledger is a progress hint, not proof that a GUI is externally usable.
 HDM_QUICK_STEPS=(dummy-pkg gnome-pkg rustdesk-pkg dummy-config gdm-x11)
 hdm_physical_ram_mib() {
@@ -10,11 +10,19 @@ hdm_physical_ram_mib() {
 }
 hdm_quick_desktop_choice() {
   local desktop=$1 ram
-  [[ $desktop != none ]] && { printf '%s\n' "$desktop"; return; }
+  # Ubuntu 25.10+ removed GNOME Xorg sessions, NOT Xorg itself.
+  # For the conventional RustDesk login-screen route, offer XFCE/X11 rather
+  # than attempting to force GNOME Wayland into X11. Existing systems are
+  # never uninstalled or switched to a different display manager silently.
+  if hdm_gnome_wayland_only; then
+    case "$desktop" in
+      XFCE|MATE|KDE) printf '%s\n' "$desktop"; return 0;;
+      none|GNOME) printf 'XFCE\n'; return 0;;
+    esac
+  fi
+  [[ $desktop != none ]] && { printf '%s\n' "$desktop"; return 0; }
   ram=$(hdm_physical_ram_mib)
-  # GNOME remains the full-featured default on hosts with sufficient RAM.
-  # On smaller hosts, choose XFCE before changing any system config.
-  if ((ram > 0 && ram < 4096)); then printf 'XFCE\n';
+  if ((ram > 0 && ram < 4096)); then printf 'XFCE\n'
   else printf 'GNOME\n'; fi
 }
 hdm_resource_recommendation() {
@@ -23,8 +31,12 @@ hdm_resource_recommendation() {
   available=$(awk '/^MemAvailable:/ {print int($2/1024); exit}' "${HDM_MEMINFO_PATH:-/proc/meminfo}" 2>/dev/null)
   kind=$(hdm_quick_desktop_choice none)
   printf '内存：总量 %s MiB · 当前可用 %s MiB\n' "$total" "${available:-未知}"
-  printf '桌面推荐：%s（小于 4 GiB 推荐 XFCE；否则优先 GNOME；已安装桌面永不覆盖）。\n' "$kind"
-  printf '显示方案要根据桌面协议和 DRM/内核判断，不仅由内存大小决定。\n'
+  if hdm_gnome_wayland_only; then
+    printf '桌面推荐：XFCE + X11 / LightDM（GNOME Wayland 可单独选装，原有桌面保留）。\n'
+  else
+    printf '桌面推荐：%s（小于 4 GiB 推荐 XFCE，其余按可用图形协议选择；原有桌面保留）。\n' "$kind"
+  fi
+  printf '显示方案按桌面协议、DRM 和内核能力选择；推荐不代表远控、锁屏或无人值守已验证。\n'
 }
 
 hdm_quick_init_steps() {
@@ -34,13 +46,19 @@ hdm_quick_init_steps() {
   choice=$(hdm_quick_desktop_choice "$desktop")
   HDM_QUICK_STEPS=()
   if hdm_gnome_wayland_only; then
-    if [[ $desktop == none ]]; then
-      [[ $choice == XFCE ]] && HDM_QUICK_STEPS+=(xfce-pkg) || HDM_QUICK_STEPS+=(gnome-pkg)
-    fi
-    if [[ $desktop == GNOME || ( $desktop == none && $choice == GNOME ) ]]; then
-      HDM_QUICK_STEPS+=(wayland-deps)
-    fi
-    HDM_QUICK_STEPS+=(rustdesk-pkg)
+    case "$choice" in
+      XFCE)
+        if [[ $output == not-connected ]]; then HDM_QUICK_STEPS+=(dummy-pkg); fi
+        # XFCE + LightDM remain an available X11 combination on newer Ubuntu.
+        HDM_QUICK_STEPS+=(xfce-pkg rustdesk-pkg)
+        if [[ $output == not-connected ]]; then HDM_QUICK_STEPS+=(dummy-config); fi
+        ;;
+      GNOME)
+        if [[ $desktop == none ]]; then HDM_QUICK_STEPS+=(gnome-pkg); fi
+        HDM_QUICK_STEPS+=(wayland-deps rustdesk-pkg)
+        ;;
+      *) HDM_QUICK_STEPS+=(rustdesk-pkg);;
+    esac
   else
     if [[ $output == not-connected && $choice == GNOME ]]; then
       HDM_QUICK_STEPS+=(dummy-pkg)
@@ -50,12 +68,11 @@ hdm_quick_init_steps() {
     fi
     HDM_QUICK_STEPS+=(rustdesk-pkg)
     if [[ $output == not-connected && $choice == GNOME ]]; then
-      HDM_QUICK_STEPS+=(dummy-config)
-      [[ $choice != XFCE ]] && HDM_QUICK_STEPS+=(gdm-x11)
+      HDM_QUICK_STEPS+=(dummy-config gdm-x11)
     fi
   fi
+  return 0
 }
-
 
 hdm_quick_ledger() { printf '%s/quick-install-state.tsv' "$HDM_STATE"; }
 hdm_quick_step_valid() {
@@ -83,7 +100,7 @@ hdm_quick_check() {
   case "$1" in
     dummy-pkg) hdm_installed xserver-xorg-video-dummy && hdm_installed xserver-xorg-core ;;
     gnome-pkg) hdm_installed ubuntu-desktop && hdm_installed gdm3 && hdm_installed gnome-shell ;;
-    xfce-pkg) hdm_installed xfce4 && hdm_installed lightdm ;;
+    xfce-pkg) hdm_installed xfce4 && hdm_installed xserver-xorg-core && hdm_installed lightdm && hdm_installed lightdm-gtk-greeter ;;
     wayland-deps) hdm_installed pipewire && hdm_installed xdg-desktop-portal && hdm_installed xdg-desktop-portal-gnome ;;
     rustdesk-pkg) hdm_installed rustdesk && hdm_has rustdesk ;;
     dummy-config)
@@ -118,7 +135,11 @@ hdm_quick_status() {
   if [[ -r $HDM_STATE/pending-rollback ]]; then
     printf '[待确认] 显示配置处于安全回滚期，完成外部画面测试后 sudo hdm --confirm-display。\n'
   fi
-  if hdm_gnome_wayland_only; then
+  if hdm_gnome_wayland_only && [[ $(hdm_quick_desktop_choice "$(hdm_env_desktop_kind)") == XFCE ]]; then
+    printf '[方案] XFCE / LightDM / X11：不会强制 GNOME 使用 Xorg，也不会卸载现有 GNOME。\n'
+    printf '[需核实] 安装 LightDM 不等于它已成为默认登录管理器；请在菜单 4.4 检查并在控制台确认后切换。\n'
+    printf '[必须实测] X11 实际显示输出、登录界面、RustDesk 画面及键鼠控制。\n'
+  elif hdm_gnome_wayland_only; then
     printf '[重要] GNOME Wayland-only：本方案不会强制 GDM X11，不会写入 Xorg Dummy 全局配置。\n'
     if [[ $(hdm_arch) == aarch64 ]]; then
       printf '[待验证] ARM64 RustDesk 标准版不保证无人值守登录界面捕获。\n'
@@ -126,7 +147,7 @@ hdm_quick_status() {
       printf '[待验证] Wayland 登录界面无人值守需要专门支持的 RustDesk 构建。\n'
     fi
   fi
-  printf '[必须实测] 从其他电脑连接 RustDesk、GNOME 画面、鼠标键盘、重启后无人值守。\n'
+  printf '[必须实测] 从其他电脑检查 RustDesk 画面与键鼠；锁屏、登录界面和重启需分别验证。\n'
 }
 hdm_quick_preflight() {
   hdm_quick_init_steps
@@ -168,11 +189,16 @@ hdm_quick_plan() {
   for step in "${HDM_QUICK_STEPS[@]}"; do
     printf '  - %s\n' "$(hdm_quick_step_label "$step")"
   done
-  if hdm_gnome_wayland_only; then
+  if hdm_gnome_wayland_only && [[ $(hdm_quick_desktop_choice "$(hdm_env_desktop_kind)") == XFCE ]]; then
+    cat <<'MODERN_XFCE'
+当前 GNOME 为 Wayland-only，优先选用 XFCE + LightDM / X11。原 GNOME 保留，HDM 不会自动卸载桌面或切换登录管理器。
+无已连接 DRM 输出时才列出 Xorg Dummy 安装/配置步骤；配置前需明确确认风险。安装后请到菜单 4.4 检查默认登录管理器。
+即使使用 X11，也要实际验证显示输出、RustDesk 远程连接以及锁屏/登录前场景。
+MODERN_XFCE
+  elif hdm_gnome_wayland_only; then
     cat <<'MODERN'
 当前 GNOME Wayland-only：不强制 GDM X11、不创建 Xorg Dummy 全局配置。
-无已连接的虚拟输出时，安装 GNOME / Portal 并不会自动产生可被捕获的屏幕。
-RustDesk 标准 ARM64 Wayland 版尚未通过登录前无人值守验收；安装完成仍需实测。
+若需传统 RustDesk 登录前连接，请考虑菜单 3 安装 XFCE + LightDM，并在菜单 4 明确选择登录管理器。
 MODERN
   else
     printf '如果有现成显示输出或检测结果未知，不会强制写入 Xorg Dummy/GDM X11 配置。\n'

@@ -1,6 +1,6 @@
 # Ubuntu 26.04 / 26.10 ARM64 · GNOME Wayland 适配说明
 
-> 目标：在无实体显示器的 Ubuntu ARM64 主机上，使用 **GNOME + RustDesk**。本页区分安装成功、图形会话、锁屏、登录前控制和冷启动无人值守；其中任何一项都不能由另一项推断成功。
+> 目标：在无实体显示器的 Ubuntu ARM64 主机上，按实际图形协议部署可用的桌面与 RustDesk；GNOME、XFCE、MATE 均可选。本页区分安装成功、图形会话、锁屏、登录前控制和冷启动无人值守；其中任何一项都不能由另一项推断成功。
 
 ## 1. GNOME 50 与 Xorg 的边界
 
@@ -22,9 +22,17 @@
 
 RustDesk 官方的 **Wayland 无人值守预览版** 已介绍登录界面访问，但目前主要针对 **Debian / Ubuntu x86_64**。不能据此认为 Ubuntu 26 ARM64 标准版 RustDesk 1.5.1 已提供同等能力；本项目也没有自动切换该预览版。
 
-**用户目标仍是 GNOME + RustDesk；不能为了绕过限制把 XFCE、RDP 或 Xorg 当作 GNOME 兼容替代品。**
+**当需要标准 RustDesk 的 X11 登录界面时，HDM 推荐 XFCE + LightDM + Xorg；不是把 XFCE 伪装成 GNOME，也不承诺其已经通过 ARM64 登录前无人值守实测。GNOME 保留供用户选择。**
 
-## 3. 2026-11-07 ARM64 实测记录
+## 3. 推荐的可选方案：XFCE + X11 + LightDM
+
+Ubuntu 26 移除的是 **GNOME Xorg 会话**，并没有取消系统层面的 Xorg。XFCE 和 MATE 仍提供 X11 选项，LightDM 可以作为独立登录管理器。HDM 在未安装桌面，或仅有 GNOME Wayland 的主机上，优先生成 XFCE 安装计划；支持 Xorg、LightDM、GTK Greeter 和 RustDesk 依赖的安装。
+
+对于检测到的未连接 DRM 输出，计划可能包括 Xorg Dummy；该配置有断开当前远程显示的风险，须先准备独立的 SSH/云控制台，并由用户确认。安装 XFCE 和 LightDM 不代表 GDM3 已自动替换；HDM 不擅自卸载 GNOME、启用自动登录或重启显示服务。可在菜单 `4 → 4.4` 查看默认登录管理器与手动切换说明。
+
+此方案属于**可操作的 X11 部署路径**，但其登录界面 RustDesk 捕获、锁屏、无人值守和冷启动恢复依然需要逐项实机验证。
+
+## 4. 2026-11-07 ARM64 实测记录
 
 - 测试环境：Ubuntu 26.04 / aarch64；GNOME 50.1、GDM3、RustDesk 1.5.1 曾确认已安装。
 - RustDesk 服务曾显示 active，GDM3 也曾显示 active；但真实已登录 GNOME 图形用户会话为 none / unknown，不能证明登录界面或桌面可捕获。
@@ -32,7 +40,7 @@ RustDesk 官方的 **Wayland 无人值守预览版** 已介绍登录界面访问
 - 曾安装 Xorg Dummy、配置 1920×1080 并使用 HDM 的快照与定时回滚。这不能让 GNOME 50 恢复已移除的 Xorg 登录会话。
 - **未获得证据证明**锁屏、注销或冷启动后可经 RustDesk 操作 GNOME 登录界面。请勿从安装日志推断这些能力已完成。
 
-## 4. 安全测试顺序
+## 5. 安全测试顺序
 
 1. 在云服务商处准备可恢复快照，保持 SSH 与独立控制台通道，先不要变更全局显示管理器配置。
 2. 运行 `hdm --preflight`、`hdm --readiness` 和 `hdm --doctor`，分开确认系统包、GDM3、DRM、GNOME 用户会话及 RustDesk 服务。
@@ -41,7 +49,7 @@ RustDesk 官方的 **Wayland 无人值守预览版** 已介绍登录界面访问
 5. 最后才进行注销、重启后登录前及无人值守测试。没有独立救援通道时，不应尝试可能断开唯一远程连接的操作。
 6. 若连接失败，导出 `sudo hdm --export-diagnostics`，检查图形用户会话、RustDesk 日志与 Portal/PipeWire 状态；分享前审查敏感信息。
 
-## 5. 参考资料
+## 6. 参考资料
 
 - [Ubuntu 26.04 官方发行说明：Wayland session](https://documentation.ubuntu.com/release-notes/26.04/summary-for-lts-users/)
 - [GNOME 49 开发者发行说明：X11 Session disabled](https://release.gnome.org/49/developers/)

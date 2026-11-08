@@ -1,1 +1,1 @@
-统一终端菜单排版，重构中英文文档并明确Ubuntu26的GNOME远控限制
+按图形协议推荐XFCE与X11组合，优化LightDM配置引导及Ubuntu26适配说明

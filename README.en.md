@@ -4,9 +4,9 @@
 
 **Linux headless desktop deployment, session diagnostics and RustDesk management**
 
-Manage GNOME, XFCE, MATE, virtual displays, GDM3, installation state and recovery from one Chinese-first terminal interface.
+Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.0.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.1.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -31,7 +31,7 @@ Manage GNOME, XFCE, MATE, virtual displays, GDM3, installation state and recover
 
 ## 💻 Compatibility and verification
 
-HDM maintains **seven Ubuntu release / architecture / display-stack configuration paths**. These are **not seven fully certified machines**.
+HDM maintains **ten Ubuntu release / architecture / display-stack configuration paths**. These are **not ten fully certified machines**.
 
 | Platform | Current evidence | Remaining validation |
 |:---|:---|:---|
@@ -42,8 +42,17 @@ HDM maintains **seven Ubuntu release / architecture / display-stack configuratio
 | Ubuntu 26.04 ARM64 GNOME / Wayland | Earlier real-world GNOME 50.1, GDM3, RustDesk installation; display/session failure observed | Headless Wayland, lock screen and pre-login unattended access |
 | Ubuntu 26.04 x86_64 GNOME / Wayland | Compatibility logic | Live Wayland/remote access |
 | Ubuntu 26.10 ARM64 GNOME / Wayland | Compatibility logic | Native installation and complete remote access |
+| Ubuntu 26.04 ARM64 XFCE / X11 / LightDM | Package path checked, simulated tests | Native login greeter, external remote control and reboot |
+| Ubuntu 26.04 x86_64 XFCE / X11 / LightDM | Package path checked, simulated tests | Actual display manager and remote capture |
+| Ubuntu 26.10 ARM64 XFCE / X11 / LightDM | Code path ready | Native installation and complete remote access |
 
 **Fully verified headless boot-to-login-screen RustDesk combinations: zero.** The project's CI runs on Ubuntu 24.04 x86_64. Debian, Fedora and RHEL adapter directories are not a guarantee of complete platform support.
+
+### Practical desktop selection
+
+On Ubuntu 26, GNOME itself is Wayland-only but Xorg remains available for desktops such as **XFCE and MATE**. HDM's recommended plan for standard RustDesk login-screen scenarios is now **XFCE + Xorg + LightDM**. GNOME remains optional; existing desktops are never uninstalled automatically.
+
+If DRM reports no connected output, the plan may offer Xorg Dummy behind an explicit configuration confirmation. Installing LightDM does not select it as the default login manager; inspect menu 4.4 and use provider console/SSH for any manual transition. Actual pre-login capture and reboot recovery **still require external tests**.
 
 ### Ubuntu 26 GNOME / Wayland
 

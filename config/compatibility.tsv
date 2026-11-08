@@ -6,3 +6,6 @@ ubuntu	24.04	amd64	gnome	vkms	rustdesk	experimental
 ubuntu	26.04	arm64	gnome-wayland	vkms-experimental	rustdesk-standard	gnome-rustdesk-install-observed-no-remote-session
 ubuntu	26.10	arm64	gnome-wayland	vkms-experimental	rustdesk-standard	install-testing-only
 ubuntu	26.04	amd64	gnome-wayland	vkms-experimental	rustdesk-standard	install-testing-only
+ubuntu	26.04	arm64	xfce-x11	xorg-dummy-lightdm	rustdesk-standard	package-path-reviewed-remote-unverified
+ubuntu	26.04	amd64	xfce-x11	xorg-dummy-lightdm	rustdesk-standard	package-path-reviewed-remote-unverified
+ubuntu	26.10	arm64	xfce-x11	xorg-dummy-lightdm	rustdesk-standard	code-path-only-not-tested

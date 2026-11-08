@@ -40,10 +40,10 @@ hdm_quick_init_steps
 hdm_gnome_wayland_only() { return 0; }
 DESKTOP=none
 hdm_quick_init_steps
-[[ "${HDM_QUICK_STEPS[*]}" == 'gnome-pkg wayland-deps rustdesk-pkg' ]]
+[[ "${HDM_QUICK_STEPS[*]}" == 'dummy-pkg xfce-pkg rustdesk-pkg dummy-config' ]]
 DESKTOP=XFCE
 hdm_quick_init_steps
-[[ "${HDM_QUICK_STEPS[*]}" == 'rustdesk-pkg' ]]
+[[ "${HDM_QUICK_STEPS[*]}" == 'dummy-pkg xfce-pkg rustdesk-pkg dummy-config' ]]
 # No side-effects from read-only preflight and permission diagnostics.
 output=$(bash "$ROOT/hdm.sh" --preflight)
 [[ $output == *'只读安装前检测'* && $output == *'推荐操作'* ]]

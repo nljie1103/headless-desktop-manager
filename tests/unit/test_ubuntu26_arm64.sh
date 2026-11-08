@@ -33,10 +33,11 @@ hdm_env_drm_state() { printf "not-connected\n"; }
 hdm_env_report() { :; }
 hdm_gnome_wayland_only() { return 0; }
 hdm_quick_init_steps
-[[ "${HDM_QUICK_STEPS[*]}" == 'gnome-pkg wayland-deps rustdesk-pkg' ]]
+[[ "${HDM_QUICK_STEPS[*]}" == 'dummy-pkg xfce-pkg rustdesk-pkg dummy-config' ]]
 hdm_quick_plan > "$TMP/plan"
-grep -q 'Wayland-only' "$TMP/plan"
+grep -q 'XFCE + LightDM / X11' "$TMP/plan"
 if grep -q 'GDM3 使用 X11' "$TMP/plan"; then exit 1; fi
+grep -q 'Xorg Dummy' "$TMP/plan"
 # Defensive GDM3 X11 helper refuses before writing any settings.
 hdm_root() { :; }
 hdm_guard_platform() { :; }
@@ -48,4 +49,4 @@ hdm_gnome_wayland_only() { return 1; }
 hdm_quick_init_steps
 [[ "${HDM_QUICK_STEPS[*]}" == 'dummy-pkg gnome-pkg rustdesk-pkg dummy-config gdm-x11' ]]
 
-echo 'PASS Ubuntu 26 ARM64 allows testing, apt source release matches, GNOME Wayland/X11 split'
+echo 'PASS Ubuntu 26 ARM64 sources, XFCE/X11 recommendation and safe GNOME Wayland split'

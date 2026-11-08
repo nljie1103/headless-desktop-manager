@@ -87,6 +87,12 @@ hdm_env_desktop_label() {
 }
 hdm_env_plan_hint() {
   local desktop=$1 output=$2
+  if hdm_gnome_wayland_only; then
+    case "$desktop" in
+      none) printf 'GNOME Wayland-only：建议先安装 XFCE + LightDM / X11，再按实际输出选择虚拟显示。'; return;;
+      GNOME) printf '如需传统 X11 登录前远控，可另装 XFCE + LightDM；保留原 GNOME，不自动切换登录管理器。'; return;;
+    esac
+  fi
   if [[ $desktop != none && $desktop != unknown ]]; then
     case "$output" in
       connected) printf '保留桌面与显示设置；先确认图形会话正常，再检查 RustDesk。';;

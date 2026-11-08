@@ -40,17 +40,17 @@ hdm_desktop_install_gnome() {
     pkgs+=(xorg)
   fi
   case "$variant" in full) pkgs+=(ubuntu-desktop);; minimal) pkgs+=(ubuntu-desktop-minimal);; repair) pkgs+=(gnome-shell gnome-session gdm3);; *) return 1;; esac
-  hdm_info 'GNOME 为 HDM 优先支持的桌面环境，不会自动改用轻量桌面。'
+  hdm_info '本操作仅安装 GNOME；桌面方案由用户选择，已有桌面不会自动删除。'
   if ! hdm_gnome_wayland_only && [[ ! -f /etc/X11/xorg.conf.d/20-hdm-dummy.conf ]]; then hdm_warn '尚未创建 Dummy 配置。可以先安装 GNOME，稍后再完成虚拟显示。'; fi
   hdm_pkg_install "${pkgs[@]}"
 }
 hdm_desktop_install_light() {
   local desktop=$1 variant=$2 pkgs=()
   case "$desktop:$variant" in
-    xfce:standard) pkgs=(xfce4 xfce4-goodies lightdm);;
-    xfce:minimal) pkgs=(xfce4 lightdm);;
-    mate:standard) pkgs=(mate-desktop-environment mate-desktop-environment-extras lightdm);;
-    mate:minimal) pkgs=(mate-desktop-environment-core lightdm);;
+    xfce:standard) pkgs=(xfce4 xfce4-goodies xorg lightdm lightdm-gtk-greeter);;
+    xfce:minimal) pkgs=(xfce4 xorg lightdm lightdm-gtk-greeter);;
+    mate:standard) pkgs=(mate-desktop-environment mate-desktop-environment-extras xorg lightdm lightdm-gtk-greeter);;
+    mate:minimal) pkgs=(mate-desktop-environment-core xorg lightdm lightdm-gtk-greeter);;
     *) return 1;;
   esac
   hdm_warn "$desktop 为可选桌面，尚未通过所有云服务器组合的真实图形验证。"
@@ -60,6 +60,26 @@ hdm_desktop_update() {
   local choice
   if hdm_installed ubuntu-desktop; then choice=ubuntu-desktop; elif hdm_installed ubuntu-desktop-minimal; then choice=ubuntu-desktop-minimal; elif hdm_installed xfce4; then choice=xfce4; elif hdm_installed mate-desktop-environment; then choice=mate-desktop-environment; else hdm_error '未检测到受支持的桌面环境'; return 1; fi
   hdm_pkg_upgrade "$choice"
+}
+# Read-only guidance: package installation and the selected login greeter are
+# separate; changing the default display manager may disconnect remote access.
+hdm_desktop_login_manager_guide() {
+  hdm_show 'X11 登录管理器'
+  local current='未知'
+  if [[ -r /etc/X11/default-display-manager ]]; then
+    IFS= read -r current < /etc/X11/default-display-manager || :
+  fi
+  printf '默认登录管理器：%s\n' "$current"
+  printf 'GDM3：%s；LightDM：%s\n' "$(hdm_service_state gdm3)" "$(hdm_service_state lightdm)"
+  if hdm_installed lightdm && hdm_installed xfce4-session; then
+    printf 'XFCE 与 LightDM 已安装，可从登录界面选择 XFCE Session。\n'
+    printf '若要在 Ubuntu/Debian 上切换默认登录管理器，先备份 /etc/X11/default-display-manager，\n'
+    printf '保留 SSH/控制台，再在可交互的终端执行 sudo dpkg-reconfigure lightdm。\n'
+    printf 'HDM 不会代替用户切换显示管理器或立即重启现有图形会话。\n'
+  else
+    printf '如需 XFCE / X11，请先从菜单 3.2 安装 XFCE、Xorg、LightDM 和登录界面组件。\n'
+  fi
+  printf '切换后还需验证 X11 登录界面、RustDesk 远控及重启恢复。\n'
 }
 hdm_desktop_switch() {
   local desktop=$1
@@ -72,7 +92,15 @@ hdm_desktop_switch() {
         hdm_gdm_x11 || return 1
         hdm_info '已配置 GNOME X11 支持；实际会话需在登录管理器选择。'
       fi;;
-    xfce|mate) hdm_warn '切换显示管理器和用户会话可能中断远控；本版本不自动切换为 LightDM。请在本地/云控制台验证后人工选择已安装的会话。';;
+    xfce|mate)
+      local pkg
+      [[ $desktop == xfce ]] && pkg=xfce4-session || pkg=mate-session-manager
+      if ! hdm_installed "$pkg"; then
+        hdm_warn "未安装 $desktop 图形会话，请先从菜单 3 安装。"
+        return 1
+      fi
+      hdm_warn '请先确认 SSH/云控制台可用，再在登录界面选择对应 X11 会话；HDM 不自动重启图形会话。'
+      hdm_desktop_login_manager_guide;;
     *) return 1;;
   esac
 }
