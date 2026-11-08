@@ -207,12 +207,12 @@ hdm_session_prepare_login() {
   dm=$(hdm_v2_default_dm)
   case "$dm" in
     lightdm|gdm3) ;;
-    *) hdm_warn '默认登录管理器未知；请先到菜单 3 → 11 选择 LightDM 或 GDM3。'; return 2;;
+    *) hdm_warn '默认登录管理器未知；请先到菜单 2 → 11 选择 LightDM 或 GDM3。'; return 2;;
   esac
-  hdm_installed "$dm" || { hdm_warn "$dm 未安装，请先从菜单 3 安装。"; return 2; }
+  hdm_installed "$dm" || { hdm_warn "$dm 未安装，请先从菜单 2 安装。"; return 2; }
   if [[ $dm == lightdm ]]; then
     hdm_installed lightdm-gtk-greeter || {
-      hdm_warn 'LightDM 缺少 GTK Greeter；请先从菜单 3 补齐。'; return 2
+      hdm_warn 'LightDM 缺少 GTK Greeter；请先从菜单 2 补齐。'; return 2
     }
     hdm_session_has_x11_desktop || { hdm_warn '缺少 X11 桌面会话文件，请先安装 XFCE 或 MATE。'; return 2; }
     hdm_installed xserver-xorg-core || {
@@ -226,7 +226,11 @@ hdm_session_prepare_login() {
   fi
   printf '将启动 %s 的登录界面；需要在图形界面输入密码后才有新的用户会话。\n' "$dm"
   printf '不会开启免密码自动登录，也不会结束 SSH 会话。\n'
-  hdm_confirm "确认启动 $dm 登录界面（需保留 SSH / 云控制台）？" || return 2
+  # The selected create-login menu action is sufficient for a non-destructive
+  # service start. Direct callers still explicitly confirm.
+  if [[ ${HDM_MENU_SELECTED:-0} != 1 ]]; then
+    hdm_confirm "启动 $dm 登录界面？" || return 2
+  fi
   hdm_v2_dm_service start || return $?
   if [[ $(printenv HDM_DRY_RUN 2>/dev/null) == 1 ]]; then
     printf '[DRY RUN] 不创建真实的已登录图形会话。\n'
@@ -294,7 +298,9 @@ hdm_session_select_default() {
   target=/etc/lightdm/lightdm.conf.d/99-zz-hdm-session.conf
   [[ ! -L $target ]] || { hdm_warn '目标配置为符号链接，拒绝覆盖。'; return 2; }
   printf '将把 LightDM 默认会话设为 %s（X11），不会自动重启/注销。\n' "$session"
-  hdm_confirm '确认写入 HDM 管理的 LightDM 会话配置？' || return 2
+  if [[ ${HDM_MENU_SELECTED:-0} != 1 ]]; then
+    hdm_confirm '确认写入 HDM 管理的 LightDM 会话配置？' || return 2
+  fi
   if [[ ${HDM_DRY_RUN:-0} == 1 ]]; then
     printf '[DRY RUN] LightDM user-session=%s\n' "$session"
     return 0

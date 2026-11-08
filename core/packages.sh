@@ -85,7 +85,7 @@ hdm_pkg_install() {
   [[ ${#list[@]} -gt 0 ]] || return 1
   for pkg in "${list[@]}"; do [[ $pkg =~ ^[a-z0-9][a-z0-9.+-]*$ ]] || return 1; done
   hdm_info "将安装系统软件包：${list[*]}"
-  if [[ ${HDM_QUICK_APPROVED:-0} != 1 ]]; then
+  if [[ ${HDM_QUICK_APPROVED:-0} != 1 && ${HDM_MENU_SELECTED:-0} != 1 ]]; then
     hdm_confirm '继续安装（可能使用大量磁盘空间）？' || { hdm_warn '用户取消安装。'; return 2; }
   fi
   case "$(hdm_type)" in
@@ -101,7 +101,11 @@ hdm_pkg_upgrade() {
   local -a list=("$@")
   [[ ${#list[@]} -gt 0 ]] || return 1
   for pkg in "${list[@]}"; do [[ $pkg =~ ^[a-z0-9][a-z0-9.+-]*$ ]] || return 1; done
-  hdm_confirm "仅升级指定软件包：${list[*]}？" || return 0
+  # Explicit update menu selection is already authorization. Retain the
+  # prompt for callers outside the interactive HDM menu.
+  if [[ ${HDM_MENU_SELECTED:-0} != 1 ]]; then
+    hdm_confirm "仅升级指定软件包：${list[*]}？" || return 0
+  fi
   case "$(hdm_type)" in
     apt) hdm_apt_call update && hdm_apt_call install -y --only-upgrade "${list[@]}" ;;
     dnf|yum) local pm; pm=$(hdm_type); hdm_run_quiet "$pm 更新" "$pm" upgrade -y "${list[@]}" ;;

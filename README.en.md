@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.5.5-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.5.6-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -82,7 +82,7 @@ sudo hdm
 
 Installing HDM **does not automatically install GNOME or change the display manager**. In an interactive terminal it opens the menu; `HDM_NO_AUTO_MENU=1` skips that auto-opening.
 
-The v4.5.5 software has **six task-based sections**, instead of eight technical stages: 1 Quick setup, 2 Desktop environments, 3 Login managers, 4 RustDesk, 5 Display settings, 6 HDM maintenance. The task menu has 72 entries (62 actions), with redundant diagnostic/help routes removed. The 381 legacy action implementations remain in source for compatibility, but are not all in the user-visible menu. Starting/stopping services and enabling boot startup are separate actions. These menus are current in **v4.5.5**. Existing v4.5.1 installations keep their original menu until the HDM manager is upgraded.
+The v4.5.6 menu follows the seven-stage desktop dependency axis exactly: **1 Display output**, **2 Login manager**, **3 Graphics protocol**, **4 Desktop environment**, **5 Graphical sessions**, **6 RustDesk**, **7 Device ID**, and **8 HDM maintenance / quick setup**. There are 74 entries, including 63 actions. All independent desktop and login-manager installation/removal functions are preserved. Explicit menu installs, updates, startup and auto-start toggles avoid redundant y/N prompts; destructive or remote-disruptive actions retain one safety check. The 481 legacy menu declarations remain internal, not presented as duplicate diagnostics.
 ---
 
 ## 🔗 Seven-stage dependency diagnostics (separate from the task menu)
@@ -93,11 +93,10 @@ Green means the **local** check succeeded, red means a confirmed missing/broken 
 
 Use `sudo hdm --chain` for full paths and explanations, or `sudo env HDM_HIDE_RUSTDESK_ID=1 hdm` to hide the device ID in screen-sharing demos. [Desktop chain design and limitations](docs/desktop-chain.md).
 
-Day-to-day paths on `main`: **2 → 1** install XFCE only, **3 → 3** start the selected LightDM/GDM3 service, **3 → 6** enable boot startup, **4 → 1/2/7/8** install/start/update/remove RustDesk, **6 → 1** update HDM to the latest published Release. Risky stop/restart/uninstall actions require independent SSH/provider-console access.
-
+Day-to-day paths: **2 → 3** start LightDM/GDM3, **3 → 1** inspect X11/Wayland/Xorg, **3 → 2** select a LightDM XFCE/MATE X11 session, **4 → 1** install XFCE without binding a login manager, **5 → 2** prepare the authenticated login greeter, **6 → 9** set the RustDesk password, **7 → 1** view device ID, and **8 → 4** update HDM.
 ### Graphical sessions and actual protocol management
 
-The `2 → 9` submenu starts a login greeter for a new authenticated session, lists real X11/Wayland user sessions, shows session details, prints login-manager error logs, and safely terminates a selected graphical session with explicit confirmation (SSH/TTY excluded), starts the display manager to prepare a new login, and reports available session types. For installed XFCE/MATE with LightDM, it can set the **default X11 desktop session** without restarting the machine. It cannot change DRM into Wayland or force GNOME 50 into an unavailable Xorg session.
+The **5 Graphical sessions** menu lists authenticated sessions, prepares a new greeter, inspects a selected session and safely terminates it. The separate **3 Graphics protocol** menu reports installed X11/Wayland sessions and selects the matching LightDM X11 or GNOME/GDM3 Wayland login stack, subject to package checks. DRM cannot itself be switched to Wayland. Login-manager logs belong under **2**, and ID/relay settings under **7**.
 
 Desktop environment installs are now **separate from display managers**: installing XFCE/GNOME/MATE does not explicitly reinstall LightDM/GDM3/Xorg; the guided full-stack installer still fills missing prerequisites. A host with many SSH sessions no longer reports graphical-session overflow just because the first 24 logind rows were occupied by SSH.
 

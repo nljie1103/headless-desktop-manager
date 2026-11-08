@@ -567,7 +567,7 @@ def home_inventory(report: dict, signals: dict, width: int = 80) -> str:
     if dm_service == "active":
         row("运行中", label_dm[selected_dm] + " 登录服务", "等待用户登录不等于故障")
     elif package(report, selected_dm).get("installed"):
-        row("待启动", label_dm[selected_dm] + " 登录服务", "菜单 3 → 3")
+        row("待启动", label_dm[selected_dm] + " 登录服务", "菜单 2 → 3")
     else:
         row("未就绪", label_dm[selected_dm] + " 登录服务", "需先安装登录管理器")
     if report.get("sessions_truncated"):

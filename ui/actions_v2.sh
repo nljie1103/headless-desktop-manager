@@ -78,7 +78,7 @@ hdm_v2_dm_service() {
   selected=$(hdm_v2_default_dm)
   case "$selected" in
     lightdm|gdm3) ;;
-    *) hdm_warn '未识别默认登录管理器。请从菜单 3 → 11 选择 LightDM 或 GDM3。'; return 2 ;;
+    *) hdm_warn '未识别默认登录管理器。请从菜单 2 → 11 选择 LightDM 或 GDM3。'; return 2 ;;
   esac
   if ! hdm_installed "$selected"; then
     hdm_warn "$selected 尚未安装，请先安装登录管理器。"
@@ -101,7 +101,7 @@ hdm_v2_dm_service() {
     hdm_warn '没有检测到 XFCE/MATE 桌面会话：LightDM 即使启动，仍可能没有可登录的桌面。建议先安装 XFCE。'
   fi
   case "$action" in
-    stop|restart|disable)
+    stop|restart)
       hdm_warn '警告：操作登录管理器可能中断当前图形会话和 RustDesk。请确保 SSH / 云控制台可用。'
       hdm_confirm "确认对 $selected 执行 $action？" || { hdm_warn '已取消，未修改服务状态。'; return 2; }
       ;;
@@ -132,7 +132,7 @@ hdm_v2_rustdesk_service() {
   hdm_has systemctl || { hdm_warn '当前系统没有 systemctl，无法管理 RustDesk 服务。'; return 2; }
   hdm_installed rustdesk || { hdm_warn 'RustDesk 尚未安装，请先选择安装。'; return 2; }
   case "$action" in
-    stop|restart|disable)
+    stop|restart)
       hdm_warn '此操作可能中断 RustDesk 远控，务必保留 SSH / 云控制台。'
       hdm_confirm "确认对 RustDesk 执行 $action？" || { hdm_warn '已取消，没有修改服务。'; return 2; }
       ;;
@@ -154,11 +154,37 @@ hdm_v2_rustdesk_service() {
   printf '服务运行不等于远端能捕获图形会话，请从另一设备测试。\n'
 }
 
+hdm_v2_wayland_session_available() {
+  local file
+  for file in /usr/share/wayland-sessions/*.desktop; do
+    [[ -f $file ]] && return 0
+  done
+  return 1
+}
+hdm_v2_protocol_select_wayland() {
+  hdm_root && hdm_guard_platform || return 1
+  if ! hdm_installed gnome-shell || ! hdm_installed gdm3; then
+    hdm_warn 'GNOME/Wayland 需要先安装 GNOME 和 GDM3（桌面菜单 4、登录管理器菜单 2）。'
+    return 2
+  fi
+  if ! hdm_v2_wayland_session_available; then
+    hdm_warn '未找到 Wayland 桌面会话文件，不能切换。'
+    return 2
+  fi
+  if [[ $(hdm_v2_default_dm) == gdm3 ]]; then
+    printf 'GDM3 已是默认登录管理器，请在 GDM3 登录界面选择 GNOME Wayland 会话。\n'
+    return 0
+  fi
+  printf '将选择 GDM3 为默认登录管理器，系统选择界面仅需选择一次。\n'
+  hdm_v2_choose_dm gdm3 || return $?
+  printf '下次在 GDM3 登录界面选择 GNOME Wayland 会话并登录。\n'
+}
+
 hdm_v2_protocol_info() {
   printf 'X11 是图形显示协议，Xorg 是常用 X11 服务器实现；Wayland 是另一套显示协议。\n'
   printf 'GDM3/LightDM 负责登录认证与桌面会话启动，不是虚拟显示器。\n'
   printf '已登录桌面、锁屏、注销后的登录界面，以及 RustDesk 是否可远控，须分别验证。\n'
-  printf '查看完整链路：sudo hdm --chain；显示方案与虚拟输出：主菜单 5。\n'
+  printf '查看完整链路：sudo hdm --chain；显示输出设置：主菜单 1。\n'
 }
 
 # The uninstall removes only the HDM command entry and current-version pointer.
@@ -277,6 +303,9 @@ hdm_v2_dispatch() {
     session-prepare) hdm_session_prepare_login ;;
     session-select) hdm_session_select_default ;;
     protocol-status) hdm_session_protocol_report ;;
+    protocol-select-wayland) hdm_v2_protocol_select_wayland ;;
+    protocol-install-xorg) hdm_pkg_install xorg xserver-xorg-core ;;
+    id-server-status) hdm_rustdesk_server_status ;;
     protocol-guide) hdm_v2_protocol_info ;;
     rustdesk-install) hdm_v2_rustdesk_install ;;
     rustdesk-update) hdm_v2_rustdesk_install ;;

@@ -11,8 +11,8 @@ hdm_rustdesk_permissions_apply() { printf '%s %s\n' "$1" "$2" > "$TMP/auth"; }
 rustdesk() { [[ $1 == --password && $2 == 'short' ]]; }
 printf 'short\n' | hdm_rustdesk_password > "$TMP/output"
 [[ $(cat "$TMP/auth") == 'auth N' ]]
-[[ $(cat "$TMP/output") == *'密码（输入可见）'* ]]
+[[ $(cat "$TMP/output") == *'永久密码：'* ]]
 [[ $(cat "$TMP/output") != *'YES'* ]]
 # Empty input rejected; no arbitrary 12-character threshold.
 if printf '\n' | hdm_rustdesk_password >/dev/null 2>&1; then exit 1; fi
-echo 'PASS visible one-shot permanent password and unattended auth mode'
+echo 'PASS one-shot password prompt and unattended auth mode'

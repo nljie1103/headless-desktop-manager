@@ -56,12 +56,12 @@ hdm_diag_repair_hint() {
   printf '\n建议修复路径：\n'
   if hdm_gnome_wayland_only; then
     printf 'GNOME Wayland-only：如需传统 X11，推荐菜单 4 → 安装 XFCE 的 LightDM；GNOME 可继续使用。\n'
-    printf 'VKMS 虚拟显示 → 菜单 1 → 安装 → VKMS；RustDesk 服务异常 → 菜单 6 → 服务状态与故障 → 修复服务；\n'
+    printf 'VKMS 虚拟显示 → 菜单 1 → 3 → 3 启用 VKMS；RustDesk 服务异常 → 菜单 6 → 10 查看状态或 6 → 2 启动服务；\n'
   else
-    printf 'Dummy 未安装 → 菜单 1 → 安装 → Xorg Dummy；桌面选择 → 菜单 4（GNOME/XFCE/MATE）；\n'
-    printf 'GDM3 未配置 X11 → 菜单 3 → Xorg 环境 → GNOME Xorg 配置；RustDesk 服务异常 → 菜单 6 → 服务状态与故障 → 修复服务；\n'
+    printf 'Dummy 未安装 → 菜单 1 → 3 → 1 安装 Xorg Dummy；桌面选择 → 菜单 4（GNOME/XFCE/MATE）；\n'
+    printf 'GDM3 未配置 X11 → 菜单 3 → 1 检查协议（Ubuntu 26 GNOME 为 Wayland）；RustDesk 服务异常 → 菜单 6 → 10 查看状态或 6 → 2 启动服务；\n'
   fi
-  printf '关键配置异常 → 菜单 8 → 系统配置备份 恢复快照；请保留 SSH/云控制台。\n'
+  printf '关键配置异常 → 使用 sudo hdm --rollback-pending 恢复待确认的 HDM 配置；请保留 SSH/云控制台。\n'
 }
 hdm_diag_export() {
   local out="${HDM_STATE}/diagnostic-$(date -u +%Y%m%dT%H%M%SZ).txt"
@@ -180,5 +180,5 @@ hdm_diag_operation_list() {
   if [[ ! -d $HDM_LOG_DIR ]]; then printf '尚无 HDM 操作日志\n'; return 0; fi
   find "$HDM_LOG_DIR" -maxdepth 1 -type f -name 'operation-*.log' -printf '%TY-%Tm-%Td %TH:%TM:%TS  %f\n' 2>/dev/null | sort -r | head -40 || :
   printf '完整日志位于：%s（root 可读）\n' "$HDM_LOG_DIR"
-  printf '菜单 8 → 全部日志 → 一键导出完整诊断包，可合并后分享。\n'
+  printf '菜单 8 → 7 导出完整诊断包，可合并后分享。\n'
 }

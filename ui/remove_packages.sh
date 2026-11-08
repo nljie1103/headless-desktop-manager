@@ -36,7 +36,7 @@ hdm_v2_choose_dm() {
     hdm_warn "系统仍未选择 $pkg，请不要卸载旧登录管理器。"
     return 2
   fi
-  printf '[已选择] $pkg。需在安全维护窗口重启并确认新的登录界面和 RustDesk。\n'
+  printf '[已选择] %s。需在安全维护窗口验证新的登录界面和 RustDesk。\n' "$pkg"
 }
 
 hdm_v2_remove_packages_for() {

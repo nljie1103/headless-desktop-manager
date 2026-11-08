@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the compact six-section UI and retained explicit action mapping."""
+"""Verify the axis-ordered eight-section UI and retained explicit action mapping."""
 from pathlib import Path
 import subprocess
 import sys
@@ -25,8 +25,8 @@ for row in rows:
         sys.exit(f"Wrong hierarchical menu ID: {row}")
 
 roots = [r[2] for r in rows if r[0] == "root"]
-expected = ["快速部署", "桌面环境", "登录管理器（LightDM / GDM3 选一个）",
-            "RustDesk 远程控制", "显示设置（有画面则无需安装虚拟显示）", "HDM 管理"]
+expected = ["显示输出", "登录管理器", "图形协议", "桌面环境",
+            "图形会话", "RustDesk", "设备 ID", "HDM 管理"]
 assert roots == expected, roots
 
 mapped = {}
@@ -46,4 +46,4 @@ assert all(r[3].count(".") <= 2 for r in rows), "More than 3 menu levels"
 result = subprocess.run([sys.executable, str(root / "scripts/build-menus-v2.py"), "--check"],
                         capture_output=True, text=True, check=False)
 assert result.returncode == 0, result.stdout + result.stderr
-print(f"Menu structure valid: {len(rows)} entries, 6 sections, {len(mapped)} routed leaves")
+print(f"Menu structure valid: {len(rows)} entries, 8 sections, {len(mapped)} routed leaves")

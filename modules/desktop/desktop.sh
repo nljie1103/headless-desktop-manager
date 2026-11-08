@@ -92,7 +92,7 @@ hdm_desktop_login_manager_guide() {
     printf '保留 SSH/控制台，再在可交互的终端执行 sudo dpkg-reconfigure lightdm。\n'
     printf 'HDM 不会代替用户切换显示管理器或立即重启现有图形会话。\n'
   else
-    printf '如需 XFCE / X11，请先从菜单 2 → 1 安装 XFCE；如需 X11，再确保 Xorg 和 LightDM/Greeter 已就绪。\n'
+    printf '如需 XFCE / X11，请先从菜单 4 → 1 安装 XFCE；如需 X11，再确保 Xorg 和 LightDM/Greeter 已就绪。\n'
   fi
   printf '切换后还需验证 X11 登录界面、RustDesk 远控及重启恢复。\n'
 }

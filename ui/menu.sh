@@ -10,6 +10,7 @@ hdm_menu_execute() {
     hdm_warn "菜单 $id 未绑定执行目标，请检查菜单配置。"
     return 2
   fi
+  local HDM_MENU_SELECTED=1
   case "$target" in
     new:*) hdm_v2_dispatch "${target#new:}" ;;
     *) hdm_dispatch "$target" ;;
@@ -85,19 +86,17 @@ hdm_menu_header() {
   hdm_menu_rule "$path"
 }
 hdm_menu_main() {
-  local -a left=(1 2 3) right=(4 5 6)
-  local cols i l r
+  local cols i
   cols=$(hdm_menu_terminal_cols)
   if ((cols>=78)); then
-    for ((i=0;i<3;i++)); do
-      l="${left[i]}. $(hdm_menu_label "${left[i]}")"
-      r="${right[i]}. $(hdm_menu_label "${right[i]}")"
+    # Reading row-wise follows the seven-stage chain, then HDM manager.
+    for ((i=1;i<=7;i+=2)); do
       printf '  '
-      hdm_menu_pad "$l" 39
-      printf '%s\n' "$r"
+      hdm_menu_pad "$i. $(hdm_menu_label "$i")" 39
+      printf '%s\n' "$((i+1)). $(hdm_menu_label "$((i+1))")"
     done
   else
-    for i in {1..6}; do printf '  %-3s %s\n' "${i}." "$(hdm_menu_label "$i")"; done
+    for i in {1..8}; do printf '  %-3s %s\n' "$i." "$(hdm_menu_label "$i")"; done
   fi
 }
 hdm_menu_children() {
@@ -138,7 +137,7 @@ hdm_menu() {
           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$HDM_VERSION" "$ident" "$(hdm_menu_label "$ident")" "$operation_rc" \
           >> "$HDM_LOG_DIR/steps.log"
       fi
-      ((operation_rc == 0)) || hdm_warn "操作未完成（退出码 $operation_rc），可从菜单 6 查看日志及导出诊断包。"
+      ((operation_rc == 0)) || hdm_warn "操作未完成（退出码 $operation_rc），可从菜单 8 查看日志及导出诊断包。"
       [[ ${HDM_UNINSTALLED:-0} == 1 ]] && return 99
       # The parent menus have sourced old code. After an atomic HDM upgrade or
       # rollback, replace this entire process so Enter never returns to old UI.

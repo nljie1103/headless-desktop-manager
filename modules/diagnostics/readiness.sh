@@ -151,7 +151,7 @@ hdm_readiness_report() {
     printf '建议按 XFCE + LightDM / X11 路径安装，GNOME 可手动选择；登录前远控仍需外部实测。\n'
   fi
   if ((HDM_READINESS_MISSING > 0)); then
-    printf '有 %s 项必需软件包待补齐。通过菜单 8 → 智能安装与续装查看安装计划。\n' "$HDM_READINESS_MISSING"
+    printf '有 %s 项必需软件包待补齐。通过菜单 8 → 1 快速部署补齐组件。\n' "$HDM_READINESS_MISSING"
   else
     printf '本机目标桌面的必需软件包检查完成；继续核实服务、会话和远端画面。\n'
   fi
