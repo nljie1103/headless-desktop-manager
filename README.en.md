@@ -6,7 +6,7 @@
 
 Choose a practical desktop for each host: XFCE/X11 for conventional login-screen access on newer Ubuntu, with GNOME/Wayland and MATE available as alternatives.
 
-[![Version](https://img.shields.io/badge/Version-v4.3.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.3.2-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
 [简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
@@ -162,6 +162,10 @@ Maintained by [nljie1103](https://github.com/nljie1103).
 
 </div>
 
-### Real desktop and login-manager removal in v4.3.1
+### Real desktop and login-manager removal in v4.3.2
 
 Menu 2 provides both **APT removal previews** and actual guarded removal for GDM3/LightDM, plus an interactive system `dpkg-reconfigure` option to select the default manager. Menu 4 provides guarded GNOME/XFCE/MATE removal. A live replacement desktop/login manager, no conflicting user session, protected dependency checks and one explicit confirmation are required before `apt-get remove -y` runs. These actions never automatically purge configuration, run autoremove or restart the graphical service. On Ubuntu 26, install and verify XFCE/X11/LightDM **before** removing GNOME/GDM3.
+
+### Resilient GitHub Release downloads (v4.3.2)
+
+If the official GitHub Release asset link returns HTTP 504, HDM now retries via the corresponding GitHub Releases API asset ID, downloading **the same binary asset** and checking it against **the exact same SHA256 digest**. A configured locally trusted digest remains required when present. No third-party mirror or unverified source is substituted. Older HDM versions can use `8 → Update HDM → Install update → from main` for a commit-pinned HTTPS snapshot, which has a different trust model from a digest-verified formal Release.

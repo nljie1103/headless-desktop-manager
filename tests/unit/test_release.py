@@ -35,6 +35,20 @@ with tempfile.TemporaryDirectory() as temp:
     path.write_text(json.dumps(poison),encoding='utf-8')
     bad = subprocess.run(['python3', str(parser), 'rustdesk', 'latest', 'x86_64', str(path)],capture_output=True,text=True)
     assert bad.returncode != 0
+    # HDM returns an API asset ID for SHA256-equivalent download fallback.
+    hdma = {'name': 'hdm-v4.3.1.tar.gz', 'digest': 'sha256:' + sha,
+            'browser_download_url': 'https://github.com/nljie1103/headless-desktop-manager/releases/download/v4.3.1/hdm-v4.3.1.tar.gz',
+            'id': 723430674}
+    path.write_text(json.dumps([{'tag_name': 'v4.3.1', 'assets': [hdma],
+                                 'draft': False, 'prerelease': False}]),encoding='utf-8')
+    hdm_ok = subprocess.run(['python3', str(parser), 'hdm', 'latest', 'aarch64', str(path)],
+                            capture_output=True,text=True)
+    assert hdm_ok.returncode == 0 and hdm_ok.stdout.rstrip().endswith('\t723430674')
+    # A malformed ID never enters the privileged download URL.
+    path.write_text(json.dumps([{'tag_name': 'v4.3.1', 'assets': [{**hdma, 'id': 'https://evil'}]}]),encoding='utf-8')
+    hdm_no_id = subprocess.run(['python3', str(parser), 'hdm', 'latest', 'aarch64', str(path)],
+                               capture_output=True,text=True)
+    assert hdm_no_id.returncode == 0 and hdm_no_id.stdout.rstrip().endswith(hdma['browser_download_url'])
     hdm = {'tag_name':'mirror-2026-11','draft':False,'prerelease':False,'assets':[]}
     path.write_text(json.dumps([hdm]),encoding='utf-8')
     bad = subprocess.run(['python3', str(parser), 'hdm', 'latest', 'x86_64', str(path)],capture_output=True,text=True)

@@ -131,10 +131,10 @@ hdm_update_trusted_digest() {
   awk -F '\t' -v t="$tag" -v d="$digest" '$1==t && $2==d {ok=1}END{exit !ok}' "$manifest"
 }
 hdm_update_install() {
-  local mode=${1:-latest} tag=${2:-} meta mtag asset digest url file staging release_dir
+  local mode=${1:-latest} tag=${2:-} meta mtag asset digest url asset_id file staging release_dir
   hdm_root || return 1
   meta=$(hdm_release_query hdm "$mode" "$tag") || { hdm_warn '无法读取真实的 HDM Release，或者不存在匹配的发行包与哈希。'; return 1; }
-  IFS=$'\t' read -r mtag asset digest url <<< "${meta%%$'\n'*}"
+  IFS=$'\t' read -r mtag asset digest url asset_id <<< "${meta%%$'\n'*}"
   if ! hdm_update_newer "${mtag#v}" "$HDM_VERSION"; then
     hdm_info "已经是 v$HDM_VERSION 或更高版本，不执行降级。需要回滚请使用菜单 8 → 更新脚本 → 回滚 HDM。"
     return 0
@@ -148,7 +148,7 @@ hdm_update_install() {
     hdm_warn '未配置独立可信 SHA256；将通过 GitHub API 的资产摘要验证下载，安全性依赖 GitHub HTTPS/API。'
   fi
   file="$HDM_CACHE/downloads/$asset"
-  hdm_download_verified "$url" "$file" "$digest" || return 1
+  hdm_download_verified "$url" "$file" "$digest" "$asset_id" || return 1
   # Verify extracted archive names before extraction; no absolute paths, .. or symlinks.
   if ! python3 "$HDM_ROOT/core/verify_archive.py" "$file"; then hdm_error 'Release tarball 内容不安全'; return 1; fi
   staging=$(mktemp -d /opt/hdm/.staging.XXXXXX) || return 1

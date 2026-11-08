@@ -7,7 +7,7 @@
 按系统的 X11/Wayland 能力选择实际可用的桌面，集中管理 XFCE、GNOME、MATE、虚拟显示和 RustDesk。
 根据实际主机状态安装所需组件，并为系统配置保留恢复路径。
 
-[![Version](https://img.shields.io/badge/Version-v4.3.1-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![Version](https://img.shields.io/badge/Version-v4.3.2-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
 [![Linux](https://img.shields.io/badge/Platform-Linux-454c55?style=for-the-badge&logo=linux)](docs/installation.md)
 [![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
 
@@ -97,6 +97,12 @@ sudo hdm
 
 ---
 
+### 正式 Release 更新遇到 HTTP 504
+
+从 **v4.3.2** 起，正式更新先使用 GitHub Release 资产直链，遇到连接/HTTP 504 错误时自动改用 **GitHub API 同一资产的二进制下载**。所有下载依旧校验 Release 公布的原始 SHA256，若本机设置了独立可信 SHA256，也必须一致；校验不通过时不会切换版本。不会使用未经校验的第三方镜像。
+
+旧版 v4.3.0/v4.3.1 没有此回退机制。若旧版下载失败，可通过 `8 → 更新脚本 → 安装更新 → 从 main 更新` 获取经 GitHub API 固定提交的源码归档，但该方式仅依赖 GitHub HTTPS 和提交 ID，并非独立签名的 Release。
+
 ## 🔗 桌面链路数轴
 
 HDM 首页现在直接展示 **显示输出 → 登录管理器 → 图形协议 → 桌面环境 → 图形用户会话 → RustDesk → 设备 ID** 七个节点。它们是完整桌面**排障依赖图**，并非严格的系统启动时序。
@@ -120,7 +126,7 @@ sudo hdm --chain
 
 ```text
   ─────────────────────────────────────────────────────────────
-  HDM v4.3.1  ·  ubuntu 24.04 / x86_64
+  HDM v4.3.2  ·  ubuntu 24.04 / x86_64
   ──────◆──────────●──────────●──────────●──────
        显示输出     登录管理器    图形协议     桌面环境
        ? 待核实     ✓ GDM3       ✓ X11        ✓ XFCE

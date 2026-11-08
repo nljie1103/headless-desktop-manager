@@ -35,3 +35,7 @@ Ubuntu 26 GNOME Wayland-only 主机默认建议 XFCE + X11 + LightDM；已有 GN
 ## v4.3.1 实际卸载
 
 八阶段菜单新增 GDM3/LightDM/GNOME/XFCE/MATE 的真正 APT 删除入口和交互式默认登录管理器选择；若 LightDM/XFCE/Xorg 未就绪，不允许卸载仍在使用的 GDM3/GNOME。当前完成了模拟 APT 真实调用、异常依赖拦截与取消验证；生产实例仍需 SSH/云控制台安全验收。
+
+## v4.3.2 正式资产下载故障恢复
+
+正式版 Release 下载失败后，使用同一 Release API 元数据的数字资产 ID 请求原始二进制包，保留同一 SHA256、独立可信摘要策略和安装前归档验证。已测试 GitHub API 资产二进制下载的 SHA256 与 v4.3.1 一致，以及模拟 504 / 错误摘要 / 非法资产 ID 行为。旧版更新失败时允许通过菜单 8 的 main 固定提交升级路径绕过 Release 直链，但须理解提交固定而非签名校验的不同信任模型。

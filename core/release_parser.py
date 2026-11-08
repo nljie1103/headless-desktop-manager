@@ -42,10 +42,17 @@ def main():
                     and parts.path.startswith(f"/{expected}/releases/download/{tag}/")
                     and re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest)):
                 continue
-            candidates.append((version, tag, name, digest[7:].lower(), url))
+            asset_id = asset.get("id")
+            # API asset IDs are only needed for HDM's authenticated-by-digest
+            # alternate download route; never alter RustDesk's 4-column format.
+            if repo == "hdm":
+                identifier = str(asset_id) if type(asset_id) is int and 0 < asset_id < 10**20 else ""
+                candidates.append((version, tag, name, digest[7:].lower(), url, identifier))
+            else:
+                candidates.append((version, tag, name, digest[7:].lower(), url))
     candidates.sort(reverse=True)
-    for _, tag, name, digest, url in candidates[:1 if mode == 'latest' else 40]:
-        print('\t'.join((tag, name, digest, url)))
+    for record in candidates[:1 if mode == 'latest' else 40]:
+        print('\t'.join(map(str, record[1:])))
     return 0 if candidates else 2
 
 
