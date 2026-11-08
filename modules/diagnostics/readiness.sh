@@ -36,9 +36,12 @@ PY
   return 1
 }
 hdm_readiness_report() {
-  local desktop connector session gnome_session svc mem_kib user_profile user_file='' preferred
+  local desktop installed_desktop active_desktop connector session gnome_session svc mem_kib user_profile user_file='' preferred
   HDM_READINESS_MISSING=0
-  desktop=$(hdm_env_desktop_kind)
+  installed_desktop=$(hdm_env_desktop_kind)
+  active_desktop=$(hdm_env_active_desktop_kind)
+  desktop=$installed_desktop
+  case "$active_desktop" in GNOME|XFCE|MATE|KDE) desktop=$active_desktop;; esac
   connector=$(hdm_env_drm_state)
   session=$(hdm_env_active_session)
   gnome_session=$(hdm_env_gnome_session)
@@ -47,7 +50,8 @@ hdm_readiness_report() {
   if hdm_gnome_wayland_only || { [[ $mem_kib =~ ^[0-9]+$ ]] && ((mem_kib < 4194304)); }; then preferred=XFCE; fi
   printf 'HDM 部署检查｜%s / %s\n' "$(hdm_os)" "$(hdm_arch)"
   printf '%s\n' '──────────────────────────────────────────────────'
-  printf '桌面组件\n'
+  printf '桌面包优先检测：%s；活跃图形桌面：%s\n' "$installed_desktop" "$active_desktop"
+  printf '桌面组件（按当前活跃桌面或已安装组件检查）\n'
   case "$desktop" in
     GNOME)
       hdm_readiness_pkg gnome-shell 'GNOME Shell'
@@ -61,11 +65,19 @@ hdm_readiness_report() {
       ;;
     XFCE)
       hdm_readiness_pkg xfce4-session 'XFCE 会话'
-      hdm_readiness_pkg lightdm 'LightDM 登录管理器'
+      if [[ $active_desktop == XFCE && $session == x11 ]]; then
+        hdm_readiness_pkg lightdm 'LightDM 登录管理器' 0
+      else
+        hdm_readiness_pkg lightdm 'LightDM 登录管理器'
+      fi
       ;;
     MATE)
       hdm_readiness_pkg mate-session-manager 'MATE 会话'
-      hdm_readiness_pkg lightdm 'LightDM 登录管理器'
+      if [[ $active_desktop == MATE && $session == x11 ]]; then
+        hdm_readiness_pkg lightdm 'LightDM 登录管理器' 0
+      else
+        hdm_readiness_pkg lightdm 'LightDM 登录管理器'
+      fi
       ;;
     KDE)
       hdm_readiness_pkg plasma-desktop 'Plasma 桌面'
@@ -87,7 +99,13 @@ hdm_readiness_report() {
     *) printf '[待检查] DRM 输出                 设备信息不足，不能判断是否有可用屏幕\n';;
   esac
   case "$desktop" in
-    GNOME) svc=gdm3;; XFCE|MATE) svc=lightdm;; *) svc='';;
+    GNOME) svc=gdm3;;
+    XFCE|MATE)
+      if [[ $(hdm_service_state lightdm) == active ]]; then svc=lightdm
+      elif [[ $(hdm_service_state gdm3) == active ]]; then svc=gdm3
+      else svc=lightdm; fi
+      ;;
+    *) svc='';;
   esac
   if [[ -n $svc ]]; then
     case "$(hdm_service_state "$svc")" in

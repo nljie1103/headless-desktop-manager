@@ -48,6 +48,31 @@ hdm_env_active_session() {
   done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=129{print $1}')
   if ((!capped && (known || seen==0))); then printf 'none\n'; else printf 'unknown\n'; fi
 }
+# Detect the active graphical user's actual desktop, independent of which
+# desktop software packages happen to be installed on the machine.
+hdm_env_active_desktop_kind() {
+  local sid typ cls state desktop found='' kind
+  hdm_has loginctl || { printf 'unknown\n'; return 0; }
+  while IFS= read -r sid; do
+    [[ $sid =~ ^[A-Za-z0-9_-]{1,48}$ ]] || continue
+    typ=$(loginctl show-session "$sid" -p Type --value 2>/dev/null) || continue
+    [[ $typ == x11 || $typ == wayland ]] || continue
+    cls=$(loginctl show-session "$sid" -p Class --value 2>/dev/null) || continue
+    state=$(loginctl show-session "$sid" -p State --value 2>/dev/null) || continue
+    [[ $cls == user && ( $state == active || $state == online ) ]] || continue
+    desktop=$(loginctl show-session "$sid" -p Desktop --value 2>/dev/null) || continue
+    case "${desktop,,}" in
+      xfce*) kind=XFCE;;
+      mate*) kind=MATE;;
+      gnome*|ubuntu*) kind=GNOME;;
+      kde*|plasma*) kind=KDE;;
+      *) continue;;
+    esac
+    if [[ -n $found && $found != "$kind" ]]; then printf 'multiple\n'; return 0; fi
+    found=$kind
+  done < <(loginctl list-sessions --no-legend --no-pager 2>/dev/null | awk 'NR<=128{print $1}')
+  printf '%s\n' "${found:-none}"
+}
 # Check a *GNOME* user session, not just any running X11/Wayland desktop.
 # An XFCE/MATE session must never satisfy GDM3/GNOME readiness.
 hdm_env_gnome_session() {

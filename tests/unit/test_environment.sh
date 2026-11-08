@@ -81,4 +81,12 @@ mock_gnome_session() {
 [[ $(mock_gnome_session gnome wayland user active) == wayland ]]
 [[ $(mock_gnome_session gnome x11 greeter active) == none ]]
 [[ $(mock_gnome_session '' x11 user active) == unknown ]]
-echo 'PASS environmental four-way preflight, GNOME-only session detection and RustDesk permissions'
+mock_active_desktop() {
+  PATH="$TMP/bin:$PATH" MOCK_SESSION_DESKTOP="$1" MOCK_SESSION_TYPE="$2" \
+    MOCK_SESSION_CLASS=user MOCK_SESSION_STATE=active hdm_env_active_desktop_kind
+}
+[[ $(mock_active_desktop xfce x11) == XFCE ]]
+[[ $(mock_active_desktop gnome wayland) == GNOME ]]
+[[ $(mock_active_desktop mate x11) == MATE ]]
+[[ $(mock_active_desktop '' x11) == none ]]
+echo 'PASS environmental preflight, actual desktop/GNOME session detection and RustDesk permissions'

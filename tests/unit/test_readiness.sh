@@ -10,6 +10,7 @@ export HDM_RUSTDESK_CONFIG_ROOT="$TMP/RustDesk2.toml"
 hdm_os() { printf 'ubuntu 26.04'; }
 hdm_arch() { printf 'aarch64'; }
 hdm_env_desktop_kind() { printf 'GNOME'; }
+hdm_env_active_desktop_kind() { printf 'none'; }
 hdm_env_drm_state() { printf 'unknown'; }
 hdm_env_active_session() { printf 'none'; }
 hdm_env_gnome_session() { printf 'none'; }
@@ -52,4 +53,15 @@ grep -q 'GNOME 会话尚未确认' <<< "$result"
 hdm_env_gnome_session() { printf 'wayland'; }
 result=$(hdm_readiness_report)
 grep -q '\[GNOME 会话\].*wayland' <<< "$result"
-echo 'PASS readiness package states, GNOME-only session state, RustDesk config and read-only behavior'
+# A live XFCE/X11 session takes priority over separately installed GNOME packages.
+hdm_env_active_desktop_kind() { printf 'XFCE'; }
+hdm_env_active_session() { printf 'x11'; }
+hdm_service_state() { [[ $1 == rustdesk || $1 == gdm3 ]] && printf 'active' || printf 'inactive'; }
+hdm_installed() { [[ $1 == gnome-shell || $1 == gnome-session-bin || $1 == gdm3 || $1 == xfce4-session || $1 == rustdesk ]]; }
+result=$(hdm_readiness_report)
+grep -q '活跃图形桌面：XFCE' <<< "$result"
+grep -q '\[已安装\].*XFCE 会话' <<< "$result"
+grep -q '\[未选装\].*LightDM 登录管理器' <<< "$result"
+grep -q '\[服务运行\].*gdm3' <<< "$result"
+! grep -q 'GNOME 会话尚未确认' <<< "$result"
+echo 'PASS readiness package states, active XFCE/GNOME selection and RustDesk read-only behavior'
