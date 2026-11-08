@@ -1,37 +1,53 @@
-# 功能验证矩阵
+# HDM 功能与平台验证矩阵
 
-| 测试项目 | 当前状态 | 验收方法 |
-|---|---|---|
-| Bash 语法与菜单完整性 | 本地自动测试 | 全脚本 `bash -n`，473 菜单项、无孤立菜单 |
-| Release 元数据筛选 | 本地模拟 JSON | 禁止 nightly、过滤 mirror 标签、要求 SHA256 |
-| 归档路径安全 | 本地自动测试 | 拒绝路径穿越、软链接、异常大小 |
-| Ubuntu 24.04 amd64 GNOME 安装 | 尚未真实执行 | 空白实例安装完整 GNOME |
-| Dummy 1080p X11 显示 | 尚未真实执行 | 通过 GDM3 启动、确认 Xorg 日志和 xrandr |
-| 无 GPU GNOME Shell 渲染 | 尚未真实执行 | 检查 GNOME 会话、渲染、操作流畅度 |
-| RustDesk ID / 中继配置 | CLI 已设计、未远端验收 | 验证服务进程使用的配置、ID 实际注册 |
-| 无人值守认证 | 未真实执行 | 另一端测试永久密码认证且重启保持 |
-| 软件源失败切换 | 静态逻辑检查 | 注入 DNS / TLS / GPG / 空间故障 |
-| GitHub 备用包 | 尚未发布 | 镜像 Release 与 manifest 上传后验证 |
-| Windows Git 推送 | 尚未 Windows 实机运行 | Git for Windows + GitHub 身份认证 + push |
-| GNOME/远控冷重启 | 尚未真实执行 | 云平台完整重启测试、SSH 救援路径 |
+此文件按 **自动化测试 / 真实软件安装 / 活动图形会话 / 外部远控** 分级，不把模拟测试等同于用户可用的远程桌面。
 
-由于本地开发环境不直接连接受管云服务器，本文件没有宣称实际部署验收通过。
+## 1. 系统和显示方案
 
-## 必须提前完成的外部事项
+当前 `config/compatibility.tsv` 有 **7 条 Ubuntu 版本、CPU 架构和 GNOME 显示方案记录**，其中有原生安装验证证据的系统系列为 Ubuntu 24.04 x86_64 和 Ubuntu 26.04 ARM64；**完整通过无屏登录前 RustDesk 端到端测试的组合为 0**。
 
-1. 在空白 Ubuntu 24.04 amd64 VM 创建快照、保留 SSH/云控制台。
-2. 推送代码至正式仓库；GitHub Actions 通过后再按需创建正式 Release。
-3. GNOME + Dummy + RustDesk 的实机录屏、输入、注销、重启验证。
-4. RustDesk 的服务器配置 CLI 对服务运行账户的生效路径实测。
-5. 如需 GitHub 备用二进制：发布合规资产、校验 SHA256、维护 manifest。
-6. 如需自动自升级：采用签名/独立可信摘要发布机制。
+| 系统 / 架构 | 实施情况 | 验证证据与缺口 |
+|:---|:---|:---|
+| Ubuntu 24.04 x86_64 · GNOME/X11 | 部分真实验证 | Box 上 GNOME 核心、GDM3、RustDesk 1.5.1 安装及服务 active；登录 GNOME、Dummy 显示和外部连接未验收 |
+| Ubuntu 24.04 ARM64 · GNOME/X11 | 清单/代码 | 无 ARM64 完整安装证据 |
+| Ubuntu 24.04 x86_64 · GNOME/Xvfb | 单元测试 | 虚拟 X 服务与远控联动未验收 |
+| Ubuntu 24.04 x86_64 · GNOME/VKMS | 单元测试 | 内核 DRM 及 GNOME 联动未验收 |
+| Ubuntu 26.04 ARM64 · GNOME Wayland | 真实安装及故障记录 | GNOME 50.1、GDM3、RustDesk 1.5.1 曾安装；登录会话未确认，出现 `cannot open display: :0` |
+| Ubuntu 26.04 x86_64 · GNOME Wayland | 代码适配 | 没有目标主机完整连接结果 |
+| Ubuntu 26.10 ARM64 · GNOME Wayland | 代码适配 | 没有目标主机完整连接结果 |
 
+仓库还有 Debian / Fedora / RHEL 适配资料，以及用于不同 Ubuntu 架构的包清单。它们不等于相同级别的实机兼容认证。
 
-## v0.2.0 新增离线测试
+## 2. 2026-11-08 双 Box 验证
 
-- 验证 Xvfb 配置中 DISPLAY 编号、分辨率、色深；拒绝输入参数注入。
-- 使用测试字节生成 RustDesk SHA-256 缓存索引；故意篡改文件后必须拒绝复用。
-- Windows 发布脚本静态检查：PowerShell 5.1 UTF-8 BOM、无 Read-Host、`--no-pager`、不 force push、拒绝旧版本。
-- `hdm --status-json` 使用只读系统 API 生成 JSON；输出不读取密码或 RustDesk 原始配置。
+- **开发机**：Ubuntu 24.04 x86_64，Bash/Python 项目测试通过，GitHub 认证、提交及发布流程已实际使用。
+- **测试机**：Ubuntu 24.04 x86_64，XFCE X11 用户会话保持运行；GNOME Shell 46、GNOME Session 46、GDM3 46 核心组件实际安装成功，GDM3 服务 active；RustDesk 1.5.1 官方经校验的安装包通过 APT 依赖检查、安装后服务 active。
+- `hdm --session-status` 正确识别 XFCE X11 会话不能代替 GNOME 用户会话；`hdm --doctor` 在 root 状态目录存在时可供普通用户运行，受限状态会标为“待核实”。
+- 上述测试**没有**证明 GNOME 图形窗口真正建立、GDM 登录界面可被 RustDesk 捕获，或远端键鼠、锁屏、重启后登录前无人值守可用。
 
-**Windows PowerShell 5.1 的真实执行、GitHub 推送、GNOME 远程画面及 RustDesk 身份认证仍需用户设备/云服务器实测。**
+## 3. 自动化测试覆盖
+
+| 范围 | 执行方式 | 不能证明 |
+|:---|:---|:---|
+| Shell 脚本语法 | `bash -n` | 软件包可安装 |
+| ShellCheck | GitHub Actions Ubuntu 24.04 runner | 所有云商架构兼容 |
+| 菜单结构与编号 | `scripts/verify-menus.py`、菜单测试 | 所有菜单端到端执行 |
+| 安装、更新与恢复逻辑 | `bash tests/run.sh` 中的模拟场景 | 实机图形恢复效果 |
+| RustDesk 配置与版本解析 | Mock / 测试数据 | ID 注册和外部连接 |
+| GNOME/XFCE 会话区分 | Mock + Ubuntu 24.04 Box 实际日志 | Wayland GDM 登录前画面 |
+
+本地运行：
+
+```bash
+bash tests/run.sh
+```
+
+## 4. Ubuntu 26 的锁屏与无人值守
+
+Ubuntu 26.04 GNOME 50 采用 Wayland；Xorg Dummy 与 `WaylandEnable=false` 不能将它转换回 GNOME X11。标准 RustDesk 的 Wayland 会话捕获、锁屏访问、注销后的 GDM 登录界面与冷启动无人值守应分别验收。官方 x86_64 Wayland unattended 预览版不能当作 ARM64 可用证明。详见 [Ubuntu 26 ARM64 专项文档](ubuntu26-arm64.md)。
+
+## 5. 验收完成的判定
+
+对于目标系统和架构，要依次记录：包安装与依赖、systemd 服务、DRM/显示实际输出、已登录 **GNOME** 用户会话、RustDesk 外部图像、鼠标键盘、锁屏与解锁、注销、重启后 GDM 登录界面及无人值守认证。
+
+在这些步骤全部完成并保留可重复的现场记录之前，不应宣称“支持无显示器、重启后可直接远控”已经通过对应机器的完整认证。

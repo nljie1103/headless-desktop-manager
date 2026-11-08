@@ -2,65 +2,143 @@
 
 # 🖥️ Headless Desktop Manager
 
-**Desktop, virtual display and RustDesk management for Linux**
+**Linux headless desktop deployment, session diagnostics and RustDesk management**
 
-[![Version](https://img.shields.io/badge/version-v0.3.9-2f81f7)](CHANGELOG.md)
+Manage GNOME, XFCE, MATE, virtual displays, GDM3, installation state and recovery from one Chinese-first terminal interface.
 
-[简体中文](README.md) · **English**
+[![Version](https://img.shields.io/badge/Version-v4.0.0-2473d1?style=for-the-badge)](https://github.com/nljie1103/headless-desktop-manager/releases)
+[![License](https://img.shields.io/badge/License-MIT-378a64?style=for-the-badge)](LICENSE)
+
+[简体中文](README.md) · **English** · [Releases](https://github.com/nljie1103/headless-desktop-manager/releases)
 
 </div>
 
-HDM provides a terminal menu for installing and managing GNOME, XFCE, MATE, virtual display drivers, RustDesk, ID/relay settings, updates, and diagnostics. Existing desktop and display configuration is preserved whenever possible.
+---
 
-## Install
+## ✨ Features
+
+| Module | What it does |
+|:---|:---|
+| Desktops | Install and inspect GNOME, XFCE and MATE, preserving existing environments where possible |
+| Virtual displays | Manage Xorg Dummy, Xvfb and VKMS, with protocol-aware checks |
+| RustDesk | Install/update the client; manage ID, relay, public key, permissions and service status |
+| Diagnostics | Separate packages, system services, actual GNOME sessions and remote display verification |
+| Recovery | Installation resume, diagnostic export, configuration snapshots and version rollback |
+
+**Installed packages, running services, a graphical session and a remotely controllable screen are different states.**
+
+---
+
+## 💻 Compatibility and verification
+
+HDM maintains **seven Ubuntu release / architecture / display-stack configuration paths**. These are **not seven fully certified machines**.
+
+| Platform | Current evidence | Remaining validation |
+|:---|:---|:---|
+| Ubuntu 24.04 x86_64 GNOME / X11 | Two independent Box environments; GNOME core, GDM3 and RustDesk 1.5.1 installed and tested as services | Actual GNOME login, virtual display capture and remote input |
+| Ubuntu 24.04 ARM64 GNOME / X11 | Code and package manifests | Native install and end-to-end remote access |
+| Ubuntu 24.04 x86_64 GNOME / Xvfb | Logic and unit tests | Live display and RustDesk session |
+| Ubuntu 24.04 x86_64 GNOME / VKMS | Detection and unit tests | Kernel, compositor and remote capture |
+| Ubuntu 26.04 ARM64 GNOME / Wayland | Earlier real-world GNOME 50.1, GDM3, RustDesk installation; display/session failure observed | Headless Wayland, lock screen and pre-login unattended access |
+| Ubuntu 26.04 x86_64 GNOME / Wayland | Compatibility logic | Live Wayland/remote access |
+| Ubuntu 26.10 ARM64 GNOME / Wayland | Compatibility logic | Native installation and complete remote access |
+
+**Fully verified headless boot-to-login-screen RustDesk combinations: zero.** The project's CI runs on Ubuntu 24.04 x86_64. Debian, Fedora and RHEL adapter directories are not a guarantee of complete platform support.
+
+### Ubuntu 26 GNOME / Wayland
+
+Ubuntu GNOME has been Wayland-only since Ubuntu 25.10; Ubuntu 26.04 ships GNOME 50. XWayland runs legacy X11 applications but **does not bring back a GNOME Xorg session**.
+
+- **Logged-in desktop:** Standard RustDesk may capture through PipeWire and Desktop Portal, subject to user/session permissions.
+- **Lock screen:** Distinct from the GDM login screen. Screen capture, input and unlock recovery need separate testing; do not assume success or failure just from the Wayland label.
+- **Logged-out / reboot login greeter:** Standard RustDesk does not provide verified unattended capture of the Wayland greeter. RustDesk's newer Wayland unattended preview currently targets **x86_64 Debian/Ubuntu**, not a confirmed ARM64 solution.
+- **Do not force `WaylandEnable=false` on Ubuntu 26 GNOME.** Xorg Dummy and Xvfb cannot create a GNOME Wayland display, and VKMS depends on real kernel/compositor support.
+
+On November 7, 2026, the Ubuntu 26.04 ARM64 test host had GNOME 50.1 / GDM3 / RustDesk 1.5.1 installed, but a usable GNOME user session was not demonstrated, and RustDesk reported `cannot open display: :0`.
+
+Sources: [Ubuntu release notes](https://documentation.ubuntu.com/release-notes/26.04/summary-for-lts-users/) · [GNOME session changes](https://release.gnome.org/49/developers/) · [RustDesk Linux guide](https://rustdesk.com/docs/en/client/linux/) · [RustDesk Wayland preview](https://rustdesk.com/blog/unattended-remote-access-wayland/) · [ARM64 deployment notes](docs/ubuntu26-arm64.md).
+
+---
+
+## 📥 Install and start
+
+> **Before changing a remotely hosted desktop:** preserve SSH, provider console access and a recoverable snapshot. Modifying a display manager or virtual display can interrupt the only remote session.
+
+Prefer a [pinned GitHub Release](https://github.com/nljie1103/headless-desktop-manager/releases) with archive integrity verification. To install from the mutable `main` branch, inspect the script before running:
 
 ```bash
-curl -fsSLo hdm-install.sh https://raw.githubusercontent.com/nljie1103/headless-desktop-manager/main/install.sh && sudo bash hdm-install.sh
+curl -fsSLo hdm-install.sh https://raw.githubusercontent.com/nljie1103/headless-desktop-manager/main/install.sh
+sudo bash hdm-install.sh
+sudo hdm
 ```
 
-The installer opens the menu automatically in an interactive terminal; automated runs do not block on a menu. To open it later, run `sudo hdm`. Set `HDM_NO_AUTO_MENU=1` to skip automatic menu entry.
+Installing HDM **does not automatically install GNOME or change the display manager**. In an interactive terminal it opens the menu; `HDM_NO_AUTO_MENU=1` skips that auto-opening.
 
-## Main menu
+The CLI keeps 10 stable main entries with a compact two-column layout (one column on narrow terminals). Use `0` to return from a submenu and `0` / `q` to exit from the root. The actual options are listed by `hdm --menu-tree`.
 
-| Number | Function | Number | Function |
-|---|---|---|---|
-| 1 | Install virtual display | 6 | Update RustDesk |
-| 2 | Manage virtual display | 7 | ID / relay settings |
-| 3 | Install desktop | 8 | Update HDM |
-| 4 | Manage desktop | 9 | One-click setup |
-| 5 | Install RustDesk | 10 | Diagnostics |
+---
 
-The interface uses two columns on wide terminals and one column on narrow terminals. The status header displays desktop, DRM output, X11/Wayland session, and RustDesk version.
-
-## Capabilities and precautions
-
-- **Desktop-first deployment:** prefer GNOME while detecting and retaining existing desktops and display outputs.
-- **RustDesk:** enter, review, apply and read back the ID server, relay and complete server public key; passwords remain protected.
-- **Recovery:** configuration backups, integrity checks and installation progress tracking.
-- **Diagnostics:** `sudo hdm --preflight`, `sudo hdm --doctor`, `sudo hdm --check-update`.
-- **Compatibility:** GNOME on Ubuntu 26 uses Wayland. Disabling GDM Wayland is not a screen-off switch, and legacy Xorg Dummy configurations do not automatically create a Wayland display. A live RustDesk service does not prove remote desktop capture is working.
-
-Keep SSH and provider console access before changing remote display settings. The `main` installer follows a mutable branch; use a pinned archive hash when independent artifact integrity is required.
-
-See the [Chinese main documentation](README.md), [changelog](CHANGELOG.md), and [menu guide](docs/menu-guide.md).
-
-## Host sizing and display options
-
-HDM preserves any installed desktop. On a new host it recommends XFCE below 4 GiB RAM and GNOME for 4 GiB or more; MATE is an optional manual choice. Typical idle RAM estimates: GNOME 1.2–2.0 GB, MATE 0.5–0.9 GB, XFCE 0.4–0.8 GB. Display drivers: Xorg Dummy (~40–200 MB, X11), Xvfb (~20–120 MB, separate X server), and VKMS (kernel DRM and compositor-dependent). These are rough planning estimates, not verified benchmarks. RustDesk permissions are configurable via menu `7 → 13`, including the remote-configuration toggle.
-
-## Session troubleshooting and full diagnostics
-
-The manager checks installed packages, DRM connectivity, GDM3 service state, logged-in user graphical sessions, and RustDesk service state separately. These results **do not verify remote screen capture**. Use:
+## ⌨️ Diagnostics and day-to-day commands
 
 ```bash
-sudo hdm --session-status
-sudo hdm --session-start
-sudo hdm --session-repair
+hdm --preflight             # Desktop and display capability (read-only)
+hdm --readiness             # Installed packages, services and sessions
+hdm --doctor                # GNOME/GDM/RustDesk diagnostics
+hdm --session-status        # Generic session versus actual GNOME session
+sudo hdm --session-start    # Try GDM3 startup and verify GNOME session
+sudo hdm --quick-status     # Resumable install status
+hdm --check-update         # Available HDM versions
 sudo hdm --export-diagnostics
 ```
 
-A diagnostics archive contains captured HDM operation logs and available apt/dpkg and GDM3/RustDesk journal evidence. It is stored in a root-only location with best-effort secret redaction; review before sharing. RustDesk local `.deb` installation now runs an APT dependency-resolution dry run before installing.
+A running XFCE X11 session is **not** an active GNOME session, even when GDM3 is running.
 
-## Deployment readiness checklist
+---
 
-Run `sudo hdm --readiness` for an itemized overview of installed and missing desktop packages, running display services, graphical sessions, RustDesk installation, saved server settings, and the next required action. This check is read-only. See the [Chinese README](README.md) for the complete workflow.
+## 🏗️ Architecture and storage
+
+**Bash** powers the terminal UI, package management, display actions, systemd integration and rollback. **Python 3** implements configuration parsing, release validation, status reporting and diagnostic packaging.
+
+```text
+headless-desktop-manager/
+├── hdm.sh / install.sh     # CLI and installation
+├── ui/                     # Menu and action routing
+├── core/                   # Packages, environment, download, backup
+├── modules/                # Display, desktop, RustDesk, diagnostics, updater
+├── config/                 # Defaults and compatibility
+├── scripts/                # Support and validation tools
+├── tests/                  # Regression tests
+├── docs/                   # Operations and engineering guides
+└── release/                # Release metadata
+```
+
+| Data | Location |
+|:---|:---|
+| Version installations and active pointer | `/opt/hdm/releases/`, `/opt/hdm/current` |
+| HDM configuration | `/etc/hdm/config.conf` |
+| Snapshots, pending rollback, exported reports | `/var/lib/hdm/` |
+| Verified asset cache | `/var/cache/hdm/` |
+| Operation logs | `/var/log/hdm/` |
+| RustDesk per-account configuration | `~/.config/rustdesk/RustDesk2.toml` (including root's profile) |
+
+Sensitive configuration/state folders use restricted permissions. Review exported diagnostic bundles before sharing; best-effort redaction is not a secrecy guarantee.
+
+---
+
+## 🧪 Tests and support
+
+```bash
+bash tests/run.sh
+```
+
+GitHub Actions additionally runs Bash syntax checks and ShellCheck. These tests **do not** validate remote screen capture, keyboard/mouse control, lock/unlock, pre-login access, or unattended reconnection after reboot.
+
+See [full Chinese documentation](README.md), [test matrix](docs/testing-and-limitations.md), [menu guide](docs/menu-guide.md), [changelog](CHANGELOG.md), [security policy](SECURITY.md) and [issues](https://github.com/nljie1103/headless-desktop-manager/issues).
+
+MIT licensed: [LICENSE](LICENSE).
+
+<div align="center">
+
+Maintained by [nljie1103](https://github.com/nljie1103).
+
+</div>

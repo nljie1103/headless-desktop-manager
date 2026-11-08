@@ -29,44 +29,61 @@ hdm_menu_terminal_cols() {
   [[ $cols =~ ^[0-9]+$ ]] || cols=80
   printf '%s' "$cols"
 }
+hdm_menu_rule() {
+  local cols count line
+  cols=$(hdm_menu_terminal_cols)
+  count=$((cols - 4))
+  ((count > 74)) && count=74
+  ((count < 18)) && count=18
+  printf -v line '%*s' "$count" ''
+  printf '  %s\n' "${line// /─}"
+}
 hdm_menu_header() {
-  local path=$1 desktop output session
-  printf '\n  HDM %s  ·  %s %s\n' "$HDM_VERSION" "$(hdm_os)" "$(hdm_arch)"
+  local path=$1 desktop output session rustdesk cols
+  hdm_menu_rule
+  printf '  HDM v%s  ·  %s / %s\n' "$HDM_VERSION" "$(hdm_os)" "$(hdm_arch)"
   if [[ $path == root ]]; then
     desktop=$(hdm_env_desktop_kind)
     output=$(hdm_env_drm_state)
     session=$(hdm_env_active_session)
-    [[ $session == unknown || $session == none ]] && session='未检测到'
-    printf '  桌面 %s  ·  DRM %s  ·  GDM %s  ·  会话 %s\n' \
-      "$desktop" "$(hdm_env_drm_short "$output")" "$(hdm_service_state gdm3)" "$session"
-    printf '  RustDesk %s（服务 %s）\n' "$(hdm_pkg_version rustdesk)" "$(hdm_service_state rustdesk)"
+    rustdesk=$(hdm_pkg_version rustdesk)
+    [[ $session == unknown || $session == none ]] && session='无'
+    [[ $rustdesk == 未安装 ]] && rustdesk='未安装'
+    cols=$(hdm_menu_terminal_cols)
+    if ((cols >= 72)); then
+      printf '  桌面包 %-6s  DRM %-6s  会话 %-7s  RustDesk %s\n' \
+        "$desktop" "$(hdm_env_drm_short "$output")" "$session" "$rustdesk"
+    else
+      printf '  桌面包 %s  ·  会话 %s  ·  RustDesk %s\n' "$desktop" "$session" "$rustdesk"
+    fi
   else
     printf '  %s\n' "$(hdm_menu_label "$path")"
   fi
+  hdm_menu_rule
 }
 hdm_menu_main() {
   local -a left=(1 2 3 4 5) right=(6 7 8 9 10)
   local cols i l r
   cols=$(hdm_menu_terminal_cols)
-  if ((cols>=68)); then
+  if ((cols>=72)); then
     for ((i=0;i<5;i++)); do
-      l="${left[i]}  $(hdm_menu_label "${left[i]}")"
-      r="${right[i]}  $(hdm_menu_label "${right[i]}")"
+      l="${left[i]}. $(hdm_menu_label "${left[i]}")"
+      r="${right[i]}. $(hdm_menu_label "${right[i]}")"
       printf '  '
-      hdm_menu_pad "$l" 30
+      hdm_menu_pad "$l" 34
       printf '%s\n' "$r"
     done
   else
-    for i in {1..10}; do printf '  %-2s %s\n' "$i" "$(hdm_menu_label "$i")"; done
+    for i in {1..10}; do printf '  %-3s %s\n' "${i}." "$(hdm_menu_label "$i")"; done
   fi
 }
 hdm_menu_children() {
-  local path=$1 parent code label ident shown
+  local path=$1 parent code label ident
   while IFS='|' read -r parent code label ident; do
     [[ $parent == "$path" ]] || continue
-    shown=$label
-    # No installation-risk promises in labels: the handler checks support.
-    printf '  %-3s %s\n' "$code" "$shown"
+    printf '  '
+    hdm_menu_pad "${code}." 5
+    printf '%s\n' "$label"
   done < "$HDM_ROOT/ui/menus.tsv"
 }
 hdm_menu() {
@@ -78,8 +95,9 @@ hdm_menu() {
     hdm_menu_header "$path"
     printf '\n'
     if [[ $path == root ]]; then hdm_menu_main; else hdm_menu_children "$path"; fi
-    printf '\n  0 返回    q 退出\n'
-    if ! hdm_prompt '  请选择：' selection; then return 0; fi
+    hdm_menu_rule
+    if [[ $path == root ]]; then printf '  0 / q 退出\n'; else printf '  0 返回    q 退出\n'; fi
+    if ! hdm_prompt '  请选择 > ' selection; then return 0; fi
     case "$selection" in q|Q) return 99;; 0) return 0;; esac
     ident=''
     while IFS='|' read -r match code label val; do

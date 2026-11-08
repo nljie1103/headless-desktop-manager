@@ -1,8 +1,8 @@
 # distro<TAB>release<TAB>arch<TAB>desktop<TAB>display<TAB>remote<TAB>status
-ubuntu	24.04	amd64	gnome	xorg-dummy	rustdesk	implementation-needs-vm-validation
+ubuntu	24.04	amd64	gnome	xorg-dummy	rustdesk	package-service-tested-gui-remote-unverified
 ubuntu	24.04	arm64	gnome	xorg-dummy	rustdesk	not-tested
 ubuntu	24.04	amd64	gnome	xvfb	rustdesk	experimental
 ubuntu	24.04	amd64	gnome	vkms	rustdesk	experimental
-ubuntu	26.04	arm64	gnome-wayland	vkms-experimental	rustdesk-standard	install-testing-only
+ubuntu	26.04	arm64	gnome-wayland	vkms-experimental	rustdesk-standard	gnome-rustdesk-install-observed-no-remote-session
 ubuntu	26.10	arm64	gnome-wayland	vkms-experimental	rustdesk-standard	install-testing-only
 ubuntu	26.04	amd64	gnome-wayland	vkms-experimental	rustdesk-standard	install-testing-only
