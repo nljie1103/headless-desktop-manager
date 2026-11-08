@@ -10,6 +10,11 @@ output=$(printf '0\n' | COLUMNS=100 bash "$ROOT/hdm.sh")
 [[ $output == *'6. HDM 管理'* && $output == *'3. 登录管理器'* ]]
 [[ $output != *'图形协议管理'* && $output != *'高级会话工具'* ]]
 [[ $output != *'会话数量超限'* && $output == *'登录界面：'* ]]
+[[ $output == *'七节点桌面依赖线轴'* ]]
+[[ $output == *'显示输出'* && $output == *'登录管理器'* && $output == *'图形协议'* ]]
+[[ $output == *'桌面环境'* && $output == *'图形会话'* && $output == *'设备 ID'* ]]
+[[ $output == *'必需软件包：缺失'* ]]
+[[ $output == *'RustDesk'* && $output == *'Xorg'* ]]
 output=$(printf '0\n' | COLUMNS=54 bash "$ROOT/hdm.sh")
 [[ $output == *'1.  快速部署'* && $output == *'6.  HDM 管理'* ]]
 python3 - "$ROOT" <<'PYTEST'

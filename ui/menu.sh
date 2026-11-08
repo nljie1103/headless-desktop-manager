@@ -72,7 +72,14 @@ hdm_menu_header() {
     else desktop=未安装; fi
     rustdesk_state=$(hdm_service_state rustdesk)
     printf '  桌面：%s  |  登录界面：%s  |  RustDesk：%s\n' "$desktop" "$dm" "$rustdesk_state"
-    printf '  先安装桌面，再启动登录界面；远程画面必须实际验证。\n'
+    printf '\n  ── 七节点桌面依赖线轴（本机状态 / 缺失组件）──\n'
+    # Share the same snapshot for the seven-stage chain and package inventory.
+    # A failing read-only diagnostic must never prevent reaching the menu.
+    if ! timeout 18 python3 -B "$HDM_ROOT/modules/diagnostics/desktop_chain.py" \
+        --home --width "$(hdm_menu_terminal_cols)"; then
+      printf '  [待检查] 线轴暂不可用，请使用 hdm --chain 检查。\n'
+    fi
+    printf '\n  ▲ 软件已装不代表服务已运行；RustDesk 远端画面还需实测。\n'
   else
     printf '  %s\n' "$(hdm_menu_label "$path")"
   fi
@@ -132,7 +139,7 @@ hdm_menu() {
           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$HDM_VERSION" "$ident" "$(hdm_menu_label "$ident")" "$operation_rc" \
           >> "$HDM_LOG_DIR/steps.log"
       fi
-      ((operation_rc == 0)) || hdm_warn "操作未完成（退出码 $operation_rc），可从菜单 8 查看日志及导出诊断包。"
+      ((operation_rc == 0)) || hdm_warn "操作未完成（退出码 $operation_rc），可从菜单 6 查看日志及导出诊断包。"
       [[ ${HDM_UNINSTALLED:-0} == 1 ]] && return 99
       # The parent menus have sourced old code. After an atomic HDM upgrade or
       # rollback, replace this entire process so Enter never returns to old UI.

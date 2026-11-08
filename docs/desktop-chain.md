@@ -1,24 +1,24 @@
-# HDM 桌面链路数轴 · v4.2.0
+# HDM 桌面链路数轴 · v4.5.4
 
-HDM 主菜单顶部会实时展示七个状态节点：
+HDM 主菜单顶部已恢复实时显示七个状态节点；其下方新增按当前桌面方案筛选的必需软件包安装清单：
 
 ```text
 显示输出 → 登录管理器 → 图形协议 → 桌面环境 → 图形会话 → RustDesk → 设备 ID
 ```
 
-**这是排障依赖检查顺序，不是严格的 systemd 启动顺序。** 图形会话由显示服务器、桌面管理器和用户登录系统共同建立；手动启动的 X11 会话甚至可以不使用 GDM3/LightDM。RustDesk 连接已经存在的会话或它受支持的登录界面，不负责为所有桌面创建用户会话。
+**这是排障依赖检查顺序，不是严格的 systemd 启动顺序。** 若当前使用 XFCE/LightDM，则只将 XFCE、Xorg、D-Bus X11、LightDM、GTK Greeter、RustDesk 等当前方案依赖计入缺失，不会要求额外安装 GNOME/GDM3、Dummy、Xvfb、VKMS。已安装与已运行、已登录、已实测属于不同状态。 图形会话由显示服务器、桌面管理器和用户登录系统共同建立；手动启动的 X11 会话甚至可以不使用 GDM3/LightDM。RustDesk 连接已经存在的会话或它受支持的登录界面，不负责为所有桌面创建用户会话。
 
 ## 组件与它们的职责
 
 | 节点 | 典型可选实现 | 满足的本地检查 | 检测路径 / 可用操作 |
 |---|---|---|---|
-| **1. 显示输出** | DRM 物理输出、虚拟显示 Xorg Dummy、VKMS；Xvfb 是独立 X11 虚拟帧缓冲 | DRM 已连接，或当前匹配的 X11 DISPLAY 上 Xrandr 确认有已连接并启用的实际输出时标为通过；仅有 Dummy 配置文件时显示待核实 | `/sys/class/drm`、`/etc/X11/xorg.conf.d/20-hdm-dummy.conf`；菜单 1–2 |
-| **2. 登录管理器** | GDM3、LightDM；亦可使用手动 X11 会话 | 已安装且 systemd 服务 active；不存在或异常则提示核实 | `/etc/X11/default-display-manager`；菜单 4.4 |
-| **3. 图形协议** | X11（常由 Xorg 提供）、Wayland | logind 确认活动用户会话的协议，X11 还检查 X Socket | `/tmp/.X11-unix/X0`、`/run/user/*/wayland-*`；菜单 4.5 |
-| **4. 桌面环境** | XFCE、GNOME、MATE、KDE | 实际活动桌面与已安装的软件包对应；仅安装不标成已运行 | `/usr/share/xsessions`、`/usr/share/wayland-sessions`；菜单 3–4 |
-| **5. 图形用户会话** | logind 用户会话、X11 DISPLAY、Wayland compositor | logind 有活跃用户图形会话；实际分辨率仅由已授权的 `xrandr` 输出确认 | `loginctl`、`xrandr --current`；菜单 4.5 |
-| **6. RustDesk** | RustDesk Linux 系统客户端/服务 | 包已安装且服务运行；GNOME Wayland 还核查 Portal/PipeWire 所需软件包 | `/usr/bin/rustdesk`、`systemctl status rustdesk`；菜单 5–7 |
-| **7. 设备 ID** | `rustdesk --get-id` | 能安全获得格式正确的设备 ID；不等于 ID 服务器注册和远端连接成功 | `rustdesk --get-id`；菜单 7 |
+| **1. 显示输出** | DRM 物理输出、虚拟显示 Xorg Dummy、VKMS；Xvfb 是独立 X11 虚拟帧缓冲 | DRM 已连接，或当前匹配的 X11 DISPLAY 上 Xrandr 确认有已连接并启用的实际输出时标为通过；仅有 Dummy 配置文件时显示待核实 | `/sys/class/drm`、`/etc/X11/xorg.conf.d/20-hdm-dummy.conf`；菜单 5 |
+| **2. 登录管理器** | GDM3、LightDM；亦可使用手动 X11 会话 | 已安装且 systemd 服务 active；不存在或异常则提示核实 | `/etc/X11/default-display-manager`；菜单 3 |
+| **3. 图形协议** | X11（常由 Xorg 提供）、Wayland | logind 确认活动用户会话的协议，X11 还检查 X Socket | `/tmp/.X11-unix/X0`、`/run/user/*/wayland-*`；菜单 2 → 9 |
+| **4. 桌面环境** | XFCE、GNOME、MATE、KDE | 实际活动桌面与已安装的软件包对应；仅安装则标为软件已安装并注明待登录，不代表图形会话已运行 | `/usr/share/xsessions`、`/usr/share/wayland-sessions`；菜单 2 |
+| **5. 图形用户会话** | logind 用户会话、X11 DISPLAY、Wayland compositor | logind 有活跃用户图形会话；实际分辨率仅由已授权的 `xrandr` 输出确认 | `loginctl`、`xrandr --current`；菜单 2 → 9 |
+| **6. RustDesk** | RustDesk Linux 系统客户端/服务 | 包已安装且服务运行；GNOME Wayland 还核查 Portal/PipeWire 所需软件包 | `/usr/bin/rustdesk`、`systemctl status rustdesk`；菜单 4 |
+| **7. 设备 ID** | `rustdesk --get-id` | 能安全获得格式正确的设备 ID；不等于 ID 服务器注册和远端连接成功 | `rustdesk --get-id`；菜单 4 → 9 |
 
 **绿色**：该节点当前的本地检查已满足；**红色**：明确缺失或异常；**黄色**：缺少必要证据、需要配置或人工验证。颜色不能代替 RustDesk 的实际远端连接测试。在没有颜色的终端，使用实心圆、空心圆与菱形区分相同状态。
 

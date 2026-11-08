@@ -66,7 +66,7 @@ without_user = {**base, "sessions": [],
                 "display": {**base["display"], "x11_socket_paths": []}}
 nodes_empty = chain.build(without_user, {"manager": "gdm3", "drm": "disconnected",
                                          "resolution": "", "rustdesk_id": ""})
-assert nodes_empty[0].state == "bad" and nodes_empty[4].state == "bad"
+assert nodes_empty[0].state == "bad" and nodes_empty[4].state == "unknown"
 assert nodes_empty[1].state == "ok" and nodes_empty[6].state == "unknown"
 
 wayland = {**base,
@@ -156,10 +156,55 @@ assert "超限" in cutoff[4].value
 not_users = chain.build({**base, "sessions": [
     {"id":"c1", "class":"greeter", "state":"active", "type":"wayland", "desktop":"gnome"},
     {"id":"c2", "class":"user", "state":"active", "type":"tty", "desktop":""}]}, signals)
-assert not_users[4].state == "bad"
+assert not_users[4].state == "unknown"
 # With connected DRM + Xorg installed but no login session, say what is
 # installed instead of blaming DRM or declaring the protocol unrecognized.
 assert chain.build({**without_user, "sessions": []}, signals)[2].value == "Xorg 已安装"
+
+# A headless XFCE/LightDM/RustDesk host can have every package installed but
+# no *logged-in* user. Inventory must say 0 missing, DM pending start, user
+# pending login; it must never declare GNOME/GDM3 missing.
+xfce_host = {
+    "system": {"id": "ubuntu", "version_id": "26.04"},
+    "packages": {name: {"installed": True, "version": "1.0"} for name in (
+        "xfce4-session", "xserver-xorg-core", "dbus-x11", "lightdm",
+        "lightdm-gtk-greeter", "rustdesk")},
+    "display": {"lightdm_service": "inactive", "gdm3_service": "inactive",
+                "x11_socket_paths": []},
+    "sessions": [], "rustdesk": {"service": "active"},
+}
+xfce_signals = {"manager": "lightdm", "drm": "connected", "resolution": "", "rustdesk_id": ""}
+xfce_nodes = chain.build(xfce_host, xfce_signals)
+assert xfce_nodes[0].state == "ok" and xfce_nodes[0].value == "DRM 已连接"
+assert xfce_nodes[1].state == "unknown" and "LightDM" in xfce_nodes[1].value
+assert xfce_nodes[2].state == "unknown" and "Xorg 已安装" in xfce_nodes[2].value
+assert xfce_nodes[3].state == "ok" and xfce_nodes[3].value == "XFCE"
+assert xfce_nodes[4].state == "unknown" and "未登录" in xfce_nodes[4].value
+inventory = chain.home_inventory(xfce_host, xfce_signals, 86)
+assert "必需软件包：缺失 0 项" in inventory, inventory
+for component in ("XFCE 会话", "Xorg（X11）", "D-Bus X11", "LightDM 登录管理器", "LightDM GTK Greeter", "RustDesk"):
+    assert "[已安装] " + component in inventory, component
+assert "[待启动] LightDM 登录服务" in inventory
+assert "[待登录] 图形用户会话" in inventory
+assert "[缺失] GNOME" not in inventory and "[缺失] GDM3" not in inventory
+assert "无需再装 Dummy/VKMS" in inventory
+# Missing actual requirements must be visible without discarding other statuses.
+without_greeter = {**xfce_host, "packages": {**xfce_host["packages"],
+    "lightdm-gtk-greeter": {"installed": False, "version": None}}}
+missing_inv = chain.home_inventory(without_greeter, xfce_signals, 70)
+assert "[缺失] LightDM GTK Greeter" in missing_inv
+assert "必需软件包：缺失 1 项" in missing_inv
+for width in (40, 66, 80, 110):
+    assert all(chain.text_width(line) <= max(24, width - 2)
+               for line in chain.home_inventory(xfce_host, xfce_signals, width).splitlines())
+# For GNOME/Wayland, Xorg absent is not a missing requirement.
+gnome_host = {**xfce_host, "packages": {name: {"installed": True, "version": "1.0"} for name in (
+    "gnome-shell", "gdm3", "pipewire", "xdg-desktop-portal", "xdg-desktop-portal-gnome", "rustdesk")},
+    "display": {"gdm3_service": "active", "lightdm_service": "inactive", "x11_socket_paths": []}}
+gnome_signals = {**xfce_signals, "manager": "gdm3"}
+assert chain.build(gnome_host, gnome_signals)[2].value == "Wayland 待登录"
+assert "必需软件包：缺失 0 项" in chain.home_inventory(gnome_host, gnome_signals)
+assert "[缺失] Xorg" not in chain.home_inventory(gnome_host, gnome_signals)
 
 # The JSON entry point must not emit ANSI, errors, credentials, or interactive prompts.
 p = subprocess.run(["bash", str(root / "hdm.sh"), "--chain-json"],

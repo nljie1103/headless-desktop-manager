@@ -94,8 +94,13 @@ def desktop_package(name: str) -> str:
             "GNOME": "gnome-shell", "KDE": "plasma-desktop"}.get(name, "")
 
 
-def preferred_desktop(report: dict) -> str:
-    for name in ("GNOME", "XFCE", "MATE", "KDE"):
+def preferred_desktop(report: dict, manager: str = "") -> str:
+    """Prefer the selected login stack; another installed desktop is optional."""
+    preferences = {
+        "lightdm": ("XFCE", "MATE", "GNOME", "KDE"),
+        "gdm3": ("GNOME", "XFCE", "MATE", "KDE"),
+    }.get(manager, ("XFCE", "MATE", "GNOME", "KDE"))
+    for name in preferences:
         if package(report, desktop_package(name)).get("installed"):
             return name
     return ""
@@ -176,7 +181,7 @@ def build(report: dict, signals: dict) -> list[Node]:
     truncated = bool(report.get("sessions_truncated"))
     session = active_session(report) if not multiple and not truncated else None
     desktop = desktop_name(session)
-    selected = desktop or preferred_desktop(report)
+    selected = desktop or preferred_desktop(report, signals.get("manager", ""))
     session_type = (session or {}).get("type", "")
     actual_dm = signals.get("manager", "")
     display = report.get("display", {})
@@ -250,7 +255,7 @@ def build(report: dict, signals: dict) -> list[Node]:
         dm_installed = detected in installed_dms
         dm_running = bool(running_dms)
         dm_state = ("unknown" if mismatch or (dm_running and not dm_installed)
-                    else ("ok" if dm_running else ("unknown" if graphical else "bad")))
+                    else ("ok" if dm_running else ("unknown" if dm_installed else "bad")))
         dm_detail = "v" + version(report, detected) if dm_installed else "版本未知"
         if mismatch:
             dm_detail += " · 默认" + dm_names[actual_dm]
@@ -294,9 +299,13 @@ def build(report: dict, signals: dict) -> list[Node]:
         p_explain = ("已有 Xorg 软件包，但没有已确认的 X11/Wayland 图形会话。"
                      "DRM connected 只说明内核显示输出已连接，不代表 Xorg 正在运行。"
                      "请先安装桌面会话、启动 LightDM/GDM3，再从另一设备实际验证。")
+    elif selected == "GNOME" and package(report, "gnome-shell").get("installed"):
+        p_state, p_value, p_detail, p_path = (
+            "unknown", "Wayland 待登录", "GNOME 已安装，未检测到用户会话", "/usr/share/wayland-sessions")
+        p_explain = "GNOME/Wayland 不依赖安装 Xorg；需启动 GDM3 并实际登录。"
     else:
-        p_state, p_value, p_detail, p_path = "bad", "未建立", "未安装 Xorg / 无活动会话", "Xorg / Wayland"
-        p_explain = "未检测到活跃 X11/Wayland 图形协议，不能推断桌面可被控制。"
+        p_state, p_value, p_detail, p_path = "bad", "未建立", "缺少图形协议依赖", "Xorg / Wayland"
+        p_explain = "缺少对应桌面的图形服务器或未建立会话，请按目标桌面补齐。"
     if not multiple and not truncated:
         protocol = Node("图形协议", p_state, p_value, p_detail, p_path, p_explain)
 
@@ -314,11 +323,11 @@ def build(report: dict, signals: dict) -> list[Node]:
     else:
         depkg = desktop_package(selected)
         desk_exists = bool(package(report, depkg).get("installed")) if depkg else False
-        d_state = "ok" if desktop and desk_exists else ("unknown" if selected else "bad")
+        d_state = "ok" if desk_exists else ("unknown" if selected else "bad")
         d_path = {"XFCE": "/usr/share/xsessions", "MATE": "/usr/share/xsessions",
                   "GNOME": "/usr/share/wayland-sessions", "KDE": "/usr/share/xsessions"}.get(selected, "—")
         desk = Node("桌面环境", d_state, selected or "未检测到",
-                    ("v" + version(report, depkg)) if desk_exists else ("已装但未登录" if selected else "未安装"),
+                    ("已安装 v" + version(report, depkg) + (" · 待登录" if not desktop else "")) if desk_exists else "未安装",
                     d_path, "软件包存在并不代表已启动；优先识别真实活跃的用户桌面。")
 
     if truncated:
@@ -348,7 +357,7 @@ def build(report: dict, signals: dict) -> list[Node]:
         s_path = "logind session " + sid if sid else "loginctl"
         s_explain = "logind 有活动用户会话；分辨率属于显示输出设置，非登录管理器。"
     else:
-        s_state, s_value, s_detail, s_path = "bad", "用户未登录", "没有可用会话", "loginctl"
+        s_state, s_value, s_detail, s_path = "unknown", "用户未登录", "需从登录界面登录", "loginctl"
         s_explain = "缺少已确认的活动图形用户会话。GDM/LightDM 服务运行不代表用户已登录。"
     if not multiple and not truncated:
         user_session = Node("图形会话", s_state, s_value, s_detail, s_path, s_explain)
@@ -384,18 +393,23 @@ def build(report: dict, signals: dict) -> list[Node]:
     return [output, dm_node, protocol, desk, user_session, rustdesk, identifier]
 
 
-def collect() -> list[Node]:
+def collect_data() -> tuple[list[Node], dict, dict]:
     report = status_json.collect()
     chosen = default_display_manager()
     resolution, output = xrandr_current()
-    return build(report, {
+    signals = {
         "manager": chosen,
         "drm": drm_status(),
         "resolution": resolution,
         "xrandr_output": output,
         "xrandr_display": os.getenv("DISPLAY", ""),
         "rustdesk_id": rustdesk_id() if package(report, "rustdesk").get("installed") else "",
-    })
+    }
+    return build(report, signals), report, signals
+
+
+def collect() -> list[Node]:
+    return collect_data()[0]
 
 
 def text_width(value: str) -> int:
@@ -487,19 +501,110 @@ def render(nodes: list[Node], cols: int = 80, enabled: bool = False, details: bo
         lines.append("  提示：使用 sudo hdm 查看管理员权限能访问的全部配置状态。")
     return "\n".join(lines)
 
+def home_inventory(report: dict, signals: dict, width: int = 80) -> str:
+    """Only target-stack requirements are missing; optional alternatives stay optional.
+
+    These are package/service facts, not an assertion of verified remote capture.
+    """
+    manager = signals.get("manager", "")
+    session = active_session(report)
+    desktop = desktop_name(session) or preferred_desktop(report, manager)
+    if not desktop:
+        system = report.get("system", {})
+        version_id = str(system.get("version_id") or "")
+        try:
+            modern = float(version_id) >= 25.10
+        except ValueError:
+            modern = False
+        desktop = "XFCE" if manager == "lightdm" or modern else "GNOME"
+    selected_dm = ("gdm3" if desktop == "GNOME" else "lightdm")
+    if manager in ("lightdm", "gdm3") and package(report, manager).get("installed"):
+        # Honor the user's configured manager rather than listing it as missing.
+        selected_dm = manager
+    session_name = "Wayland" if desktop == "GNOME" else "X11"
+    label_dm = {"lightdm": "LightDM", "gdm3": "GDM3"}
+    rows = [f"  目标：{desktop} / {session_name} / {label_dm[selected_dm]}（按已装桌面与默认登录管理器）"]
+    def row(status: str, label: str, extra: str = "") -> None:
+        line = f"  [{status}] {label}" + (f"  {extra}" if extra else "")
+        rows.append(clipped(line, max(24, width - 2)))
+
+    drm = signals.get("drm", "unknown")
+    if drm == "connected":
+        row("已连接", "DRM/KMS 显示输出", "无需再装 Dummy/VKMS")
+    elif drm == "disconnected":
+        row("待配置", "DRM/KMS 显示输出", "先检查实际输出，虚拟显示按需选择")
+    else:
+        row("待核实", "DRM/KMS 显示输出", "暂不假定需要 Dummy/VKMS")
+    requirements = {
+        "XFCE": [("xfce4-session", "XFCE 会话"),
+                 ("xserver-xorg-core", "Xorg（X11）"),
+                 ("dbus-x11", "D-Bus X11")],
+        "MATE": [("mate-session-manager", "MATE 会话"),
+                 ("xserver-xorg-core", "Xorg（X11）"),
+                 ("dbus-x11", "D-Bus X11")],
+        "GNOME": [("gnome-shell", "GNOME Shell"),
+                  ("pipewire", "PipeWire"),
+                  ("xdg-desktop-portal", "Desktop Portal")],
+        "KDE": [("plasma-desktop", "KDE Plasma"),
+                ("xserver-xorg-core", "Xorg（X11）")],
+    }
+    deps = list(requirements.get(desktop, []))
+    deps.append((selected_dm, label_dm[selected_dm] + " 登录管理器"))
+    if selected_dm == "lightdm":
+        deps.append(("lightdm-gtk-greeter", "LightDM GTK Greeter"))
+    if desktop == "GNOME":
+        deps.append(("xdg-desktop-portal-gnome", "GNOME Portal"))
+    deps.append(("rustdesk", "RustDesk"))
+    missing = 0
+    for key, label in deps:
+        if package(report, key).get("installed"):
+            row("已安装", label, version(report, key))
+        else:
+            row("缺失", label, f"软件包 {key}")
+            missing += 1
+    dm_service = report.get("display", {}).get(selected_dm + "_service", "unknown")
+    if dm_service == "active":
+        row("运行中", label_dm[selected_dm] + " 登录服务", "等待用户登录不等于故障")
+    elif package(report, selected_dm).get("installed"):
+        row("待启动", label_dm[selected_dm] + " 登录服务", "菜单 3 → 3")
+    else:
+        row("未就绪", label_dm[selected_dm] + " 登录服务", "需先安装登录管理器")
+    if report.get("sessions_truncated"):
+        row("待核实", "图形用户会话", "logind 列表不完整")
+    elif graphical_sessions(report):
+        row("已登录", "图形用户会话", f"{len(graphical_sessions(report))} 个")
+    else:
+        row("待登录", "图形用户会话", "登录界面不算已登录桌面")
+    rustdesk = report.get("rustdesk", {}).get("service", "unknown")
+    if package(report, "rustdesk").get("installed"):
+        row("运行中" if rustdesk == "active" else "待启动", "RustDesk 服务")
+    row("待实测", "RustDesk 画面与锁屏", "需要外部设备验证")
+    rows.append(f"  必需软件包：缺失 {missing} 项；GNOME/GDM3、Dummy、Xvfb 等非选用项不算故障。"
+                if desktop in ("XFCE", "MATE") and selected_dm == "lightdm"
+                else f"  必需软件包：缺失 {missing} 项；其他桌面和虚拟显示方案均为可选。")
+    return "\n".join(clipped(x, max(24, width - 2)) for x in rows)
+
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--width", type=int, default=shutil.get_terminal_size(fallback=(80, 24)).columns)
     parser.add_argument("--details", action="store_true")
+    parser.add_argument("--home", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
-    nodes = collect()
+    if args.home:
+        nodes, report, signals = collect_data()
+    else:
+        nodes = collect()
     if args.json:
         print(json.dumps([asdict(x) for x in nodes], ensure_ascii=False, indent=2))
     else:
         enabled = sys.stdout.isatty() and os.getenv("NO_COLOR") is None and os.getenv("TERM") != "dumb"
         print(render(nodes, args.width, enabled, args.details))
+        if args.home:
+            print("")
+            print(home_inventory(report, signals, args.width))
 
 
 if __name__ == "__main__":

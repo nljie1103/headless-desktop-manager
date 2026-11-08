@@ -145,6 +145,7 @@ def collect():
     pkgs = {k: installed(k) for k in ('ubuntu-desktop','ubuntu-desktop-minimal','gnome-shell','gdm3',
                                     'xserver-xorg-video-dummy','xserver-xorg-core','xvfb','rustdesk','lightdm',
                                     'lightdm-gtk-greeter','xfce4','xfce4-session','mate-session-manager',
+                                    'dbus-x11',
                                     'pipewire','xdg-desktop-portal','xdg-desktop-portal-gnome')}
     ss, sessions_truncated = sessions()
     # GDM greeter and user desktop are distinct; do not claim a working GNOME session from gdm3 alone.
